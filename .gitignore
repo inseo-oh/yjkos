@@ -1,0 +1,9 @@
+.cache
+.vscode
+compile_commands.json
+customrootfs/*
+out/
+kernel/shell/kdoom/thirdparty/PureDOOM.h
+support/thirdparty/terminus-font-*/*.psf
+support/rootfsmount
+harddisk.img

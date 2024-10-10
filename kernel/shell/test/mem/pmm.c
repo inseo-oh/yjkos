@@ -1,0 +1,35 @@
+#include "../../shell.h"
+#include "../test.h"
+#include <kernel/arch/interrupts.h>
+#include <kernel/mem/pmm.h>
+#include <kernel/status.h>
+#include <kernel/types.h>
+
+SHELLFUNC static testresult_t do_randalloc(void) {
+    bool previnterrupts = arch_interrupts_disable();
+    TEST_EXPECT(pmm_pagepool_test_random());
+    interrupts_restore(previnterrupts);
+    return TEST_OK;
+}
+
+SHELLFUNC static testresult_t do_badalloc(void) {
+    bool previnterrupts = arch_interrupts_disable();
+    size_t pagecount = 0;
+    physptr_t addr;
+    TEST_EXPECT(pmm_alloc(&addr, &pagecount) == ERR_NOMEM);
+    pagecount = ~0;
+    TEST_EXPECT(pmm_alloc(&addr, &pagecount) == ERR_NOMEM);
+    interrupts_restore(previnterrupts);
+    return TEST_OK;
+}
+
+SHELLRODATA static test_t const TESTS[] = {
+    { .name = "random allocation test", .fn = do_randalloc },
+    { .name = "bad allocation",         .fn = do_badalloc  },
+};
+
+SHELLDATA const testgroup_t TESTGROUP_PMM = {
+    .name = "pmm",
+    .tests = TESTS,
+    .testslen = sizeof(TESTS)/sizeof(*TESTS),
+};

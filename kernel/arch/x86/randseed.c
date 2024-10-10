@@ -1,0 +1,13 @@
+#include "asm/x86.h"
+#include <kernel/arch/randseed.h>
+#include <stdint.h>
+
+uint16_t arch_randseed(void) {
+    uint32_t upper, lower;
+    archx86_rdtsc(&upper, &lower);
+    uint16_t seed = ((lower >> 16) ^ lower);
+    if (seed == 0) {
+        seed++;
+    }
+    return seed;
+}
