@@ -13,7 +13,7 @@ def Which(program):
     return result
 
 HD_SECTOR_SIZE  = 512
-HD_SIZE_IN_MIB  = 1517
+HD_SIZE_IN_MIB  = 2048
 HD_PATH         = "harddisk.img"
 HD_SECTOR_COUNT = (HD_SIZE_IN_MIB * 1024 * 1024) // HD_SECTOR_SIZE
 
