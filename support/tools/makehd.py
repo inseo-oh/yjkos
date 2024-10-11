@@ -72,8 +72,15 @@ try:
     subprocess.run([Which("blkid"), partitionDevice]).check_returncode()
     sys.stderr.write("[makehd] Mount the disk\n")
     subprocess.run([Which("mount"), "-t", "ext2", partitionDevice, MOUNT_DIR]).check_returncode()
-    sys.stderr.write("[makehd] Copy customrootfs\n")
-    subprocess.run([Which("sh"), "-c", f"cp -av customrootfs/* {MOUNT_DIR}"]).check_returncode()
+    customrootfsexist = False
+    try:
+        os.listdir('customrootfs')
+        customrootfsexist = True
+    except FileNotFoundError:
+        pass
+    if customrootfsexist:
+        sys.stderr.write("[makehd] Copy customrootfs\n")
+        subprocess.run([Which("rsync"), "-arv", f"customrootfs/", MOUNT_DIR]).check_returncode()
     sys.stderr.write("[makehd] Print df\n")
     subprocess.run([Which("df"), "-h", partitionDevice]).check_returncode()
 finally:
