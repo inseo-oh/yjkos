@@ -42,7 +42,7 @@ static bool const CONFIG_SERIAL_DEBUG = true;
 static struct archx86_serial s_serial0;
 static bool s_serial0ready = false;
 
-NORETURN void archx86_kernelinit(uint32_t mbmagic, physptr_t mbinfoaddr) {
+NORETURN void archx86_kernelinit(uint32_t mbmagic, physptr mbinfoaddr) {
     status_t status;
 
     if (CONFIG_EARLY_VGATTY) {

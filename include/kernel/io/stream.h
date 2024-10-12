@@ -22,6 +22,6 @@ FAILABLE_FUNCTION stream_putstr(struct stream *self, char const *s);
 FAILABLE_FUNCTION stream_vprintf(struct stream *self, char const *fmt, va_list ap);
 FAILABLE_FUNCTION stream_printf(struct stream *self, char const *fmt, ...);
 // Set timeout to 0 for no timeout(wait infinitely)
-FAILABLE_FUNCTION stream_waitchar(char *char_out, struct stream *self, ticktime_t timeout);
+FAILABLE_FUNCTION stream_waitchar(char *char_out, struct stream *self, ticktime_type timeout);
 
 

@@ -15,7 +15,7 @@
 #include <string.h>
 
 struct pagetable {
-    archx86_mmuentry entry[ARCHX86_MMU_ENTRY_COUNT];
+    uint32_t entry[ARCHX86_MMU_ENTRY_COUNT];
 };
 STATIC_ASSERT_TEST(sizeof(struct pagetable) == ARCHX86_MMU_PAGE_SIZE);
 
@@ -36,7 +36,7 @@ STATIC_ASSERT_TEST(sizeof(struct pagetable) == ARCHX86_MMU_PAGE_SIZE);
 #define PAGEDIR_PT_BASE(_pde)  MAKE_VIRTADDR(ARCHX86_MMU_PAGEDIR_PDE, _pde, 0)
 
 
-static archx86_mmuentry *s_pagedir = (archx86_mmuentry *)PAGEDIR_PD_BASE;
+static uint32_t *s_pagedir = (uint32_t *)PAGEDIR_PD_BASE;
 static struct pagetable *s_pagetables = (struct pagetable *)PAGEDIR_PT_BASE(0);
 
 static uintptr_t makevirtaddr(size_t pde, size_t pte, size_t offset) {
@@ -68,7 +68,7 @@ void arch_mmu_flushtlb(void) {
     archx86_reloadcr3();
 }
 
-FAILABLE_FUNCTION arch_mmu_emulate(physptr_t *physaddr_out, uintptr_t virtaddr, memmapflags_t flags, bool isfromuser) {
+FAILABLE_FUNCTION arch_mmu_emulate(physptr *physaddr_out, uintptr_t virtaddr, uint8_t flags, bool isfromuser) {
 FAILABLE_PROLOGUE
     struct archx86_mmu_emulateresult result;
     *physaddr_out = 0;
@@ -87,16 +87,16 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-FAILABLE_FUNCTION arch_mmu_virttophys(physptr_t *physaddr_out, uintptr_t virtaddr) {
+FAILABLE_FUNCTION arch_mmu_virttophys(physptr *physaddr_out, uintptr_t virtaddr) {
 FAILABLE_PROLOGUE
     uint16_t pde = pdeindex(virtaddr);
     uint16_t pte = pteindex(virtaddr);
-    archx86_mmuentry pd_entry = s_pagedir[pde];
+    uint32_t pd_entry = s_pagedir[pde];
     *physaddr_out = 0;
     if (!(pd_entry & ARCHX86_MMU_PDE_FLAG_P)) {
         THROW(ERR_FAULT);
     }
-    archx86_mmuentry pt_entry = s_pagetables[pde].entry[pte];
+    uint32_t pt_entry = s_pagetables[pde].entry[pte];
     if (!(pt_entry & ARCHX86_MMU_PTE_FLAG_P)) {
         THROW(ERR_FAULT);
     }
@@ -111,7 +111,7 @@ FAILABLE_EPILOGUE_END
     assert((((_count) - 1) * ARCHX86_MMU_PAGE_SIZE) <= (UINTPTR_MAX - (_addr))); \
 }
 
-FAILABLE_FUNCTION arch_mmu_map(uintptr_t virtaddr, physptr_t physaddr, size_t pagecount, memmapflags_t flags, bool useraccess) {
+FAILABLE_FUNCTION arch_mmu_map(uintptr_t virtaddr, physptr physaddr, size_t pagecount, uint8_t flags, bool useraccess) {
 FAILABLE_PROLOGUE
     ASSERT_INTERRUPTS_DISABLED();
     bool pdcreated = false;
@@ -124,11 +124,11 @@ FAILABLE_PROLOGUE
     for (size_t i = 0; i < pagecount; i++) {
         uintptr_t currentvirtaddr = virtaddr + (i * ARCHX86_MMU_PAGE_SIZE);
         uint16_t pde = pdeindex(currentvirtaddr);
-        archx86_mmuentry pd_entry = s_pagedir[pde];
+        uint32_t pd_entry = s_pagedir[pde];
         if (!(pd_entry & ARCHX86_MMU_PDE_FLAG_P)) {
             // Create new PD
             size_t size = 1;
-            physptr_t addr;
+            physptr addr;
             TRY(pmm_alloc(&addr, &size));
             pdcreated = true;
             s_pagedir[pde] = addr | ARCHX86_MMU_PDE_FLAG_P | ARCHX86_MMU_PDE_FLAG_RW | ARCHX86_MMU_PDE_FLAG_US;
@@ -145,7 +145,7 @@ FAILABLE_PROLOGUE
         uintptr_t currentphysaddr = physaddr + (i * ARCHX86_MMU_PAGE_SIZE);
         uint16_t pde = pdeindex(currentvirtaddr);
         uint16_t pte = pteindex(currentvirtaddr);
-        archx86_mmuentry oldpte = s_pagetables[pde].entry[pte];
+        uint32_t oldpte = s_pagetables[pde].entry[pte];
         bool shouldflush = false;
         if (oldpte & ARCHX86_MMU_PTE_FLAG_P) {
             // See if we need to invalidate old TLB
@@ -155,7 +155,7 @@ FAILABLE_PROLOGUE
             if ((oldpte & ARCHX86_MMU_PTE_FLAG_US) && !useraccess) {
                 shouldflush = true;
             }
-            physptr_t oldaddr = oldpte & ~0xfff;
+            physptr oldaddr = oldpte & ~0xfff;
             if (oldaddr != currentphysaddr) {
                 shouldflush = true;
             }
@@ -182,7 +182,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-FAILABLE_FUNCTION arch_mmu_remap(uintptr_t virtaddr, size_t pagecount, memmapflags_t flags, bool useraccess) {
+FAILABLE_FUNCTION arch_mmu_remap(uintptr_t virtaddr, size_t pagecount, uint8_t flags, bool useraccess) {
 FAILABLE_PROLOGUE
     ASSERT_INTERRUPTS_DISABLED();
     ASSERT_ADDR_VALID(virtaddr, pagecount);
@@ -193,11 +193,11 @@ FAILABLE_PROLOGUE
         uintptr_t currentvirtaddr = virtaddr + (i * ARCHX86_MMU_PAGE_SIZE);
         uint16_t pde = pdeindex(currentvirtaddr);
         uint16_t pte = pteindex(currentvirtaddr);
-        archx86_mmuentry pd_entry = s_pagedir[pde];
+        uint32_t pd_entry = s_pagedir[pde];
         if (!(pd_entry & ARCHX86_MMU_PDE_FLAG_P)) {
             THROW(ERR_FAULT);
         }
-        archx86_mmuentry oldpte = s_pagetables[pde].entry[pte];
+        uint32_t oldpte = s_pagetables[pde].entry[pte];
         if (!(oldpte & ARCHX86_MMU_PTE_FLAG_P)) {
             THROW(ERR_FAULT);
         }
@@ -207,7 +207,7 @@ FAILABLE_PROLOGUE
         uintptr_t current_virtaddr = virtaddr + (i * ARCHX86_MMU_PAGE_SIZE);
         uint16_t pde = pdeindex(current_virtaddr);
         uint16_t pte = pteindex(current_virtaddr);
-        archx86_mmuentry oldpte = s_pagetables[pde].entry[pte];
+        uint32_t oldpte = s_pagetables[pde].entry[pte];
         bool should_flush = false;
         // See if we need to invalidate old TLB
         if ((oldpte & ARCHX86_MMU_PTE_FLAG_RW) && !(flags & MAP_PROT_WRITE)) {
@@ -242,11 +242,11 @@ FAILABLE_PROLOGUE
         uintptr_t current_virtaddr = virtaddr + (i * ARCHX86_MMU_PAGE_SIZE);
         uint16_t pde = pdeindex(current_virtaddr);
         uint16_t pte = pteindex(current_virtaddr);
-        archx86_mmuentry pd_entry = s_pagedir[pde];
+        uint32_t pd_entry = s_pagedir[pde];
         if (!(pd_entry & ARCHX86_MMU_PDE_FLAG_P)) {
             THROW(ERR_FAULT);
         }
-        archx86_mmuentry oldpte = s_pagetables[pde].entry[pte];
+        uint32_t oldpte = s_pagetables[pde].entry[pte];
         if (!(oldpte & ARCHX86_MMU_PTE_FLAG_P)) {
             THROW(ERR_FAULT);
         }
@@ -266,16 +266,16 @@ FAILABLE_EPILOGUE_END
 
 STATIC_ASSERT_TEST(ARCHX86_MMU_SCRATCH_PDE == (ARCHX86_MMU_KERNEL_PDE_START + ARCHX86_MMU_KERNEL_PDE_COUNT - 1));
 
-void arch_mmu_scratchmap(physptr_t physaddr, bool nocache) {
+void arch_mmu_scratchmap(physptr physaddr, bool nocache) {
     ASSERT_INTERRUPTS_DISABLED();
     assert(isaligned(physaddr, ARCHX86_MMU_PAGE_SIZE));
     uint16_t pde = ARCHX86_MMU_SCRATCH_PDE;
     uint16_t pte = ARCHX86_MMU_SCRATCH_PTE;
-    archx86_mmuentry pd_entry = s_pagedir[pde];
+    uint32_t pd_entry = s_pagedir[pde];
     assert(pd_entry & ARCHX86_MMU_PDE_FLAG_P);
-    archx86_mmuentry oldpte = s_pagetables[pde].entry[pte];
+    uint32_t oldpte = s_pagetables[pde].entry[pte];
     bool should_flush = false;
-    physptr_t oldaddr = 0;
+    physptr oldaddr = 0;
     if (oldpte & ARCHX86_MMU_PTE_FLAG_P) {
         // See if we need to invalidate old TLB
         if (oldpte & ARCHX86_MMU_PTE_FLAG_US) {
@@ -303,7 +303,7 @@ bool archx86_mmu_emulate(struct archx86_mmu_emulateresult *result_out, uintptr_t
     uint16_t pde = pdeindex(virtaddr);
     uint16_t pte = pteindex(virtaddr);
     bool ok = true;
-    archx86_mmuentry pd_entry = s_pagedir[pde];
+    uint32_t pd_entry = s_pagedir[pde];
     result_out->faultflags = 0;
     result_out->physaddr = 0;
     if (!(pd_entry & ARCHX86_MMU_PDE_FLAG_P)) {
@@ -321,7 +321,7 @@ bool archx86_mmu_emulate(struct archx86_mmu_emulateresult *result_out, uintptr_t
     if (!ok) {
         goto fail;
     }
-    archx86_mmuentry pt_entry = s_pagetables[pde].entry[pte];
+    uint32_t pt_entry = s_pagetables[pde].entry[pte];
     if (!(pt_entry & ARCHX86_MMU_PTE_FLAG_P)) {
         result_out->faultflags |= ARCHX86_MMU_EMUTRANS_FAULT_FLAG_PTE_MISSING;
         ok = false;

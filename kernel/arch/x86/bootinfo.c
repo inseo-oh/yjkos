@@ -15,15 +15,15 @@
 #include <string.h>
 
 struct memregion {
-    physptr_t base;
+    physptr base;
     size_t len;
 };
 
-static void excluderegion(struct memregion *before_out, struct memregion *after_out, physptr_t addr, size_t len, physptr_t excludeaddr, size_t excludelen) {
-    physptr_t start = addr;
-    physptr_t end = start + len;
-    physptr_t excludestart = excludeaddr;
-    physptr_t excludeend = excludestart + excludelen;
+static void excluderegion(struct memregion *before_out, struct memregion *after_out, physptr addr, size_t len, physptr excludeaddr, size_t excludelen) {
+    physptr start = addr;
+    physptr end = start + len;
+    physptr excludestart = excludeaddr;
+    physptr excludeend = excludestart + excludelen;
     if ((end <= excludestart) || (excludeend <= start)) {
         before_out->base = start;
         before_out->len = len;
@@ -38,10 +38,10 @@ static void excluderegion(struct memregion *before_out, struct memregion *after_
         excludeend = UINTPTR_MAX;
     }
 
-    physptr_t beforestart = start;
-    physptr_t beforeend = excludestart;
-    physptr_t afterstart = excludeend;
-    physptr_t afterend = end;
+    physptr beforestart = start;
+    physptr beforeend = excludestart;
+    physptr afterstart = excludeend;
+    physptr afterend = end;
 
     memset(before_out, 0, sizeof(*before_out));
     memset(after_out, 0, sizeof(*after_out));
@@ -66,7 +66,7 @@ enum addrlimitresult {
     ADDRLIMIT_OK,
 };
 
-static enum addrlimitresult limitto32bitaddr(physptr_t *addr_out, size_t *len_out, uint64_t addr, uint64_t len) {
+static enum addrlimitresult limitto32bitaddr(physptr *addr_out, size_t *len_out, uint64_t addr, uint64_t len) {
     uint64_t firstaddr = addr;
     uint64_t lastaddr = addr + len - 1;
     bool outside32bit = false;
@@ -103,7 +103,7 @@ static void humanreadablelen(size_t *len_out, char const **unit_out, size_t len)
     *unit_out = UNITS[idx];
 }
 
-void archx86_bootinfo_process(physptr_t infoaddr) {
+void archx86_bootinfo_process(physptr infoaddr) {
     struct multiboot_info info;
     pmemcpy_in(&info, infoaddr, sizeof(info), false);
     if (info.flags & MULTIBOOT_INFO_MEM_MAP) {
@@ -130,7 +130,7 @@ void archx86_bootinfo_process(physptr_t infoaddr) {
             totalsize = sizeof(entry.size) + entry.size;
             readlen += totalsize;
     
-            physptr_t addr;
+            physptr addr;
             size_t len;
             uint32_t type = entry.type;
             switch(limitto32bitaddr(&addr, &len, entry.addr, entry.len)) {
@@ -171,7 +171,7 @@ void archx86_bootinfo_process(physptr_t infoaddr) {
             totalsize = sizeof(entry.size) + entry.size;
             readlen += totalsize;
 
-            physptr_t addr;
+            physptr addr;
             size_t len;
             switch(limitto32bitaddr(&addr, &len, entry.addr, entry.len)) {
                 case ADDRLIMIT_IGNORE:
@@ -229,7 +229,7 @@ void archx86_bootinfo_process(physptr_t infoaddr) {
                 }
             }
             for (size_t i = 0; i < resultregionscount; i++) {
-                physptr_t addr = resultregions[i].base;
+                physptr addr = resultregions[i].base;
                 size_t len = resultregions[i].len;
 
                 // Align address to page boundary

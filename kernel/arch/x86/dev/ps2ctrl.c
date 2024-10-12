@@ -67,7 +67,7 @@ struct portcontext {
 
 static FAILABLE_FUNCTION waitforrecv(void) {
 FAILABLE_PROLOGUE
-    ticktime_t oldtime = g_ticktime;
+    ticktime_type oldtime = g_ticktime;
     bool timeout = true;
     while ((g_ticktime - oldtime) < PS2_TIMEOUT) {
         uint8_t ctrl_status = archx86_in8(STATUS_PORT);
@@ -86,7 +86,7 @@ FAILABLE_EPILOGUE_END
 
 static FAILABLE_FUNCTION waitforsend(void) {
 FAILABLE_PROLOGUE
-    ticktime_t oldtime = g_ticktime;
+    ticktime_type oldtime = g_ticktime;
     bool timeout = true;
     while ((g_ticktime - oldtime) < PS2_TIMEOUT) {
         uint8_t ctrl_status = archx86_in8(STATUS_PORT);

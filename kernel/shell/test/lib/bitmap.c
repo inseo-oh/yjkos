@@ -14,7 +14,7 @@ SHELLFUNC static bool do_makebitmask(void) {
 
 SHELLFUNC static bool do_findfirstsetbit(void) {
     struct bitmap bmp;
-    bitword_t words[] = {
+    uint words[] = {
         0xe0ddf00d, // 11100000110111011111000000001101
         0x10abcdef, // 00010000101010111100110111101111
         0xcafefeed, // 11001010111111101111111011101101
@@ -33,7 +33,7 @@ SHELLFUNC static bool do_findfirstsetbit(void) {
 
 SHELLFUNC static bool do_findlastcontiguousbit(void) {
     struct bitmap bmp;
-    bitword_t words[] = {
+    uint words[] = {
         0xe0ddf00d, // 11100000110111011111000000001101
         0x90abcdef, // 10010000101010111100110111101111
         0xcafefeed, // 11001010111111101111111011101101
@@ -55,7 +55,7 @@ SHELLFUNC static bool do_findlastcontiguousbit(void) {
 
 SHELLFUNC static bool do_arebitsset(void) {
     struct bitmap bmp;
-    bitword_t words[] = {
+    uint words[] = {
         0xe0ddf00d, // 11100000110111011111000000001101
         0x90abcdef, // 10010000101010111100110111101111
         0xffffffff, // 11111111111111111111111111111111
@@ -80,7 +80,7 @@ SHELLFUNC static bool do_arebitsset(void) {
 
 SHELLFUNC static bool do_setbits(void) {
     struct bitmap bmp;
-    bitword_t words[] = {
+    uint words[] = {
         0, 0, 0,
     };
     bmp.words = words;
@@ -107,7 +107,7 @@ SHELLFUNC static bool do_setbits(void) {
 
 SHELLFUNC static bool do_clearbits(void) {
     struct bitmap bmp;
-    bitword_t words[] = {
+    uint words[] = {
         0xffffffff, 0xffffffff, 0xffffffff,
     };
     bmp.words = words;
@@ -134,7 +134,7 @@ SHELLFUNC static bool do_clearbits(void) {
 
 SHELLFUNC static bool do_findsetbits(void) {
     struct bitmap bmp;
-    bitword_t words[] = {
+    uint words[] = {
         0xe0ddf00d, // 11100000110111011111000000001101
         0x10abcdef, // 00010000101010111100110111101111
         0xffffffff, // 11111111111111111111111111111111

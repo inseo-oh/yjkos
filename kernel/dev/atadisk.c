@@ -18,12 +18,12 @@ FAILABLE_PROLOGUE
     enum {
         STATUS_POLL_PERIOD = 10,
     };
-    ticktime_t starttime = g_ticktime;
-    ticktime_t lastchecktime = 0;
+    ticktime_type starttime = g_ticktime;
+    ticktime_type lastchecktime = 0;
     bool ok = false;
     while ((g_ticktime - starttime) < TIMEOUT) {
         if (STATUS_POLL_PERIOD <= (lastchecktime - g_ticktime)) {
-            ata_status_t diskstatus = disk->ops->readstatus(disk);
+            uint8_t diskstatus = disk->ops->readstatus(disk);
             if (diskstatus & (ATA_STATUSFLAG_ERR | ATA_STATUSFLAG_DF)) {
                 THROW(ERR_IO);
             }
@@ -47,10 +47,10 @@ FAILABLE_PROLOGUE
     enum {
         STATUS_POLL_PERIOD = 10,
     };
-    ticktime_t starttime = g_ticktime;
+    ticktime_type starttime = g_ticktime;
     bool ok = false;
     while ((g_ticktime - starttime) < TIMEOUT) {
-        ata_status_t diskstatus = disk->ops->readstatus(disk);
+        uint8_t diskstatus = disk->ops->readstatus(disk);
         if (!(diskstatus & ATA_STATUSFLAG_BSY)) {
             ok = true;
             break;
@@ -80,10 +80,10 @@ FAILABLE_EPILOGUE_END
 
 static FAILABLE_FUNCTION waitdrqset(struct atadisk *disk) {
 FAILABLE_PROLOGUE
-    ticktime_t starttime = g_ticktime;
+    ticktime_type starttime = g_ticktime;
     bool ok = false;
     while ((g_ticktime - starttime) < TIMEOUT) {
-        ata_status_t diskstatus = disk->ops->readstatus(disk);
+        uint8_t diskstatus = disk->ops->readstatus(disk);
         if (diskstatus & (ATA_STATUSFLAG_ERR | ATA_STATUSFLAG_DF)) {
             THROW(ERR_IO);
         }
@@ -117,7 +117,7 @@ FAILABLE_PROLOGUE
     TRY(disk->ops->selectdisk(disk));
     disk->ops->setlbaparam(disk, 0);
     disk->ops->issuecmd(disk, ATA_CMD_IDENTIFYDEVICE);
-    ata_status_t diskstatus = disk->ops->readstatus(disk);
+    uint8_t diskstatus = disk->ops->readstatus(disk);
     if (diskstatus == 0) {
         // Disk is not there
         THROW(ERR_NODEV);
@@ -125,7 +125,7 @@ FAILABLE_PROLOGUE
     TRY(waitbusyclear_irq(disk));
 
     // Wait for DRQ. waitdrqset() isn't used, because we also check LBA outputs while waiting.
-    ticktime_t starttime = g_ticktime;
+    ticktime_type starttime = g_ticktime;
     bool ok = false;
     while ((g_ticktime - starttime) < TIMEOUT) {
         uint32_t lba = disk->ops->getlbaoutput(disk);
@@ -133,7 +133,7 @@ FAILABLE_PROLOGUE
             // Not an ATA device
             THROW(ERR_NODEV);
         }
-        ata_status_t diskstatus = disk->ops->readstatus(disk);
+        uint8_t diskstatus = disk->ops->readstatus(disk);
         if (diskstatus & (ATA_STATUSFLAG_ERR | ATA_STATUSFLAG_DF)) {
             THROW(ERR_IO);
         }

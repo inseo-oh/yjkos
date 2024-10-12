@@ -28,10 +28,10 @@ static bool const CONFIG_TEST_POOL = false;
 struct pagepool {
     struct pagepool *nextpool;
     struct bitmap bitmap;
-    physptr_t baseaddr;
+    physptr baseaddr;
     size_t pagecount;
     uint8_t levelcount;
-    bitword_t bitmapdata[];
+    uint bitmapdata[];
 };
 
 static struct pagepool *s_firstpool;
@@ -88,7 +88,7 @@ static void calculate_pagepoolsizes(size_t *pagecount_out, size_t *levelcount_ou
     *bitcount_out = bitcount;
 }
 
-static void bitindicesrange_for_level(bitindex_t *start_out, bitindex_t *end_out, size_t level) {
+static void bitindicesrange_for_level(long *start_out, long *end_out, size_t level) {
     size_t blockinlevel = 1;
     size_t currentlevel = 0;
     size_t bitoffset = 0;
@@ -101,8 +101,8 @@ static void bitindicesrange_for_level(bitindex_t *start_out, bitindex_t *end_out
     *end_out = bitoffset + blockinlevel - 1;
 }
 
-static bitindex_t bitindex_for_pagepoolblock(size_t level, size_t block) {
-    bitindex_t start, end;
+static long bitindex_for_pagepoolblock(size_t level, size_t block) {
+    long start, end;
     bitindicesrange_for_level(&start, &end, level);
     size_t blocksinlevel = end - start + 1;
     assert(block < blocksinlevel);
@@ -120,7 +120,7 @@ static size_t blocksize_to_pagepoollevel(struct pagepool const *pool, size_t siz
 }
 
 
-static FAILABLE_FUNCTION allocfrompool(physptr_t *addr_out, struct pagepool *pool, size_t *pagecount_inout) {
+static FAILABLE_FUNCTION allocfrompool(physptr *addr_out, struct pagepool *pool, size_t *pagecount_inout) {
 FAILABLE_PROLOGUE
     if (*pagecount_inout == 0) {
         THROW(ERR_NOMEM);
@@ -141,9 +141,9 @@ FAILABLE_PROLOGUE
     size_t foundlevel = wantedlevel;
     size_t foundblockindex;
     while(1) {
-        bitindex_t bitstart, bitend;
+        long bitstart, bitend;
         bitindicesrange_for_level(&bitstart, &bitend, foundlevel);
-        bitindex_t foundat = bitmap_findsetbits(&pool->bitmap, bitstart, 1);
+        long foundat = bitmap_findsetbits(&pool->bitmap, bitstart, 1);
         if (0 <= foundat && foundat <= bitend) {
             // Found block
             foundblockindex = foundat - bitstart;
@@ -158,7 +158,7 @@ FAILABLE_PROLOGUE
     size_t currentblockindex = foundblockindex;
     for (size_t currentlevel = foundlevel; currentlevel < wantedlevel; currentlevel++, currentblockindex *= 2) {
         // Mark current one as unavilable.
-        bitindex_t bitindex = bitindex_for_pagepoolblock(currentlevel, currentblockindex);
+        long bitindex = bitindex_for_pagepoolblock(currentlevel, currentblockindex);
         bitmap_clearbit(&pool->bitmap, bitindex);
         // Mark upper block's second block as available.
         // (First block will be marked as unavailable next time, so don't touch that)
@@ -166,7 +166,7 @@ FAILABLE_PROLOGUE
         bitmap_setbit(&pool->bitmap, bitindex);
     }
     // Mark resulting block as unavailable
-    bitindex_t bitindex = bitindex_for_pagepoolblock(wantedlevel, currentblockindex);
+    long bitindex = bitindex_for_pagepoolblock(wantedlevel, currentblockindex);
     bitmap_clearbit(&pool->bitmap,bitindex);
 
     *addr_out = pool->baseaddr + (blocksize * currentblockindex * ARCH_PAGESIZE);
@@ -174,7 +174,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END 
 }
 
-static void freefrompool(struct pagepool *pool, physptr_t ptr, size_t pagecount) {
+static void freefrompool(struct pagepool *pool, physptr ptr, size_t pagecount) {
     if (ptr == 0) {
         return;
     }
@@ -197,7 +197,7 @@ static void freefrompool(struct pagepool *pool, physptr_t ptr, size_t pagecount)
     assert(((ptr - pool->baseaddr) % (blocksize * ARCH_PAGESIZE)) == 0);
     while (1) {
         // Mark it as available
-        bitindex_t bitindex = bitindex_for_pagepoolblock(currentlevel, currentblockindex);
+        long bitindex = bitindex_for_pagepoolblock(currentlevel, currentblockindex);
         if (bitmap_isbitset(&pool->bitmap, bitindex)) {
             tty_printf("double free detected\n");
             goto die;
@@ -239,11 +239,11 @@ static bool testpagepool(struct pagepool *pool) {
             break;
         }
         size_t currentallocsize = currentpagecount * ARCH_PAGESIZE;
-        size_t testptrcount = currentallocsize / sizeof(physptr_t); 
-        physptr_t expectedptr = pool->baseaddr;
+        size_t testptrcount = currentallocsize / sizeof(physptr); 
+        physptr expectedptr = pool->baseaddr;
         for (size_t i = 0; i < currentalloccount; i++, expectedptr += currentallocsize) {
             size_t resultpagecount = currentpagecount;
-            physptr_t allocptr;
+            physptr allocptr;
             status_t status = allocfrompool(&allocptr, pool, &resultpagecount);
             if (status != OK) {
                 tty_printf("could not allocate pages(allocation %zu, page count %zu)\n", i, currentpagecount);
@@ -258,20 +258,20 @@ static bool testpagepool(struct pagepool *pool) {
                 goto testfail;
             }
         }
-        physptr_t allocptr = pool->baseaddr;
+        physptr allocptr = pool->baseaddr;
         for (size_t i = 0; i < currentalloccount; i++, allocptr += currentallocsize) {
             for (size_t j = 0; j < testptrcount; j++) {
-                physptr_t dest_addr = allocptr + (sizeof(physptr_t) * j);
-                STATIC_ASSERT_TEST(sizeof(bitword_t) == sizeof(uint32_t));
+                physptr dest_addr = allocptr + (sizeof(physptr) * j);
+                STATIC_ASSERT_TEST(sizeof(uint) == sizeof(uint32_t));
                 ppoke32(dest_addr, dest_addr, false);
             }
         }
         allocptr = pool->baseaddr;
         for (size_t i = 0; i < currentalloccount; i++, allocptr += currentallocsize) {
             for (size_t j = 0; j < testptrcount; j++) {
-                physptr_t srcaddr = allocptr + (sizeof(physptr_t) * j);
-                physptr_t expectedvalue = srcaddr;
-                physptr_t gotvalue = ppeek32(srcaddr, false);
+                physptr srcaddr = allocptr + (sizeof(physptr) * j);
+                physptr expectedvalue = srcaddr;
+                physptr gotvalue = ppeek32(srcaddr, false);
                 if (expectedvalue  != gotvalue) {
                     tty_printf("value mismatch at %p(allocation %zu, base %p, offset %zu): expected %p, got %p\n", srcaddr, i, allocptr, j, expectedvalue, gotvalue);
                     goto testfail;
@@ -304,7 +304,7 @@ void pmm_testpagepools(void) {
     }
 }
 
-void pmm_register(physptr_t base, size_t pagecount) {
+void pmm_register(physptr base, size_t pagecount) {
     assert(base != 0);
 
     uintptr_t current_baseaddress = base;
@@ -313,7 +313,7 @@ void pmm_register(physptr_t base, size_t pagecount) {
         size_t poolpagecount = 0, levelcount = 0, bitcount = 0;
         calculate_pagepoolsizes(&poolpagecount, &levelcount, &bitcount, remaining_pagecount);
         size_t wordcount = bitmap_neededwordcount(bitcount);
-        size_t bitmapsize = wordcount * sizeof(bitword_t);
+        size_t bitmapsize = wordcount * sizeof(uint);
         size_t metadatasize = bitmapsize + sizeof(struct pagepool);
         struct pagepool *pool = heap_alloc(metadatasize, HEAP_FLAG_ZEROMEMORY);
         if (pool == NULL) {
@@ -343,7 +343,7 @@ void pmm_register(physptr_t base, size_t pagecount) {
     }
 }
 
-FAILABLE_FUNCTION pmm_alloc(physptr_t *ptr_out, size_t *pagecount_inout) {
+FAILABLE_FUNCTION pmm_alloc(physptr *ptr_out, size_t *pagecount_inout) {
 FAILABLE_PROLOGUE
     bool previnterrupts = arch_interrupts_disable();
     if (*pagecount_inout == 0) {
@@ -367,7 +367,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-void pmm_free(physptr_t ptr, size_t pagecount) {
+void pmm_free(physptr ptr, size_t pagecount) {
     if ((ptr == 0) || (pagecount == 0)) {
         return;
     }
@@ -407,7 +407,7 @@ enum {
 
 bool pmm_pagepool_test_random(void) {
     size_t allocsizes[RAND_TEST_ALLOC_COUNT];
-    physptr_t allocptrs[RAND_TEST_ALLOC_COUNT];
+    physptr allocptrs[RAND_TEST_ALLOC_COUNT];
 
     size_t maxpagecount = 0;
     for (struct pagepool *pool = s_firstpool; pool != NULL; pool = pool->nextpool) {
@@ -432,17 +432,17 @@ bool pmm_pagepool_test_random(void) {
     for (size_t i = 0; i < RAND_TEST_ALLOC_COUNT; i++) {
         size_t testptrcount = (allocsizes[i] * ARCH_PAGESIZE) / sizeof(void *); 
         for (size_t j = 0; j < testptrcount; j++) {
-            physptr_t destaddr = allocptrs[i] + sizeof(physptr_t) * 4;
-            STATIC_ASSERT_TEST(sizeof(physptr_t) == sizeof(uint32_t));
+            physptr destaddr = allocptrs[i] + sizeof(physptr) * 4;
+            STATIC_ASSERT_TEST(sizeof(physptr) == sizeof(uint32_t));
             ppoke32(destaddr, destaddr, false);
         }
     }
     for (size_t i = 0; i < RAND_TEST_ALLOC_COUNT; i++) {
         size_t testptrcount = (allocsizes[i] * ARCH_PAGESIZE) / sizeof(void *); 
         for (size_t j = 0; j < testptrcount; j++) {
-            physptr_t srcaddr = allocptrs[i] + sizeof(physptr_t) * 4;
-            physptr_t expectedvalue = srcaddr;
-            physptr_t gotvalue = ppeek32(srcaddr, false);
+            physptr srcaddr = allocptrs[i] + sizeof(physptr) * 4;
+            physptr expectedvalue = srcaddr;
+            physptr gotvalue = ppeek32(srcaddr, false);
             if (gotvalue != expectedvalue) {
                 tty_printf("value mismatch at %p(allocation %zu, base %p, offset %zu): expected %p, got %p\n", srcaddr, i, allocptrs[i], j, expectedvalue, gotvalue);
                 goto testfail;

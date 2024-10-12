@@ -16,7 +16,7 @@ static void stacktrace_with_frame(struct funcstackframe *startingframe) {
     tty_printf("stack trace:\n");
     struct funcstackframe *frame = startingframe;
     while (frame != NULL) {
-        physptr_t physaddr;
+        physptr physaddr;
         status_t status = arch_mmu_virttophys(&physaddr, (uintptr_t)frame);
         if (status != OK) {
             tty_printf("  stack frame at %p is not accessible. STOP.\n", frame);

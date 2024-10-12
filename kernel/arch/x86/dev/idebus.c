@@ -41,16 +41,16 @@ struct shared {
 };
 
 struct bus {
-    physptr_t prdtphysbase;
+    physptr prdtphysbase;
     size_t prdcount;
     struct prd *prdt;
     struct shared *shared;
     void *dmabuffer;
     struct archx86_pic_irqhandler irqhandler;
-    archx86_ioaddr_t iobase;
-    archx86_ioaddr_t ctrlbase;
-    archx86_ioaddr_t busmastrerbase;
-    pcipath_t pcipath;
+    uint16_t iobase;
+    uint16_t ctrlbase;
+    uint16_t busmastrerbase;
+    pcipath pcipath;
     int8_t lastselecteddrive; // -1: No device was selected before
     _Atomic bool buslockflag;
     _Atomic bool gotirq;
@@ -118,7 +118,7 @@ static uint16_t ctrlin16(struct bus *self, enum ctrlreg reg) {
     return archx86_in16(self->ctrlbase + reg);
 }
 
-static ata_status_t readstatus(struct bus *self) {
+static uint8_t readstatus(struct bus *self) {
     return ctrlin8(self, CTRLREG_ALTERNATESTATUS);
 }
 
@@ -179,7 +179,7 @@ static FAILABLE_FUNCTION atadisk_op_selectdisk(struct atadisk *self) {
     struct disk *disk = self->data;
     return selectdrive(disk->bus, disk->driveid);
 }
-static ata_status_t atadisk_op_readstatus(struct atadisk *self) {
+static uint8_t atadisk_op_readstatus(struct atadisk *self) {
     struct disk *disk = self->data;
     return readstatus(disk->bus);
 }
@@ -453,7 +453,7 @@ static void irqhandler(int irqnum,  void *data) {
     archx86_pic_sendeoi(irqnum);
 }
 
-static FAILABLE_FUNCTION initcontroller(struct shared *shared, archx86_ioaddr_t iobase, archx86_ioaddr_t ctrlbase, archx86_ioaddr_t busmastrerbase, pcipath_t pcipath, bool busmasterenabled, uint8_t irq, size_t channalindex) {
+static FAILABLE_FUNCTION initcontroller(struct shared *shared, uint16_t iobase, uint16_t ctrlbase, uint16_t busmastrerbase, pcipath pcipath, bool busmasterenabled, uint8_t irq, size_t channalindex) {
 FAILABLE_PROLOGUE
     struct bus *bus = heap_alloc(sizeof(*bus), HEAP_FLAG_ZEROMEMORY);
     if (bus == NULL) {
@@ -573,7 +573,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static void pciprobecallback(pcipath_t path, uint16_t venid, uint16_t devid, uint8_t baseclass, uint8_t subclass, void *data) {
+static void pciprobecallback(pcipath path, uint16_t venid, uint16_t devid, uint8_t baseclass, uint8_t subclass, void *data) {
     enum {
         // Each channel can be either in native or compatibility mode(~_NATIVE flag set means it's in native mode),
         // and ~_SWITCHABLE flag means whether it is possible to switch between two modes.
@@ -592,7 +592,7 @@ static void pciprobecallback(pcipath_t path, uint16_t venid, uint16_t devid, uin
     uint8_t progif = pci_readprogif(path);
     uint8_t channel0irq = 14;
     uint8_t channel1irq = 15;
-    // These are uintptr_t instead of archx86_ioaddr_t, because PCI APIs want pointers to uintptr_t values.
+    // These are uintptr_t instead of uint16_t, because PCI APIs want pointers to uintptr_t values.
     uintptr_t channel0iobase = 0x1F0;
     uintptr_t channel0ctrlbase = 0x3F6;
     uintptr_t channel1iobase = 0x170;

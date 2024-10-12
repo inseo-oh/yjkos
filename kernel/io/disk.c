@@ -9,7 +9,7 @@
 #include <stdint.h>
 #include <string.h>
 
-static void toabsblockrange(size_t *firstaddr_out, struct ldisk *self, diskblkptr_t blockaddr, size_t *blockcount_inout) {
+static void toabsblockrange(size_t *firstaddr_out, struct ldisk *self, diskblkptr blockaddr, size_t *blockcount_inout) {
     size_t diskfirstblockaddr = self->startblockaddr;
     size_t disklastblockaddr = self->startblockaddr + (self->blockcount - 1);
     size_t firstabsaddr = 0;
@@ -26,7 +26,7 @@ static void toabsblockrange(size_t *firstaddr_out, struct ldisk *self, diskblkpt
     *blockcount_inout = finalblockcount;
 }
 
-FAILABLE_FUNCTION ldisk_read(struct ldisk *self, void *buf, diskblkptr_t blockaddr, size_t *blockcount_inout) {
+FAILABLE_FUNCTION ldisk_read(struct ldisk *self, void *buf, diskblkptr blockaddr, size_t *blockcount_inout) {
 FAILABLE_PROLOGUE
     size_t firstabsaddr = 0;
     toabsblockrange(&firstabsaddr, self, blockaddr, blockcount_inout);
@@ -39,7 +39,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-FAILABLE_FUNCTION ldisk_write(struct ldisk *self, void *buf, diskblkptr_t blockaddr, size_t *blockcount_inout) {
+FAILABLE_FUNCTION ldisk_write(struct ldisk *self, void *buf, diskblkptr blockaddr, size_t *blockcount_inout) {
 FAILABLE_PROLOGUE
     size_t firstabsaddr = 0;
     toabsblockrange(&firstabsaddr, self, blockaddr, blockcount_inout);
@@ -52,7 +52,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-FAILABLE_FUNCTION ldisk_read_exact(struct ldisk *self, void *buf, diskblkptr_t blockaddr, size_t blockcount) {
+FAILABLE_FUNCTION ldisk_read_exact(struct ldisk *self, void *buf, diskblkptr blockaddr, size_t blockcount) {
 FAILABLE_PROLOGUE
     size_t newblockcount = blockcount;
     TRY(ldisk_read(self, buf, blockaddr, &newblockcount));
@@ -63,7 +63,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-FAILABLE_FUNCTION ldisk_write_exact(struct ldisk *self, void *buf, diskblkptr_t blockaddr, size_t blockcount) {
+FAILABLE_FUNCTION ldisk_write_exact(struct ldisk *self, void *buf, diskblkptr blockaddr, size_t blockcount) {
 FAILABLE_PROLOGUE
     size_t newblockcount = blockcount;
     TRY(ldisk_write(self, buf, blockaddr, &newblockcount));
@@ -74,7 +74,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION register_ldisk(struct pdisk *pdisk, diskblkptr_t startblockaddr, size_t blockcount) {
+static FAILABLE_FUNCTION register_ldisk(struct pdisk *pdisk, diskblkptr startblockaddr, size_t blockcount) {
 FAILABLE_PROLOGUE
     struct ldisk *disk = heap_alloc(sizeof(*disk), HEAP_FLAG_ZEROMEMORY);
     if (disk == NULL) {

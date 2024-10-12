@@ -37,10 +37,9 @@ static void initdescriptor(struct gatedescriptor *out, uint32_t offset, uint16_t
     out->offset_b31tob16 = offset >> 16;
 }
 
-typedef void(handler_t)(void);
+typedef void(handler)(void);
 
-
-static handler_t *KERNEL_TRAPS[32] = {
+static handler *KERNEL_TRAPS[32] = {
     archx86_isr_exception0entry,  archx86_isr_exception1entry,  archx86_isr_exception2entry,  archx86_isr_exception3entry,
     archx86_isr_exception4entry,  archx86_isr_exception5entry,  archx86_isr_exception6entry,  archx86_isr_exception7entry,
     archx86_isr_exception8entry,  archx86_isr_exception9entry,  archx86_isr_exception10entry, archx86_isr_exception11entry,
@@ -51,7 +50,7 @@ static handler_t *KERNEL_TRAPS[32] = {
     archx86_isr_exception28entry, archx86_isr_exception29entry, archx86_isr_exception30entry, archx86_isr_exception31entry,
 };
 
-static handler_t *KERNEL_INTERRUPT_HANDLERS[] = {
+static handler *KERNEL_INTERRUPT_HANDLERS[] = {
     archx86_isr_interrupt32entry,  archx86_isr_interrupt33entry,  archx86_isr_interrupt34entry,  archx86_isr_interrupt35entry,
     archx86_isr_interrupt36entry,  archx86_isr_interrupt37entry,  archx86_isr_interrupt38entry,  archx86_isr_interrupt39entry,
     archx86_isr_interrupt40entry,  archx86_isr_interrupt41entry,  archx86_isr_interrupt42entry,  archx86_isr_interrupt43entry,

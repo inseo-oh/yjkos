@@ -11,21 +11,21 @@
 #include <stddef.h>
 #include <string.h>
 
-fb_color_t makecolor(uint8_t red, uint8_t green, uint8_t blue) {
-    return (((fb_color_t)(red >> 3)) << 10) | (((fb_color_t)(green >> 3)) << 5) | ((fb_color_t)(blue >> 3));
+fb_color makecolor(uint8_t red, uint8_t green, uint8_t blue) {
+    return (((fb_color)(red >> 3)) << 10) | (((fb_color)(green >> 3)) << 5) | ((fb_color)(blue >> 3));
 }
 
-fb_color_t black(void) {
+fb_color black(void) {
     return makecolor(0, 0, 0);
 }
-fb_color_t white(void) {
+fb_color white(void) {
     return makecolor(255, 255, 255);
 }
 
 static int32_t s_width;
 static int32_t s_height;
 
-static fb_color_t *s_backbuffer;
+static fb_color *s_backbuffer;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -33,18 +33,18 @@ static fb_color_t *s_backbuffer;
 // fb_drawpixel
 //------------------------------------------------------------------------------
 
-void fb_drawpixel(int32_t x, int32_t y, fb_color_t color) {
+void fb_drawpixel(int32_t x, int32_t y, fb_color color) {
     if (s_backbuffer == NULL) {
         return;
     }
     size_t baseoffset = (y * s_width) + x;
-    ((fb_color_t *)s_backbuffer)[baseoffset] = color;
+    ((fb_color *)s_backbuffer)[baseoffset] = color;
 }
 
-void fb_drawimage(fb_color_t *image, int32_t width, int32_t height, int32_t pixelsperline, int32_t destx, int32_t desty) {
+void fb_drawimage(fb_color *image, int32_t width, int32_t height, int32_t pixelsperline, int32_t destx, int32_t desty) {
     size_t baseoffset = (desty * s_width) + destx;
-    fb_color_t *srcline = image;
-    fb_color_t *destline = &s_backbuffer[baseoffset];
+    fb_color *srcline = image;
+    fb_color *destline = &s_backbuffer[baseoffset];
     for (int32_t srcy = 0; srcy < height; srcy++) {
         memcpy(destline, srcline, sizeof(*destline) * width);
         srcline += pixelsperline;
@@ -52,9 +52,9 @@ void fb_drawimage(fb_color_t *image, int32_t width, int32_t height, int32_t pixe
     }
 }
 
-void fb_drawrect(int32_t width, int32_t height, int32_t destx, int32_t desty, fb_color_t color) {
+void fb_drawrect(int32_t width, int32_t height, int32_t destx, int32_t desty, fb_color color) {
     size_t baseoffset = (desty * s_width) + destx;
-    fb_color_t *destline = &s_backbuffer[baseoffset];
+    fb_color *destline = &s_backbuffer[baseoffset];
     for (int32_t srcy = 0; srcy < height; srcy++) {
         for (int32_t srcx = 0; srcx < width; srcx++) {
             destline[srcx] = color;
@@ -64,16 +64,16 @@ void fb_drawrect(int32_t width, int32_t height, int32_t destx, int32_t desty, fb
 }
 
 
-void fb_drawtext(char *text, int32_t destx, int32_t desty, fb_color_t color) {
+void fb_drawtext(char *text, int32_t destx, int32_t desty, fb_color color) {
     size_t baseoffset = (desty * s_width) + destx;
     for (char *nextchar = text; *nextchar != '\0'; nextchar++) {
         // TODO: Decode UTF-8
         uint8_t const *glyph = psf_getglyph(*nextchar);
         uint8_t const *srcline = glyph;
-        fb_color_t *destline = &s_backbuffer[baseoffset];
+        fb_color *destline = &s_backbuffer[baseoffset];
         for (size_t l = 0; l < psf_getheight(); l++) {
             uint8_t const *srcpixel = srcline;
-            fb_color_t *destpixel = destline;
+            fb_color *destpixel = destline;
             uint8_t mask = 0x80;
             for (size_t c = 0; c < psf_getwidth(); c++, mask >>= 1, destpixel++) {
                 if (mask == 0) {
@@ -98,7 +98,7 @@ static uint32_t s_redinputmask, s_greeninputmask, s_blueinputmask;
 static void *s_fbbase;
 static int32_t s_fbpitch;
 
-static uint32_t makenativecolor(fb_color_t rgb) {
+static uint32_t makenativecolor(fb_color rgb) {
     uint32_t red   = ((rgb >> 10) & 0x1f) << 3;
     uint32_t green = ((rgb >> 5) & 0x1f) << 3;
     uint32_t blue  = (rgb & 0x1f) << 3;
@@ -115,10 +115,10 @@ static void update32(void) {
     if (s_backbuffer == NULL) {
         return;
     }
-    fb_color_t *srcline = s_backbuffer;
+    fb_color *srcline = s_backbuffer;
     uint32_t *destline = s_fbbase;
     for (int32_t srcy = 0; srcy < s_height; srcy++) {
-        fb_color_t *srcpixel = srcline;
+        fb_color *srcpixel = srcline;
         uint32_t *destpixel = destline;
         for (int32_t srcx = 0; srcx < s_width; srcx++, srcpixel++, destpixel++) {
             *destpixel = makenativecolor(*srcpixel);
@@ -132,13 +132,13 @@ static void update24(void) {
     if (s_backbuffer == NULL) {
         return;
     }
-    fb_color_t *srcline = s_backbuffer;
+    fb_color *srcline = s_backbuffer;
     uint8_t *destline = s_fbbase;
     for (int32_t srcy = 0; srcy < s_height; srcy++) {
-        fb_color_t *srcpixel = srcline;
+        fb_color *srcpixel = srcline;
         uint8_t *destpixel = destline;
         for (int32_t srcx = 0; srcx < s_width; srcx++, srcpixel++, destpixel += 3) {
-            bitword_t nativecolor = makenativecolor(*srcpixel);
+            uint32_t nativecolor = makenativecolor(*srcpixel);
             destpixel[0] = nativecolor;
             destpixel[1] = nativecolor >> 8;
             destpixel[2] = nativecolor >> 16;
@@ -163,7 +163,7 @@ void fb_init(
     int8_t greenmasksize,
     int8_t bluefieldpos,
     int8_t bluemasksize,
-    physptr_t framebufferbase,
+    physptr framebufferbase,
     int32_t width,
     int32_t height,
     int32_t pitch,

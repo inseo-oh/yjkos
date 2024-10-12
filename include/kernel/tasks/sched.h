@@ -6,12 +6,10 @@
 
 struct thread;
 
-typedef int8_t sched_priority_t;
-
 struct sched_queue {
     struct list_node node;
     // Lower value -> Higher priority (Works similiarly to UNIX niceness value)
-    sched_priority_t priority;
+    int8_t priority;
     size_t opportunities;
     struct list threads;
 };
@@ -20,7 +18,7 @@ struct sched_queue {
 //       before using any of these!
 //       TODO: Just do that in sched itself :D
 
-FAILABLE_FUNCTION sched_getqueue(struct sched_queue **queue_out, sched_priority_t priority);
+FAILABLE_FUNCTION sched_getqueue(struct sched_queue **queue_out, int8_t priority);
 struct sched_queue *sched_picknextqueue(void);
 void sched_printqueues(void);
 FAILABLE_FUNCTION sched_queue(struct thread *thread);

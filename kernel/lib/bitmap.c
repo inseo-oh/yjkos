@@ -1,19 +1,20 @@
 #include <kernel/lib/bitmap.h>
 #include <kernel/lib/miscmath.h>
+#include <kernel/types.h>
 #include <stdbool.h>
 #include <stdint.h>
 
-static bitword_t const WORD_ALL_ONES = ~0;
+static uint const WORD_ALL_ONES = ~0;
 
-static bitindex_t findfirstsetbit(bitword_t word, bitindex_t startpos) {
-    if ((startpos < 0) || ((bitindex_t)BITS_PER_WORD <= startpos)) {
+static long findfirstsetbit(uint word, long startpos) {
+    if ((startpos < 0) || ((long)BITS_PER_WORD <= startpos)) {
         return -1;
     }
-    bitword_t shifted = word >> startpos;
+    uint shifted = word >> startpos;
     if (shifted == 0) {
         return -1;
     }
-    bitindex_t index = startpos;
+    long index = startpos;
     for (; (shifted & 1) == 0; shifted >>= 1, index++) {
         if (index == (BITS_PER_WORD - 1)) {
             return -1;
@@ -22,23 +23,23 @@ static bitindex_t findfirstsetbit(bitword_t word, bitindex_t startpos) {
     return index;
 }
 
-static bitindex_t findlastcontiguousbit(bitword_t word, bitindex_t startpos) {
-    if ((startpos < 0) || ((bitindex_t)BITS_PER_WORD <= startpos)) {
+static long findlastcontiguousbit(uint word, long startpos) {
+    if ((startpos < 0) || ((long)BITS_PER_WORD <= startpos)) {
         return -1;
     }
     if (word == WORD_ALL_ONES) {
         return BITS_PER_WORD - 1;
     }
-    bitword_t shifted = word >> startpos;
+    uint shifted = word >> startpos;
     if ((shifted & 0x1) == 0) {
         return -1;
     }
-    bitindex_t index = startpos;
+    long index = startpos;
     for (; (shifted & 1) != 0; shifted >>= 1, index++) {}
     return index - 1;
 }
 
-bitword_t makebitmask(size_t offset, size_t len) {
+uint makebitmask(size_t offset, size_t len) {
     if (len == 0) {
         return 0;
     }
@@ -49,14 +50,14 @@ size_t bitmap_neededwordcount(size_t bits) {
     return sizetoblocks(bits, BITS_PER_WORD);
 }
 
-bitindex_t bitmap_findfirstsetbit(struct bitmap *self, bitindex_t startpos) {
+long bitmap_findfirstsetbit(struct bitmap *self, long startpos) {
     if (startpos < 0) {
         return -1;
     }
     size_t startwordidx = startpos / BITS_PER_WORD;
     size_t bitoffset = startpos % BITS_PER_WORD;
     for (size_t wordidx = startwordidx; wordidx < self->wordcount; wordidx++, bitoffset = 0) {
-        bitindex_t idx = findfirstsetbit(self->words[wordidx], bitoffset);
+        long idx = findfirstsetbit(self->words[wordidx], bitoffset);
         if (0 <= idx) {
             return (wordidx * BITS_PER_WORD) + idx;
         }
@@ -64,7 +65,7 @@ bitindex_t bitmap_findfirstsetbit(struct bitmap *self, bitindex_t startpos) {
     return -1;
 }
 
-bitindex_t bitmap_findlastcontiguousbit(struct bitmap *self, bitindex_t startpos) {
+long bitmap_findlastcontiguousbit(struct bitmap *self, long startpos) {
     if (startpos < 0) {
         return -1;
     }
@@ -74,7 +75,7 @@ bitindex_t bitmap_findlastcontiguousbit(struct bitmap *self, bitindex_t startpos
         return -1;
     }
     for (size_t wordidx = startwordidx; wordidx < self->wordcount; wordidx++, bitoffset = 0) {
-        bitindex_t idx = findlastcontiguousbit(self->words[wordidx], bitoffset);
+        long idx = findlastcontiguousbit(self->words[wordidx], bitoffset);
         if (idx < 0) {
             return -1;
         } else if (
@@ -89,12 +90,12 @@ bitindex_t bitmap_findlastcontiguousbit(struct bitmap *self, bitindex_t startpos
     return (self->wordcount * BITS_PER_WORD) - 1;
 }
 
-bitindex_t bitmap_findsetbits(struct bitmap *self, bitindex_t startpos, size_t minlen) {
+long bitmap_findsetbits(struct bitmap *self, long startpos, size_t minlen) {
     if (startpos < 0) {
         return -1;
     }
-    bitindex_t firstbitidx = startpos;
-    bitindex_t lastbitidx;
+    long firstbitidx = startpos;
+    long lastbitidx;
     for (;; firstbitidx = lastbitidx + 1) {
         firstbitidx = bitmap_findfirstsetbit(self, firstbitidx);
         if (firstbitidx < 0) {
@@ -109,7 +110,7 @@ bitindex_t bitmap_findsetbits(struct bitmap *self, bitindex_t startpos, size_t m
 
 }
 
-bool bitmap_arebitsset(struct bitmap *self, bitindex_t offset, size_t len) {
+bool bitmap_arebitsset(struct bitmap *self, long offset, size_t len) {
     if ((offset < 0) || (len == 0)) {
         return false;
     }
@@ -121,7 +122,7 @@ bool bitmap_arebitsset(struct bitmap *self, bitindex_t offset, size_t len) {
         if (self->wordcount <= wordidx) {
             return false;
         }
-        bitword_t word = self->words[wordidx];
+        uint word = self->words[wordidx];
         if (word == 0) {
             return false;
         }
@@ -129,7 +130,7 @@ bool bitmap_arebitsset(struct bitmap *self, bitindex_t offset, size_t len) {
         if (BITS_PER_WORD < (bitoffset + currentlen)) {
             currentlen = BITS_PER_WORD - bitoffset;
         }
-        bitword_t mask = makebitmask(bitoffset, currentlen);
+        uint mask = makebitmask(bitoffset, currentlen);
         if ((word & mask) != mask) {
             return false;
         }
@@ -138,7 +139,7 @@ bool bitmap_arebitsset(struct bitmap *self, bitindex_t offset, size_t len) {
 }
 
 
-void bitmap_setbits(struct bitmap *self, bitindex_t offset, size_t len) {
+void bitmap_setbits(struct bitmap *self, long offset, size_t len) {
     if (len == 0) {
         return;
     }
@@ -154,12 +155,12 @@ void bitmap_setbits(struct bitmap *self, bitindex_t offset, size_t len) {
         if (BITS_PER_WORD < (bitoffset + currentlen)) {
             currentlen = BITS_PER_WORD - bitoffset;
         }
-        bitword_t mask = makebitmask(bitoffset, currentlen);
+        uint mask = makebitmask(bitoffset, currentlen);
         self->words[wordidx] |= mask;
     }
 }
 
-void bitmap_clearbits(struct bitmap *self, bitindex_t offset, size_t len) {
+void bitmap_clearbits(struct bitmap *self, long offset, size_t len) {
     if (len == 0) {
         return;
     }
@@ -175,28 +176,28 @@ void bitmap_clearbits(struct bitmap *self, bitindex_t offset, size_t len) {
         if (BITS_PER_WORD < (bitoffset + currentlen)) {
             currentlen = BITS_PER_WORD - bitoffset;
         }
-        bitword_t mask = makebitmask(bitoffset, currentlen);
+        uint mask = makebitmask(bitoffset, currentlen);
         self->words[wordidx] &= ~mask;
     }
 }
 
-void bitmap_setbit(struct bitmap *self, bitindex_t offset) {
+void bitmap_setbit(struct bitmap *self, long offset) {
     if ((offset < 0) || (self->wordcount < (offset / BITS_PER_WORD))) {
         return;
     }
-    self->words[offset / BITS_PER_WORD] |= ((bitword_t)1 << (offset % BITS_PER_WORD));
+    self->words[offset / BITS_PER_WORD] |= (1U << (offset % BITS_PER_WORD));
 }
 
-void bitmap_clearbit(struct bitmap *self, bitindex_t offset) {
+void bitmap_clearbit(struct bitmap *self, long offset) {
     if ((offset < 0) || (self->wordcount < (offset / BITS_PER_WORD))) {
         return;
     }
-    self->words[offset / BITS_PER_WORD] &= ~((bitword_t)1 << (offset % BITS_PER_WORD));
+    self->words[offset / BITS_PER_WORD] &= ~(1U << (offset % BITS_PER_WORD));
 }
 
-bool bitmap_isbitset(struct bitmap *self, bitindex_t offset) {
+bool bitmap_isbitset(struct bitmap *self, long offset) {
     if ((offset < 0) || (self->wordcount < (offset / BITS_PER_WORD))) {
         return false;
     }
-    return self->words[offset / BITS_PER_WORD] & ((bitword_t)1 << (offset % BITS_PER_WORD));
+    return self->words[offset / BITS_PER_WORD] & (1U << (offset % BITS_PER_WORD));
 }

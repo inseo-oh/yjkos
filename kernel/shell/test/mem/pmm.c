@@ -15,7 +15,7 @@ SHELLFUNC static bool do_randalloc(void) {
 SHELLFUNC static bool do_badalloc(void) {
     bool previnterrupts = arch_interrupts_disable();
     size_t pagecount = 0;
-    physptr_t addr;
+    physptr addr;
     TEST_EXPECT(pmm_alloc(&addr, &pagecount) == ERR_NOMEM);
     pagecount = ~0;
     TEST_EXPECT(pmm_alloc(&addr, &pagecount) == ERR_NOMEM);

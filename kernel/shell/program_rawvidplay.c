@@ -8,7 +8,7 @@
 enum {
     FRAME_SIZE = 640 * 480 * 2
 };
-static fb_color_t s_framebuffer[FRAME_SIZE];
+static fb_color s_framebuffer[FRAME_SIZE];
 
 SHELLFUNC static int program_main(int argc, char *argv[]) {
     if (argc < 2) {

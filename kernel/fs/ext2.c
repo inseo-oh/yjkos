@@ -30,7 +30,7 @@ static uint32_t const REQUIRED_FEATUREFLAG_DIRENTRY_CONTAINS_TYPEFIELD   = 1 << 
 static uint32_t const REQUIRED_FEATUREFLAG_NEED_REPLAY_JOURNAL           = 1 << 2; // Needs to replay its journal
 static uint32_t const REQUIRED_FEATUREFLAG_JOURNAL_DEVICE_USED           = 1 << 3; // Uses a journal device
 
-static uint32_t const RWMOUNT_FEATUREFLAG_SPARSE_SUPERBLOCK_AND_GDTABLE  = 1 << 0; // Sparse superblks and group descriptor tables
+static uint32_t const RWMOUNT_FEATUREFLAG_SPARSE_SUPERBLOCK_AND_GDTABLE  = 1 << 0; // Sparse superblocks and group descriptor tables
 static uint32_t const RWMOUNT_FEATUREFLAG_64BIT_FILE_SIZE                = 1 << 1; // 64-bit file size
 static uint32_t const RWMOUNT_FEATUREFLAG_BINARY_TREE_DIR                = 1 << 2; // Directory contents are stored in the form of a Binary Tree
 
@@ -39,14 +39,11 @@ static uint32_t const SUPPORTED_RWMOUNT_FLAGS  = RWMOUNT_FEATUREFLAG_SPARSE_SUPE
 
 static ino_t const INODE_ROOTDIRECTORY = 2;
 
-typedef uint32_t blkgroupaddr_t;
-typedef uint32_t blkptr_t;
-
 struct fscontext {
     //--------------------------------------------------------------------------
     // Superblock
     //--------------------------------------------------------------------------
-    blkptr_t superblkblknum;
+    uint32_t superblkblknum;
     size_t totalinodes;
     blkcnt_t totalblks;
     blkcnt_t totalunallocatedblocks;
@@ -71,7 +68,7 @@ struct fscontext {
     gid_t reservedblkgid;
 
     // Below are superblk fields for 1.0 <= Version
-    blkgroupaddr_t blkgroup;      // If it's a backup copy
+    uint32_t blkgroup;      // If it's a backup copy
     ino_t firstnonreservedinode;    // Pre-1.0: 11
     size_t inodesize;               // Pre-1.0: 128
     uint32_t optionalfeatures;
@@ -98,9 +95,9 @@ struct fscontext {
 };
 
 struct blkgroupdescriptor {
-    blkptr_t blkusagebitmap;
-    blkptr_t inodeusagebitmap;
-    blkptr_t inodetable;
+    uint32_t blkusagebitmap;
+    uint32_t inodeusagebitmap;
+    uint32_t inodetable;
     blkcnt_t unallocatedblocks;
     size_t unallocatedinodes;
     size_t directories;
@@ -111,10 +108,10 @@ struct inocontext {
     off_t size;
     size_t hardlinks;
     size_t disksectors;
-    blkptr_t directblkptrs[12];
-    blkptr_t singlyindirecttable;
-    blkptr_t doublyindirecttable;
-    blkptr_t triplyindirecttable;
+    uint32_t directblkptrs[12];
+    uint32_t singlyindirecttable;
+    uint32_t doublyindirecttable;
+    uint32_t triplyindirecttable;
 
     uint32_t lastaccesstime;
     uint32_t creationtime;
@@ -127,7 +124,7 @@ struct inocontext {
     uint16_t gid;
 
     struct fscontext *fs;
-    blkptr_t currentblockaddr;
+    uint32_t currentblockaddr;
     size_t nextdirectptrindex;
     size_t cnt;
 
@@ -151,11 +148,11 @@ static uint16_t const INODE_TYPE_SYMBOLIC_LINK = 0xa000;
 static uint16_t const INODE_TYPE_UNIX_SOCKET   = 0xc000;
 
 // `out` must be able to hold `blkcount * self->blocksize` bytes.
-static FAILABLE_FUNCTION readblocks(struct fscontext *self, void *buf, blkptr_t blockaddr, blkcnt_t blkcount) {
+static FAILABLE_FUNCTION readblocks(struct fscontext *self, void *buf, uint32_t blockaddr, blkcnt_t blkcount) {
 FAILABLE_PROLOGUE
     // TODO: support cases where self->blocksize < self->disk->physdisk->blocksize
     assert((self->blocksize % self->disk->physdisk->blocksize) == 0);
-    diskblkptr_t diskblockaddr = blockaddr * (self->blocksize / self->disk->physdisk->blocksize);
+    diskblkptr diskblockaddr = blockaddr * (self->blocksize / self->disk->physdisk->blocksize);
     blkcnt_t diskblkcount = blkcount * (self->blocksize / self->disk->physdisk->blocksize);
     TRY(ldisk_read_exact(self->disk, buf, diskblockaddr, diskblkcount));
     
@@ -174,7 +171,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION readblocks_alloc(uint8_t **out, struct fscontext *self, blkptr_t blockaddr, blkcnt_t blkcount) {
+static FAILABLE_FUNCTION readblocks_alloc(uint8_t **out, struct fscontext *self, uint32_t blockaddr, blkcnt_t blkcount) {
 FAILABLE_PROLOGUE
     uint8_t *buf = NULL;
     TRY(allocblockbuf(&buf, self, blkcount, 0));
@@ -187,14 +184,14 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION readblockgroupdescriptor(struct blkgroupdescriptor *out, struct fscontext *self, blkgroupaddr_t blockgroup) {
+static FAILABLE_FUNCTION readblockgroupdescriptor(struct blkgroupdescriptor *out, struct fscontext *self, uint32_t blockgroup) {
 FAILABLE_PROLOGUE
     enum {
         DESCRIPTOR_SIZE = 32
     };
     assert(blockgroup < (SIZE_MAX / DESCRIPTOR_SIZE));
     off_t byteoffset = blockgroup * DESCRIPTOR_SIZE;
-    blkptr_t blockoffset = byteoffset / self->blocksize;
+    uint32_t blockoffset = byteoffset / self->blocksize;
     off_t byteoffsetinblk = byteoffset % self->blocksize;
     assert(blockoffset < (SIZE_MAX - self->blkgroupdescriptorblk));
     blockoffset += self->blkgroupdescriptorblk;
@@ -213,11 +210,11 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static blkgroupaddr_t blockgroup_of_inode(struct fscontext *self, ino_t inodeaddr) {
+static uint32_t blockgroup_of_inode(struct fscontext *self, ino_t inodeaddr) {
     return (inodeaddr - 1) / self->inodesinblkgroup;
 }
 
-static FAILABLE_FUNCTION locateinode(blkptr_t *blk_out, off_t *off_out, struct fscontext *self, ino_t inodeaddr) {
+static FAILABLE_FUNCTION locateinode(uint32_t *blk_out, off_t *off_out, struct fscontext *self, ino_t inodeaddr) {
 FAILABLE_PROLOGUE
     struct blkgroupdescriptor blkgroup;
     TRY(readblockgroupdescriptor(&blkgroup, self, blockgroup_of_inode(self, inodeaddr)));
@@ -234,7 +231,7 @@ FAILABLE_PROLOGUE
     enum {
         DIRECT_BLOCK_POINTER_COUNT = sizeof(self->directblkptrs) / sizeof(*self->directblkptrs)
     };
-    blkptr_t resultaddr;
+    uint32_t resultaddr;
     if (self->nextdirectptrindex < DIRECT_BLOCK_POINTER_COUNT) {
         // We can use direct blk pointer
         resultaddr = self->directblkptrs[self->nextdirectptrindex];
@@ -245,7 +242,7 @@ FAILABLE_PROLOGUE
     } else {
         if ((self->singlyindirectbuf.buf == NULL) || (self->fs->blocksize <= self->singlyindirectbuf.offset_in_buf)) {
             // We need to move to the next singly indirect table.
-            blkptr_t tableaddr;
+            uint32_t tableaddr;
             if (!self->singlyindirectused) {
                 // We are using singly indirect table for the first time
                 tableaddr = self->singlyindirecttable;
@@ -253,7 +250,7 @@ FAILABLE_PROLOGUE
                 // read the next pointer from doubly indirect table
                 if ((self->doublyindirectbuf.buf == NULL) || (self->fs->blocksize <= self->doublyindirectbuf.offset_in_buf)) {
                     // We need to move to next doubly indirect table
-                    blkptr_t tableaddr;
+                    uint32_t tableaddr;
                     if (!self->doublyindirectused) {
                         // We are using doubly indirect table for the first time
                         tableaddr = self->doublyindirecttable;
@@ -262,7 +259,7 @@ FAILABLE_PROLOGUE
                         // read the next pointer from triply indirect table
                         if ((self->triplyindirectbuf.buf == NULL) || (self->fs->blocksize <= self->triplyindirectbuf.offset_in_buf)) {
                             // We need to move to next triply indirect table
-                            blkptr_t tableaddr;
+                            uint32_t tableaddr;
                             if (!self->triplyindirectused) {
                                 // We are using triply indirect table for the first time
                                 tableaddr = self->triplyindirecttable;
@@ -284,7 +281,7 @@ FAILABLE_PROLOGUE
                         }
                         self->triplyindirectused = true;
                         tableaddr = uint32leat(&self->triplyindirectbuf.buf[self->triplyindirectbuf.offset_in_buf]);
-                        self->triplyindirectbuf.offset_in_buf += sizeof(blkptr_t);
+                        self->triplyindirectbuf.offset_in_buf += sizeof(uint32_t);
                         /////////////////
                     }
                     if (tableaddr == 0) {
@@ -301,7 +298,7 @@ FAILABLE_PROLOGUE
                 }
                 self->doublyindirectused = true;
                 tableaddr = uint32leat(&self->doublyindirectbuf.buf[self->doublyindirectbuf.offset_in_buf]);
-                self->doublyindirectbuf.offset_in_buf += sizeof(blkptr_t);
+                self->doublyindirectbuf.offset_in_buf += sizeof(uint32_t);
             }
             if (tableaddr == 0) {
                 heap_free(self->singlyindirectbuf.buf);
@@ -320,7 +317,7 @@ FAILABLE_PROLOGUE
         if (resultaddr == 0) {
             THROW(ERR_EOF);
         }
-        self->singlyindirectbuf.offset_in_buf += sizeof(blkptr_t);
+        self->singlyindirectbuf.offset_in_buf += sizeof(uint32_t);
     }
     self->currentblockaddr = resultaddr;
 
@@ -447,7 +444,7 @@ FAILABLE_PROLOGUE
         if ((self->blockbuf.offset_in_buf == 0) && (self->fs->blocksize <= remaininglen)) {
             blkcnt_t blkcount = remaininglen / self->fs->blocksize;
             // Blocks may not be contiguous on ext2, but if we can, it's faster to read as much sectors at once.
-            blkptr_t lastbase = self->currentblockaddr;
+            uint32_t lastbase = self->currentblockaddr;
             size_t contiguouslen = 1;
             for (blkcnt_t i = 0; i < (blkcount - 1); i++) {
                 TRY(nextinodeblock(self));
@@ -500,7 +497,7 @@ FAILABLE_EPILOGUE_END
 
 static FAILABLE_FUNCTION openinode(struct inocontext *out, struct fscontext *self, ino_t inode) {
 FAILABLE_PROLOGUE
-    blkptr_t blockaddr;
+    uint32_t blockaddr;
     off_t offset;
     uint8_t *blkdata = NULL;
     TRY(locateinode(&blockaddr, &offset, self, inode));

@@ -21,7 +21,7 @@ static struct list s_queues;
 static struct list_node *s_currentqueuenode;
 static struct thread *s_runningthread;
 
-FAILABLE_FUNCTION sched_getqueue(struct sched_queue **queue_out, sched_priority_t priority) {
+FAILABLE_FUNCTION sched_getqueue(struct sched_queue **queue_out, int8_t priority) {
 FAILABLE_PROLOGUE
     struct list_node *insertafter = NULL;
     struct sched_queue *chosenqueue = NULL;

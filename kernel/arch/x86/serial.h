@@ -9,7 +9,7 @@
 struct archx86_serial {
     struct stream stream;
     uint32_t masterclock;
-    archx86_ioaddr_t baseaddr;
+    uint16_t baseaddr;
     struct archx86_pic_irqhandler irqhandler;
     uint8_t irq;
     _Atomic(int) txint;
@@ -21,6 +21,6 @@ struct archx86_serial {
     bool useirq : 1;
 };
 
-FAILABLE_FUNCTION archx86_serial_init(struct archx86_serial *out, archx86_ioaddr_t baseaddr, uint32_t masterclock, uint8_t irq);
+FAILABLE_FUNCTION archx86_serial_init(struct archx86_serial *out, uint16_t baseaddr, uint32_t masterclock, uint8_t irq);
 FAILABLE_FUNCTION archx86_serial_config(struct archx86_serial *self, uint32_t baudrate);
 void archx86_serial_useirq(struct archx86_serial *self);

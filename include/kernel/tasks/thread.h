@@ -6,7 +6,7 @@
 
 struct thread {
     struct list_node sched_queuelistnode;
-    sched_priority_t priority;
+    int8_t priority;
     struct arch_thread *arch_thread;
 };
 

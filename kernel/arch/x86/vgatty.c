@@ -114,7 +114,7 @@ void archx86_vgatty_init_earlydebug(void) {
     tty_setdebugconsole(&s_stream);
 }
 
-void archx86_vgatty_init(physptr_t baseaddr, size_t columns, size_t rows, size_t bytesperrow) {
+void archx86_vgatty_init(physptr baseaddr, size_t columns, size_t rows, size_t bytesperrow) {
     s_stream.data = NULL;
     s_stream.ops = &OPS;
     s_totalcolumns = columns;

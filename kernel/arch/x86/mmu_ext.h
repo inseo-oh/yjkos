@@ -62,9 +62,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-typedef uint32_t archx86_mmuentry;
-
-STATIC_ASSERT_TEST(sizeof(archx86_mmuentry) == ARCHX86_MMU_ENTRY_SIZE);
+STATIC_ASSERT_TEST(sizeof(uint32_t) == ARCHX86_MMU_ENTRY_SIZE);
 STATIC_ASSERT_TEST(ARCHX86_MMU_ENTRY_COUNT == (ARCHX86_MMU_PAGE_SIZE / ARCHX86_MMU_ENTRY_SIZE));
 
 static uint8_t const ARCHX86_MMU_EMUTRANS_FAULT_FLAG_PDE_MISSING = 1 << 0;
@@ -75,7 +73,7 @@ static uint8_t const ARCHX86_MMU_EMUTRANS_FAULT_FLAG_PTE_WRITE   = 1 << 4;
 static uint8_t const ARCHX86_MMU_EMUTRANS_FAULT_FLAG_PTE_USER    = 1 << 5;
 
 struct archx86_mmu_emulateresult {
-    physptr_t physaddr;
+    physptr physaddr;
     uint8_t faultflags; // See ARCHX86_MMU_EMUTRANS_*
 };
 

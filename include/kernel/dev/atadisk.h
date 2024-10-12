@@ -6,8 +6,6 @@
 #include <stddef.h>
 
 // ACS-3 6.2 Status field
-typedef uint8_t ata_status_t;
-
 static uint8_t const ATA_STATUSFLAG_ERR = 1 << 0;
 static uint8_t const ATA_STATUSFLAG_DRQ = 1 << 3;
 static uint8_t const ATA_STATUSFLAG_DF  = 1 << 5;
@@ -15,8 +13,6 @@ static uint8_t const ATA_STATUSFLAG_RDY = 1 << 6;
 static uint8_t const ATA_STATUSFLAG_BSY = 1 << 7;
 
 // ACS-3 6.3 ERROR field
-typedef uint8_t ata_error_t;
-
 enum ata_cmd {
     ATA_CMD_FLUSHCACHE     = 0xe7, // ACS-3 7.10
     ATA_CMD_IDENTIFYDEVICE = 0xec, // ACS-3 7.12
@@ -49,7 +45,7 @@ struct atadisk_ops {
     void (*dma_endsession)(struct atadisk *self);
     void (*lock)(struct atadisk *self);
     void (*unlock)(struct atadisk *self);
-    ata_status_t (*readstatus)(struct atadisk *self);
+    uint8_t (*readstatus)(struct atadisk *self);
     FAILABLE_FUNCTION (*selectdisk)(struct atadisk *self);
     void (*setfeaturesparam)(struct atadisk *self, uint16_t data);
     void (*setcountparam)(struct atadisk *self, uint16_t data);

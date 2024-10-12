@@ -177,7 +177,7 @@ SHELLFUNC static int deof(void* handle) {
 }
 
 SHELLFUNC static void dgettime(int* sec, int* usec) {
-    ticktime_t currenttime = g_ticktime;
+    ticktime_type currenttime = g_ticktime;
     *sec = currenttime / 1000;
     *usec = (currenttime % 1000) * 1000;
 }
@@ -192,7 +192,7 @@ SHELLFUNC static int program_main(int argc, char *argv[]) {
     doom_set_gettime(dgettime);
     doom_set_file_io(dopen, dclose, dread, dwrite, dseek, dtell, deof);
     doom_init(argc, argv, 0);
-    ticktime_t starttime = g_ticktime;
+    ticktime_type starttime = g_ticktime;
     while (1) {
         if (g_ticktime - starttime >= MIDIPERIOD) {
             starttime = g_ticktime;
@@ -218,7 +218,7 @@ SHELLFUNC static int program_main(int argc, char *argv[]) {
         }
         doom_update();
         uint8_t const *framebuffer = doom_get_framebuffer(4 /* RGBA */);
-        static fb_color_t newfb[SCREENWIDTH * SCREENHEIGHT];
+        static fb_color newfb[SCREENWIDTH * SCREENHEIGHT];
         for (size_t y = 0; y < SCREENHEIGHT; y++) {
             for (size_t x = 0; x < SCREENWIDTH; x++) {
                 uint8_t r = framebuffer[y * (SCREENWIDTH * 4) + (x * 4) + 0];

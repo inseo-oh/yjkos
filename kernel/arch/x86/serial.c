@@ -248,7 +248,7 @@ static void irqhandler(int irqnum, void *data) {
     archx86_pic_sendeoi(irqnum);
 }
 
-FAILABLE_FUNCTION archx86_serial_init(struct archx86_serial *out, archx86_ioaddr_t baseaddr, uint32_t masterclock, uint8_t irq) {
+FAILABLE_FUNCTION archx86_serial_init(struct archx86_serial *out, uint16_t baseaddr, uint32_t masterclock, uint8_t irq) {
 FAILABLE_PROLOGUE
     memset(out, 0, sizeof(*out));
     out->stream.data = out;

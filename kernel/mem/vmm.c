@@ -34,7 +34,7 @@ struct uncommitedobject {
     struct list_node node;
     struct vmobject *object;
     struct bitmap bitmap;
-    bitword_t bitmapdata[];
+    uint bitmapdata[];
 };
 
 static struct vmobject *takeobject(struct addressspace *self, struct objectgroup *group, struct vmobject *object) {
@@ -141,7 +141,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION create_object(struct vmobject **out, struct addressspace *self, uintptr_t startaddress, uintptr_t endaddress, physptr_t physicalbase, memmapflags_t mapflags) {
+static FAILABLE_FUNCTION create_object(struct vmobject **out, struct addressspace *self, uintptr_t startaddress, uintptr_t endaddress, physptr physicalbase, uint8_t mapflags) {
 FAILABLE_PROLOGUE
     struct vmobject *object = heap_alloc(sizeof(*object), HEAP_FLAG_ZEROMEMORY);
     if (object == NULL) {
@@ -161,7 +161,7 @@ FAILABLE_EPILOGUE_END
 static FAILABLE_FUNCTION create_uncommitedobject(struct uncommitedobject **out, struct vmobject *object, size_t pagecount) {
 FAILABLE_PROLOGUE
     size_t wordcount = bitmap_neededwordcount(pagecount);
-    size_t size = sizeof(struct uncommitedobject) + (wordcount * sizeof(bitword_t));
+    size_t size = sizeof(struct uncommitedobject) + (wordcount * sizeof(uint));
     struct uncommitedobject *uobject = heap_alloc(size, HEAP_FLAG_ZEROMEMORY);
     if (uobject == NULL) {
         THROW(ERR_NOMEM);
@@ -289,7 +289,7 @@ void vmm_deinit_addressspace(struct addressspace *self) {
     heap_free(self);
 }
 
-FAILABLE_FUNCTION vmm_alloc_object(struct vmobject **out, struct addressspace *self, physptr_t physicalbase, size_t size, memmapflags_t mapflags) {
+FAILABLE_FUNCTION vmm_alloc_object(struct vmobject **out, struct addressspace *self, physptr physicalbase, size_t size, uint8_t mapflags) {
 FAILABLE_PROLOGUE
     struct uncommitedobject *uobject = NULL;
     struct vmobject *newobject = NULL;
@@ -335,7 +335,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-FAILABLE_FUNCTION vmm_alloc_object_at(struct vmobject **out, struct addressspace *self, uintptr_t virtualbase, physptr_t physicalbase, size_t size, memmapflags_t mapflags) {
+FAILABLE_FUNCTION vmm_alloc_object_at(struct vmobject **out, struct addressspace *self, uintptr_t virtualbase, physptr physicalbase, size_t size, uint8_t mapflags) {
 FAILABLE_PROLOGUE
     bool previnterrupts = arch_interrupts_disable();
     assert(virtualbase);
@@ -424,7 +424,7 @@ void vmm_free(struct vmobject *object) {
     }
     // Free commited physical pages and unmap it.
     for (uintptr_t addr = object->startaddress; addr <= object->endaddress; addr += ARCH_PAGESIZE) {
-        physptr_t physaddr;
+        physptr physaddr;
         status_t status = arch_mmu_virttophys(&physaddr, addr);
         if (status == OK) {
             if (object->physicalbase == VMM_PHYSADDR_NOMAP) {
@@ -445,17 +445,17 @@ void vmm_free(struct vmobject *object) {
     interrupts_restore(previnterrupts);
 }
 
-FAILABLE_FUNCTION vmm_alloc(struct vmobject **out, struct addressspace *self, size_t size, memmapflags_t mapflags) {
+FAILABLE_FUNCTION vmm_alloc(struct vmobject **out, struct addressspace *self, size_t size, uint8_t mapflags) {
     return vmm_alloc_object(out, self, VMM_PHYSADDR_NOMAP, size, mapflags);
 }
-FAILABLE_FUNCTION vmm_alloc_at(struct vmobject **out, struct addressspace *self, uintptr_t virtualbase, size_t size, memmapflags_t mapflags) {
+FAILABLE_FUNCTION vmm_alloc_at(struct vmobject **out, struct addressspace *self, uintptr_t virtualbase, size_t size, uint8_t mapflags) {
     return vmm_alloc_object_at(out, self, virtualbase, VMM_PHYSADDR_NOMAP, size, mapflags);
 }
-FAILABLE_FUNCTION vmm_map(struct vmobject **out, struct addressspace *self, uintptr_t physicalbase, size_t size, memmapflags_t mapflags) {
+FAILABLE_FUNCTION vmm_map(struct vmobject **out, struct addressspace *self, uintptr_t physicalbase, size_t size, uint8_t mapflags) {
     assert(physicalbase != VMM_PHYSADDR_NOMAP);
     return vmm_alloc_object(out, self, physicalbase, size, mapflags);
 }
-FAILABLE_FUNCTION vmm_map_at(struct vmobject **out, struct addressspace *self, uintptr_t virtualbase, uintptr_t physicalbase, size_t size, memmapflags_t mapflags) {
+FAILABLE_FUNCTION vmm_map_at(struct vmobject **out, struct addressspace *self, uintptr_t virtualbase, uintptr_t physicalbase, size_t size, uint8_t mapflags) {
     assert(physicalbase != VMM_PHYSADDR_NOMAP);
     return vmm_alloc_object_at(out, self, virtualbase, physicalbase, size, mapflags);
 }
@@ -473,9 +473,9 @@ FAILABLE_FUNCTION vmm_map_at(struct vmobject **out, struct addressspace *self, u
 //
 // vmm_ezmap has one caveat: There's no support for remap/unmapping. This is because the underlying vmobject
 // is not returned for simplicity. 
-void *vmm_ezmap(physptr_t base, size_t size) {
+void *vmm_ezmap(physptr base, size_t size) {
     size_t offset = base % ARCH_PAGESIZE;
-    physptr_t page_base = base - offset;
+    physptr page_base = base - offset;
     size_t actualsize = size + offset;
     struct vmobject *object;
     status_t status = vmm_map(&object, vmm_get_kernel_addressspace(), page_base, actualsize, MAP_PROT_READ | MAP_PROT_WRITE);
@@ -522,7 +522,7 @@ void vmm_pagefault(uintptr_t addr, bool was_present, bool was_write, bool was_us
     }
     uintptr_t page_base = aligndown(addr, ARCH_PAGESIZE);
     // Maybe it just needs TLB flushing?
-    physptr_t physaddr;
+    physptr physaddr;
     status_t status = arch_mmu_emulate(&physaddr, addr, MAP_PROT_READ | (was_write ? MAP_PROT_WRITE : 0), was_user);
     if (status == OK) {
         arch_mmu_flushtlb_for((void *)addr);

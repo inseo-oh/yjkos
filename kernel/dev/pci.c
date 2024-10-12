@@ -8,7 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-// pcipath_t value structure:
+// pcipath value structure:
 // xxxxxxxxyyyyyzzz
 // |       |    |
 // |       |    +-- Function(3-bit)
@@ -19,31 +19,31 @@ static uint8_t const HEADERTYPE_GENERALDEVICE = 0x0;
 static uint8_t const HEADERTYPE_PCITOPCI      = 0x1;
 static uint8_t const HEADERTYPE_PCITOCARDBUS  = 0x2;
 
-static uint8_t headertype(pcipath_t path) {
+static uint8_t headertype(pcipath path) {
     return pci_readconfigheadertype(path) & 0x7f;
 }
 
 
-pcipath_t pci_makepath(uint8_t bus, uint8_t device, uint8_t function) {
+pcipath pci_makepath(uint8_t bus, uint8_t device, uint8_t function) {
     assert(device < 32);
     assert(function < 8);
     return (((uint16_t)bus) << 8) | ((uint16_t)device << 3) | (uint16_t)function;
 }
 
-uint8_t pcipath_getbus(pcipath_t path) {
+uint8_t pcipath_getbus(pcipath path) {
     return path >> 8;
 }
 
-uint8_t pcipath_getdev(pcipath_t path) {
+uint8_t pcipath_getdev(pcipath path) {
     return (path >> 3) & 0x1f;
 }
 
-uint8_t pcipath_getfunc(pcipath_t path) {
+uint8_t pcipath_getfunc(pcipath path) {
     return path & 0x7;
 }
 
 struct probecontext {
-    void (*callback)(pcipath_t path, uint16_t venid, uint16_t devid, uint8_t baseclass, uint8_t subclass, void *data);
+    void (*callback)(pcipath path, uint16_t venid, uint16_t devid, uint8_t baseclass, uint8_t subclass, void *data);
     void *data;
 };
 
@@ -61,7 +61,7 @@ static void probedev(struct probecontext *self, uint8_t bus, uint8_t device) {
         maxfunccount = 8;
     }
     for (uint8_t func = 0; func < maxfunccount; func++) {
-        pcipath_t path = pci_makepath(bus, device, func);
+        pcipath path = pci_makepath(bus, device, func);
         uint16_t venid, devid;
         pci_readvendevid(&venid, &devid, path);
         if (venid == 0xffff) {
@@ -93,7 +93,7 @@ static void probebus(struct probecontext *self, uint8_t bus) {
 }
 
 void pci_probebus(
-    void (*callback)(pcipath_t path, uint16_t venid, uint16_t devid, uint8_t baseclass, uint8_t subclass, void *data),
+    void (*callback)(pcipath path, uint16_t venid, uint16_t devid, uint8_t baseclass, uint8_t subclass, void *data),
     void *data
 ) {
     struct probecontext ctx;
@@ -120,7 +120,7 @@ void pci_probebus(
     }
 }
 
-void pci_printf(pcipath_t path, char const *fmt, ...) {
+void pci_printf(pcipath path, char const *fmt, ...) {
     tty_printf("pci(%d,%d,%d): ", pcipath_getbus(path), pcipath_getdev(path), pcipath_getfunc(path));
     va_list ap;
     va_start(ap, fmt);
@@ -128,63 +128,63 @@ void pci_printf(pcipath_t path, char const *fmt, ...) {
     va_end(ap);
 }
 
-void pci_readvendevid(uint16_t *venid_out, uint16_t *devid_out, pcipath_t path) {
+void pci_readvendevid(uint16_t *venid_out, uint16_t *devid_out, pcipath path) {
     uint32_t word = arch_pci_readconfig(path, 0x00);
     *venid_out = word;
     *devid_out = word >> 16;
 }
 
-void pci_readclass(uint8_t *baseclass_out, uint8_t *subclass_out, pcipath_t path) {
+void pci_readclass(uint8_t *baseclass_out, uint8_t *subclass_out, pcipath path) {
     uint32_t word = arch_pci_readconfig(path, 0x08);
     *baseclass_out = (word >> 24) & 0xff;
     *subclass_out = (word >> 16) & 0xff;
 }
 
-uint8_t pci_readconfigheadertype(pcipath_t path) {
+uint8_t pci_readconfigheadertype(pcipath path) {
     uint32_t word = arch_pci_readconfig(path, 0x0c);
     return (word >> 16) & 0xff;
 }
 
 
-uint8_t pci_readprogif(pcipath_t path) {
+uint8_t pci_readprogif(pcipath path) {
     uint32_t word = arch_pci_readconfig(path, 0x08);
     return (word >> 8) & 0xff;
 }
 
-void pci_writeprogif(pcipath_t path, uint8_t progif) {
+void pci_writeprogif(pcipath path, uint8_t progif) {
     uint32_t word = arch_pci_readconfig(path, 0x08);
     arch_pci_writeconfig(path, 0x08, (word & ~(0xff << 8)) | ((uint32_t)progif << 8));
 }
 
-uint8_t pci_readinterruptline(pcipath_t path) {
+uint8_t pci_readinterruptline(pcipath path) {
     uint32_t word = arch_pci_readconfig(path, 0x3c);
     return word & 0xff;
 }
 
-uint16_t pci_readcmdreg(pcipath_t path) {
+uint16_t pci_readcmdreg(pcipath path) {
     uint32_t word = arch_pci_readconfig(path, 0x4);
     return word & 0xffff;
 }
 
-void pci_writecmdreg(pcipath_t path, uint16_t value) {
+void pci_writecmdreg(pcipath path, uint16_t value) {
     // Status register part of the word is either R/O or RWC(read/write-to-clear), so we can just leave
     // those zero and shouldn't affect it.
     arch_pci_writeconfig(path, 0x4, value);
 }
 
-uint16_t pci_readstatusreg(pcipath_t path) {
+uint16_t pci_readstatusreg(pcipath path) {
     uint32_t word = arch_pci_readconfig(path, 0x4);
     return (word >> 16) & 0xffff;
 }
 
-void pci_writestatusreg(pcipath_t path, uint16_t value) {
+void pci_writestatusreg(pcipath path, uint16_t value) {
     uint32_t word = arch_pci_readconfig(path, 0x4);
     // Make sure we preserve the command register.
     arch_pci_writeconfig(path, 0x4, (value << 16) | (word & 0xffff));
 }
 
 // TODO: Memory BAR support is currently incomplete, because it doesn't query how much address space is used.
-FAILABLE_FUNCTION pci_readbar(uintptr_t *addr_out, bool *isiobar_out, bool *isprefetchable_out, pcipath_t path, uint8_t bar) {
+FAILABLE_FUNCTION pci_readbar(uintptr_t *addr_out, bool *isiobar_out, bool *isprefetchable_out, pcipath path, uint8_t bar) {
 FAILABLE_PROLOGUE
     assert(bar <= 5);
     uint8_t regoffset = 0x10 + (bar * 4);
@@ -223,7 +223,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-FAILABLE_FUNCTION pci_readmembar(uintptr_t *addr_out, bool *isprefetchable_out, pcipath_t path, uint8_t bar) {
+FAILABLE_FUNCTION pci_readmembar(uintptr_t *addr_out, bool *isprefetchable_out, pcipath path, uint8_t bar) {
 FAILABLE_PROLOGUE
     bool isiobar;
     TRY(pci_readbar(addr_out, &isiobar, isprefetchable_out, path, bar));
@@ -235,7 +235,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-FAILABLE_FUNCTION pci_readiobar(uintptr_t *addr_out, pcipath_t path, uint8_t bar) {
+FAILABLE_FUNCTION pci_readiobar(uintptr_t *addr_out, pcipath path, uint8_t bar) {
 FAILABLE_PROLOGUE
     bool isiobar, isprefetchable_out;
     TRY(pci_readbar(addr_out, &isiobar, &isprefetchable_out, path, bar));
@@ -247,7 +247,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static void printcallback(pcipath_t path, uint16_t venid, uint16_t devid, uint8_t baseclass, uint8_t subclass, void *data) {
+static void printcallback(pcipath path, uint16_t venid, uint16_t devid, uint8_t baseclass, uint8_t subclass, void *data) {
     (void)data;
     pci_printf(path, "%04x:%04x class %02x:%02x\n", venid, devid, baseclass, subclass);
 }

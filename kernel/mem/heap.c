@@ -10,6 +10,7 @@
 #include <kernel/mem/vmm.h>
 #include <kernel/panic.h>
 #include <kernel/status.h>
+#include <kernel/types.h>
 #include <stdalign.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -95,7 +96,7 @@ static void *allocfrompool(struct poolheader *self, size_t size) {
     }
     size_t actualsize = actualallocsize(size);
     size_t blockcount = sizetoblocks(actualsize, BLOCK_SIZE);
-    bitindex_t blockindex = bitmap_findsetbits(&self->blockbitmap, 0, blockcount);
+    long blockindex = bitmap_findsetbits(&self->blockbitmap, 0, blockcount);
     if (blockindex < 0) {
         goto out;
     }
@@ -301,7 +302,7 @@ static poolheader_t *createpool(size_t minmemsize) {
     }
 
     size_t wordcount = bitmap_neededwordcount(desiredblockcount);
-    size_t metadatasize = sizeof(poolheader_t) + (wordcount * sizeof(bitword_t));
+    size_t metadatasize = sizeof(poolheader_t) + (wordcount * sizeof(uint));
     size_t totalsize = metadatasize + (desiredblockcount * BLOCK_SIZE);
     size_t pagecount = sizetoblocks(totalsize, ARCH_PAGESIZE);
     poolheader_t *pool;
@@ -325,7 +326,7 @@ static poolheader_t *createpool(size_t minmemsize) {
         size_t totalblockcount = sizetoblocks(pagecount * ARCH_PAGESIZE, BLOCK_SIZE);
 
         wordcount = bitmap_neededwordcount(totalblockcount);
-        bitmapsize = wordcount * sizeof(bitword_t);
+        bitmapsize = wordcount * sizeof(uint);
         // Don't forget to align!
         bitmapsize += (alignof(max_align_t) - (bitmapsize % alignof(max_align_t)));
 
@@ -351,7 +352,7 @@ static poolheader_t *createpool(size_t minmemsize) {
     assert((poolstartaddr % alignof(max_align_t)) == 0);
     pool->pagecount = pagecount;
     pool->blockbitmap.wordcount = wordcount;
-    pool->blockbitmap.words = (bitword_t *)pool->heapdata;
+    pool->blockbitmap.words = (uint *)pool->heapdata;
     pool->blockpool = (max_align_t *)poolstartaddr;
     pool->blockcount = poolblockcount;
     pool->usedblockcount = 0;
@@ -386,7 +387,7 @@ static struct poolheader *addmem(void *mem, size_t memsize) {
     size_t maxblockcount = sizetoblocks(memsize, BLOCK_SIZE);
 
     size_t wordcount = bitmap_neededwordcount(maxblockcount);
-    size_t metadatasize = sizeof(struct poolheader) + (wordcount * sizeof(bitword_t));
+    size_t metadatasize = sizeof(struct poolheader) + (wordcount * sizeof(uint));
     size_t maxsize = metadatasize + (maxblockcount * BLOCK_SIZE);
     size_t pagecount = sizetoblocks(maxsize, ARCH_PAGESIZE);
     struct poolheader *pool = mem;
@@ -402,7 +403,7 @@ static struct poolheader *addmem(void *mem, size_t memsize) {
     size_t totalblockcount = sizetoblocks(pagecount * ARCH_PAGESIZE, BLOCK_SIZE);
 
     wordcount = bitmap_neededwordcount(totalblockcount);
-    bitmapsize = wordcount * sizeof(bitword_t);
+    bitmapsize = wordcount * sizeof(uint);
     // Don't forget to align!
     bitmapsize += (alignof(max_align_t) - (bitmapsize % alignof(max_align_t)));
 
@@ -415,7 +416,7 @@ static struct poolheader *addmem(void *mem, size_t memsize) {
     assert((poolstartaddr % alignof(max_align_t)) == 0);
     pool->pagecount = pagecount;
     pool->blockbitmap.wordcount = wordcount;
-    pool->blockbitmap.words = (bitword_t *)pool->heapdata;
+    pool->blockbitmap.words = (uint *)pool->heapdata;
     pool->blockpool = (max_align_t *)poolstartaddr;
     pool->blockcount = poolblockcount;
     pool->usedblockcount = 0;
@@ -499,7 +500,7 @@ void heap_free(void *ptr) {
         goto die;
     }
     uintptr_t offsetinpool = (uintptr_t)alloc - poolstartaddr;
-    bitindex_t blockindex = offsetinpool / BLOCK_SIZE;
+    long blockindex = offsetinpool / BLOCK_SIZE;
     bitmap_setbits(&alloc->pool->blockbitmap, blockindex, alloc->blockcount);
     alloc->pool->usedblockcount -= alloc->blockcount;
     s_freeblockcount += alloc->blockcount;
