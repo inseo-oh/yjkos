@@ -4,7 +4,7 @@
 #include <string.h>
 
 SHELLFUNC static testresult_t do_slice(void) {
-    smatcher_t smatcher, newsmatcher;
+    struct smatcher smatcher, newsmatcher;
     smatcher_init(&smatcher, "hello world people");
     smatcher_slice(&newsmatcher, &smatcher, 6, 10);
     TEST_EXPECT(smatcher_consumestringifmatch(&newsmatcher, "world")  == true);
@@ -14,7 +14,7 @@ SHELLFUNC static testresult_t do_slice(void) {
 }
 
 SHELLFUNC static testresult_t do_consumestringifmatch(void) {
-    smatcher_t smatcher;
+    struct smatcher smatcher;
     smatcher_init_with_len(&smatcher, "hello world people", 11);
     TEST_EXPECT(smatcher_consumestringifmatch(&smatcher, "hello1") == false);
     TEST_EXPECT(smatcher_consumestringifmatch(&smatcher, "world")  == false);
@@ -30,7 +30,7 @@ SHELLFUNC static testresult_t do_consumestringifmatch(void) {
 }
 
 SHELLFUNC static testresult_t do_consumewordifmatch(void) {
-    smatcher_t smatcher;
+    struct smatcher smatcher;
     smatcher_init_with_len(&smatcher, "hello worldpeopleguy", 17);
     TEST_EXPECT(smatcher_consumewordifmatch(&smatcher, "world")  == false);
     TEST_EXPECT(smatcher_consumewordifmatch(&smatcher, "hello")  == true);
@@ -44,7 +44,7 @@ SHELLFUNC static testresult_t do_consumewordifmatch(void) {
 }
 
 SHELLFUNC static testresult_t do_skipwhitespaces(void) {
-    smatcher_t smatcher;
+    struct smatcher smatcher;
     smatcher_init_with_len(&smatcher, "hello    worldpeople", 14);
     TEST_EXPECT(smatcher_consumestringifmatch(&smatcher, "hello")  == true);
     smatcher_skipwhitespaces(&smatcher);
@@ -59,7 +59,7 @@ SHELLFUNC static testresult_t do_skipwhitespaces(void) {
 SHELLFUNC static testresult_t do_consumeword(void) {
     char const *str;
     size_t len;
-    smatcher_t smatcher;
+    struct smatcher smatcher;
     smatcher_init_with_len(&smatcher, "hello worldpeopleguy", 17);
     TEST_EXPECT(smatcher_consumeword(&str, &len, &smatcher) == true);
     TEST_EXPECT(strncmp(str, "hello", len) == 0);
@@ -72,7 +72,7 @@ SHELLFUNC static testresult_t do_consumeword(void) {
     return TEST_OK;
 }
 
-SHELLRODATA static test_t const TESTS[] = {
+SHELLRODATA static struct test const TESTS[] = {
     { .name = "slice",                .fn = do_slice                 },
     { .name = "consumestringifmatch", .fn = do_consumestringifmatch  },
     { .name = "consumewordifmatch",   .fn = do_consumewordifmatch    },
@@ -80,7 +80,7 @@ SHELLRODATA static test_t const TESTS[] = {
     { .name = "consumeword",          .fn = do_consumeword           },
 };
 
-SHELLDATA const testgroup_t TESTGROUP_SMATCHER = {
+SHELLDATA const struct testgroup TESTGROUP_SMATCHER = {
     .name = "smatcher",
     .tests = TESTS,
     .testslen = sizeof(TESTS)/sizeof(*TESTS),

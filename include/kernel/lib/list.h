@@ -1,24 +1,21 @@
 #pragma once
 
-typedef struct list_node list_node_t;
 struct list_node {
-    list_node_t *next;
-    list_node_t *prev;
+    struct list_node *next;
+    struct list_node *prev;
     void *data;
 };
-
-typedef struct list list_t;
 struct list {
-    list_node_t *front;
-    list_node_t *back;
+    struct list_node *front;
+    struct list_node *back;
 };
 
 // This is not necessary if it's static variable(which is initialized by zero).
-void list_init(list_t *self);
-void list_insertfront(list_t *list, list_node_t *node, void *data);
-void list_insertback(list_t *list, list_node_t *node, void *data);
-void list_insertafter(list_t *list, list_node_t *after, list_node_t *node, void *data);
-void list_insertbefore(list_t *list, list_node_t *before, list_node_t *node, void *data);
-list_node_t *list_removefront(list_t *list);
-list_node_t *list_removeback(list_t *list);
-void list_removenode(list_t *list, list_node_t *node);
+void list_init(struct list *self);
+void list_insertfront(struct list *list, struct list_node *node, void *data);
+void list_insertback(struct list *list, struct list_node *node, void *data);
+void list_insertafter(struct list *list, struct list_node *after, struct list_node *node, void *data);
+void list_insertbefore(struct list *list, struct list_node *before, struct list_node *node, void *data);
+struct list_node *list_removefront(struct list *list);
+struct list_node *list_removeback(struct list *list);
+void list_removenode(struct list *list, struct list_node *node);

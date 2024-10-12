@@ -9,7 +9,7 @@
 #include <stdint.h>
 #include <string.h>
 
-static void toabsblockrange(size_t *firstaddr_out, ldisk_t *self, diskblkptr_t blockaddr, size_t *blockcount_inout) {
+static void toabsblockrange(size_t *firstaddr_out, struct ldisk *self, diskblkptr_t blockaddr, size_t *blockcount_inout) {
     size_t diskfirstblockaddr = self->startblockaddr;
     size_t disklastblockaddr = self->startblockaddr + (self->blockcount - 1);
     size_t firstabsaddr = 0;
@@ -26,7 +26,7 @@ static void toabsblockrange(size_t *firstaddr_out, ldisk_t *self, diskblkptr_t b
     *blockcount_inout = finalblockcount;
 }
 
-FAILABLE_FUNCTION ldisk_read(ldisk_t *self, void *buf, diskblkptr_t blockaddr, size_t *blockcount_inout) {
+FAILABLE_FUNCTION ldisk_read(struct ldisk *self, void *buf, diskblkptr_t blockaddr, size_t *blockcount_inout) {
 FAILABLE_PROLOGUE
     size_t firstabsaddr = 0;
     toabsblockrange(&firstabsaddr, self, blockaddr, blockcount_inout);
@@ -39,7 +39,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-FAILABLE_FUNCTION ldisk_write(ldisk_t *self, void *buf, diskblkptr_t blockaddr, size_t *blockcount_inout) {
+FAILABLE_FUNCTION ldisk_write(struct ldisk *self, void *buf, diskblkptr_t blockaddr, size_t *blockcount_inout) {
 FAILABLE_PROLOGUE
     size_t firstabsaddr = 0;
     toabsblockrange(&firstabsaddr, self, blockaddr, blockcount_inout);
@@ -52,7 +52,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-FAILABLE_FUNCTION ldisk_read_exact(ldisk_t *self, void *buf, diskblkptr_t blockaddr, size_t blockcount) {
+FAILABLE_FUNCTION ldisk_read_exact(struct ldisk *self, void *buf, diskblkptr_t blockaddr, size_t blockcount) {
 FAILABLE_PROLOGUE
     size_t newblockcount = blockcount;
     TRY(ldisk_read(self, buf, blockaddr, &newblockcount));
@@ -63,7 +63,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-FAILABLE_FUNCTION ldisk_write_exact(ldisk_t *self, void *buf, diskblkptr_t blockaddr, size_t blockcount) {
+FAILABLE_FUNCTION ldisk_write_exact(struct ldisk *self, void *buf, diskblkptr_t blockaddr, size_t blockcount) {
 FAILABLE_PROLOGUE
     size_t newblockcount = blockcount;
     TRY(ldisk_write(self, buf, blockaddr, &newblockcount));
@@ -74,9 +74,9 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION register_ldisk(pdisk_t *pdisk, diskblkptr_t startblockaddr, size_t blockcount) {
+static FAILABLE_FUNCTION register_ldisk(struct pdisk *pdisk, diskblkptr_t startblockaddr, size_t blockcount) {
 FAILABLE_PROLOGUE
-    ldisk_t *disk = heap_alloc(sizeof(*disk), HEAP_FLAG_ZEROMEMORY);
+    struct ldisk *disk = heap_alloc(sizeof(*disk), HEAP_FLAG_ZEROMEMORY);
     if (disk == NULL) {
         THROW(ERR_NOMEM);
     }
@@ -92,7 +92,6 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-typedef struct mbrentry mbrentry_t;
 struct mbrentry {
     uint32_t startlba;
     uint32_t sectorcount;
@@ -100,14 +99,14 @@ struct mbrentry {
     uint8_t flags;
 };
 
-static void mbrentryat(mbrentry_t *out, uint8_t const *ptr) {
+static void mbrentryat(struct mbrentry *out, uint8_t const *ptr) {
     out->flags = ptr[0x0];
     out->partitiontype = ptr[0x4];
     out->startlba = uint32leat(&ptr[0x8]);
     out->sectorcount = uint32leat(&ptr[0xc]);
 }
 
-static bool parsembr(pdisk_t *disk, uint8_t const *firstblock, size_t blocksize) {
+static bool parsembr(struct pdisk *disk, uint8_t const *firstblock, size_t blocksize) {
     enum {
         MBR_BLOCK_SIZE = 512
     };
@@ -117,7 +116,7 @@ static bool parsembr(pdisk_t *disk, uint8_t const *firstblock, size_t blocksize)
         // No valid MBR
         return false;
     }
-    mbrentry_t mbrentries[4];
+    struct mbrentry mbrentries[4];
     mbrentryat(&mbrentries[0], &firstblock[0x1be]);
     mbrentryat(&mbrentries[1], &firstblock[0x1ce]);
     mbrentryat(&mbrentries[2], &firstblock[0x1de]);
@@ -144,7 +143,7 @@ static bool parsembr(pdisk_t *disk, uint8_t const *firstblock, size_t blocksize)
     return true;
 }
 
-FAILABLE_FUNCTION pdisk_register(pdisk_t *disk_out, size_t blocksize, pdisk_ops_t const *ops, void *data) {
+FAILABLE_FUNCTION pdisk_register(struct pdisk *disk_out, size_t blocksize, struct pdisk_ops const *ops, void *data) {
 FAILABLE_PROLOGUE
     memset(disk_out, 0, sizeof(*disk_out));
     disk_out->ops = ops;
@@ -156,14 +155,14 @@ FAILABLE_EPILOGUE_END
 }
 
 void ldisk_discover(void) {
-    list_t *devlist = iodev_getlist(IODEV_TYPE_PHYSICAL_DISK);
+    struct list *devlist = iodev_getlist(IODEV_TYPE_PHYSICAL_DISK);
     if (devlist == NULL || devlist->front == NULL) {
         tty_printf("ldisk: no physical disks - aborting\n");
         return;
     }
-    for (list_node_t *devnode = devlist->front; devnode != NULL; devnode = devnode->next) {
-        iodev_t *device = devnode->data;
-        pdisk_t *disk = device->data;
+    for (struct list_node *devnode = devlist->front; devnode != NULL; devnode = devnode->next) {
+        struct iodev *device = devnode->data;
+        struct pdisk *disk = device->data;
         // read the first block
         uint8_t *firstblock = NULL;
         do {

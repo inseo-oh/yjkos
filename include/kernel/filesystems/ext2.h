@@ -1,4 +1,4 @@
 #pragma once
 #include <kernel/io/disk.h>
 
-void fsinit_init_ext2(ldisk_t *disk);
+void fsinit_init_ext2(struct ldisk *disk);

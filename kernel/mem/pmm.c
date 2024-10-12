@@ -25,17 +25,16 @@ static bool const CONFIG_TEST_POOL = false;
 
 //-----------------------------------------------------------------------------
 
-typedef struct pagepool pagepool_t;
 struct pagepool {
-    pagepool_t *nextpool;
-    bitmap_t bitmap;
+    struct pagepool *nextpool;
+    struct bitmap bitmap;
     physptr_t baseaddr;
     size_t pagecount;
     uint8_t levelcount;
     bitword_t bitmapdata[];
 };
 
-static pagepool_t *s_firstpool;
+static struct pagepool *s_firstpool;
 
 // Physical memory management is done using buddy allocation algorithm.
 // There are several levels in metadata area, and each level corresponds to
@@ -110,7 +109,7 @@ static bitindex_t bitindex_for_pagepoolblock(size_t level, size_t block) {
     return start + block;
 }
 
-static size_t blocksize_to_pagepoollevel(pagepool_t const *pool, size_t size) {
+static size_t blocksize_to_pagepoollevel(struct pagepool const *pool, size_t size) {
     size_t sizeperblock = pool->pagecount;
     size_t currentlevel = 0;
     while (size < sizeperblock) {
@@ -121,7 +120,7 @@ static size_t blocksize_to_pagepoollevel(pagepool_t const *pool, size_t size) {
 }
 
 
-static FAILABLE_FUNCTION allocfrompool(physptr_t *addr_out, pagepool_t *pool, size_t *pagecount_inout) {
+static FAILABLE_FUNCTION allocfrompool(physptr_t *addr_out, struct pagepool *pool, size_t *pagecount_inout) {
 FAILABLE_PROLOGUE
     if (*pagecount_inout == 0) {
         THROW(ERR_NOMEM);
@@ -175,7 +174,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END 
 }
 
-static void freefrompool(pagepool_t *pool, physptr_t ptr, size_t pagecount) {
+static void freefrompool(struct pagepool *pool, physptr_t ptr, size_t pagecount) {
     if (ptr == 0) {
         return;
     }
@@ -231,7 +230,7 @@ die:
     panic("pmm: bad free");
 }
 
-static bool testpagepool(pagepool_t *pool) {
+static bool testpagepool(struct pagepool *pool) {
     size_t currentlevel = 0;
     size_t currentpagecount = pool->pagecount;
     size_t currentalloccount = 1;
@@ -300,7 +299,7 @@ static bool testpagepool(pagepool_t *pool) {
 }
 
 void pmm_testpagepools(void) {
-    for (pagepool_t *pool = s_firstpool; pool != NULL; pool = pool->nextpool) {
+    for (struct pagepool *pool = s_firstpool; pool != NULL; pool = pool->nextpool) {
         testpagepool(pool);
     }
 }
@@ -315,8 +314,8 @@ void pmm_register(physptr_t base, size_t pagecount) {
         calculate_pagepoolsizes(&poolpagecount, &levelcount, &bitcount, remaining_pagecount);
         size_t wordcount = bitmap_neededwordcount(bitcount);
         size_t bitmapsize = wordcount * sizeof(bitword_t);
-        size_t metadatasize = bitmapsize + sizeof(pagepool_t);
-        pagepool_t *pool = heap_alloc(metadatasize, HEAP_FLAG_ZEROMEMORY);
+        size_t metadatasize = bitmapsize + sizeof(struct pagepool);
+        struct pagepool *pool = heap_alloc(metadatasize, HEAP_FLAG_ZEROMEMORY);
         if (pool == NULL) {
             tty_printf("pmm: unable to alloate metadata memory for managing %d pages\n", poolpagecount);
             continue;
@@ -351,7 +350,7 @@ FAILABLE_PROLOGUE
         THROW(ERR_NOMEM);
     }
     bool ok = false;
-    for (pagepool_t *pool = s_firstpool; pool != NULL; pool = pool->nextpool) {
+    for (struct pagepool *pool = s_firstpool; pool != NULL; pool = pool->nextpool) {
         size_t newpagecount = *pagecount_inout;
         status_t status = allocfrompool(ptr_out, pool, &newpagecount);
         if (status == OK) {
@@ -373,7 +372,7 @@ void pmm_free(physptr_t ptr, size_t pagecount) {
         return;
     }
     bool previnterrupts = arch_interrupts_disable();
-    for (pagepool_t *pool = s_firstpool; pool != NULL; pool = pool->nextpool) {
+    for (struct pagepool *pool = s_firstpool; pool != NULL; pool = pool->nextpool) {
         uintptr_t pooldatastart = pool->baseaddr;
         uintptr_t pooldataend = pooldatastart + (ARCH_PAGESIZE * pool->pagecount - 1);
         if ((ptr < pooldatastart) || (pooldataend < ptr)) {
@@ -393,7 +392,7 @@ badptr:
 
 size_t pmm_get_totalmem(void) {
     size_t pagecount = 0;
-    for (pagepool_t *pool = s_firstpool; pool != NULL; pool = pool->nextpool) {
+    for (struct pagepool *pool = s_firstpool; pool != NULL; pool = pool->nextpool) {
         pagecount += pool->pagecount;
     }
     assert(pagecount <= (SIZE_MAX / ARCH_PAGESIZE));
@@ -411,7 +410,7 @@ bool pmm_pagepool_test_random(void) {
     physptr_t allocptrs[RAND_TEST_ALLOC_COUNT];
 
     size_t maxpagecount = 0;
-    for (pagepool_t *pool = s_firstpool; pool != NULL; pool = pool->nextpool) {
+    for (struct pagepool *pool = s_firstpool; pool != NULL; pool = pool->nextpool) {
         if (maxpagecount < pool->pagecount) { 
             maxpagecount = pool->pagecount;
         }

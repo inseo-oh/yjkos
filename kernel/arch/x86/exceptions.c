@@ -8,7 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-static void dumptrapframe(trapframe_t *self) {
+static void dumptrapframe(struct trapframe *self) {
     tty_printf("eax=%08lx ebx=%08lx ecx=%08lx edx=%08lx esi=%08lx edi=%08lx\n", self->eax, self->ebx, self->ecx, self->edx, self->esi, self->edi);
     tty_printf("ebp=%08lx eip=%08lx efl=%08lx cs =%08lx ds =%08lx es =%08lx\n", self->ebp, self->eip, self->eflags, self->cs, self->ds, self->es);
     tty_printf("fs =%08lx gs =%08lx\n", self->fs, self->gs);
@@ -18,7 +18,7 @@ static void dumptrapframe(trapframe_t *self) {
 static void defaulthandler(int trapnum, void *trapframe, void *data) {
     (void)data;
 
-    trapframe_t *frame = trapframe;
+    struct trapframe *frame = trapframe;
     tty_printf("fatal exception %d occured (error code %#x)\n", trapnum, frame->errcode);
     dumptrapframe(frame);
     arch_hcf();
@@ -33,12 +33,12 @@ static void pagefaulthandler(int trapnum, void *trapframe, void *data) {
         PF_FLAG_U = 1 << 2, // User
     };
 
-    trapframe_t *frame = trapframe;
+    struct trapframe *frame = trapframe;
     uintptr_t faultaddr = archx86_readcr2();
     vmm_pagefault(faultaddr, frame->errcode & PF_FLAG_P, frame->errcode & PF_FLAG_W, frame->errcode & PF_FLAG_U, frame);
 }
 
-static traphandler_t s_traphandler[32];
+static struct traphandler s_traphandler[32];
 
 void archx86_exceptions_init(void) {
     for (int i = 0; i < 32; i++) {

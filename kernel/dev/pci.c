@@ -42,15 +42,14 @@ uint8_t pcipath_getfunc(pcipath_t path) {
     return path & 0x7;
 }
 
-typedef struct probecontext probecontext_t;
 struct probecontext {
     void (*callback)(pcipath_t path, uint16_t venid, uint16_t devid, uint8_t baseclass, uint8_t subclass, void *data);
     void *data;
 };
 
-static void probebus(probecontext_t *self, uint8_t bus);
+static void probebus(struct probecontext *self, uint8_t bus);
 
-static void probedev(probecontext_t *self, uint8_t bus, uint8_t device) {
+static void probedev(struct probecontext *self, uint8_t bus, uint8_t device) {
     uint16_t venid, devid;
     pci_readvendevid(&venid, &devid, pci_makepath(bus, device, 0));
     if (venid == 0xffff) {
@@ -87,7 +86,7 @@ static void probedev(probecontext_t *self, uint8_t bus, uint8_t device) {
     }
 }
 
-static void probebus(probecontext_t *self, uint8_t bus) {
+static void probebus(struct probecontext *self, uint8_t bus) {
     for (uint8_t device = 0; device < 32; device++) {
         probedev(self, bus, device);
     }
@@ -97,7 +96,7 @@ void pci_probebus(
     void (*callback)(pcipath_t path, uint16_t venid, uint16_t devid, uint8_t baseclass, uint8_t subclass, void *data),
     void *data
 ) {
-    probecontext_t ctx;
+    struct probecontext ctx;
     ctx.callback = callback;
     ctx.data = data;
     bool ismultifuncdev = pci_readconfigheadertype(pci_makepath(0, 0, 0)) & 0x80;

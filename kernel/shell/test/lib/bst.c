@@ -6,7 +6,7 @@
 #include <kernel/panic.h>
 #include <string.h>
 
-SHELLFUNC static bst_node_t *assertnonnullnode(bst_node_t *node, char const *assertion, char const *function, char const *file, int line) {
+SHELLFUNC static struct bst_node *assertnonnullnode(struct bst_node *node, char const *assertion, char const *function, char const *file, int line) {
     if (node == NULL) {
         tty_printf("non-null assertion failed at %s(%s:%d): %s\n", function, file, line, assertion);
         panic(NULL);
@@ -18,10 +18,10 @@ SHELLFUNC static bst_node_t *assertnonnullnode(bst_node_t *node, char const *ass
 
 
 SHELLFUNC static testresult_t do_insertnode_unbalenced(void) {
-    bst_t bst;
+    struct bst bst;
     bst_init(&bst);
 
-    bst_node_t nodes[5];
+    struct bst_node nodes[5];
     memset(nodes, 0, sizeof(nodes));
     // Insert root node
     bst_insertnode_unbalenced(&bst, &nodes[0], 1000, NULL);
@@ -129,8 +129,8 @@ SHELLFUNC static testresult_t do_insertnode_unbalenced(void) {
 //          cases in this one test.
 
 SHELLFUNC static testresult_t do_balencing(void) {
-    bst_t bst;
-    bst_node_t nodes[12];
+    struct bst bst;
+    struct bst_node nodes[12];
 
     bst_init(&bst);
     memset(nodes, 0, sizeof(nodes));
@@ -145,9 +145,9 @@ SHELLFUNC static testresult_t do_balencing(void) {
      *    /
      * 800                     * BF is all 0
      */
-    bst_node_t *node1000 = &nodes[0];
-    bst_node_t *node900 = &nodes[1];
-    bst_node_t *node800 = &nodes[2];
+    struct bst_node *node1000 = &nodes[0];
+    struct bst_node *node900 = &nodes[1];
+    struct bst_node *node800 = &nodes[2];
     bst_insertnode(&bst, node1000, 1000, NULL);
     bst_insertnode(&bst, node900, 900, NULL);
     bst_insertnode(&bst, node800, 800, NULL);
@@ -176,8 +176,8 @@ SHELLFUNC static testresult_t do_balencing(void) {
      *   /
      * 600
      */
-    bst_node_t *node700 = &nodes[3];
-    bst_node_t *node600 = &nodes[4];
+    struct bst_node *node700 = &nodes[3];
+    struct bst_node *node600 = &nodes[4];
     bst_insertnode(&bst, node700, 700, NULL);
     bst_insertnode(&bst, node600, 600, NULL);
 
@@ -221,8 +221,8 @@ SHELLFUNC static testresult_t do_balencing(void) {
      *       \
      *        550
      */
-    bst_node_t *node500 = &nodes[5];
-    bst_node_t *node550 = &nodes[6];
+    struct bst_node *node500 = &nodes[5];
+    struct bst_node *node550 = &nodes[6];
     bst_insertnode(&bst, node500, 500, NULL);
     bst_insertnode(&bst, node550, 550, NULL);
 
@@ -276,8 +276,8 @@ SHELLFUNC static testresult_t do_balencing(void) {
      *                      \
      *                     1200
      */
-    bst_node_t *node1100 = &nodes[7];
-    bst_node_t *node1200 = &nodes[8];
+    struct bst_node *node1100 = &nodes[7];
+    struct bst_node *node1200 = &nodes[8];
     bst_insertnode(&bst, node1100, 1100, NULL);
     bst_insertnode(&bst, node1200, 1200, NULL);
 
@@ -328,8 +328,8 @@ SHELLFUNC static testresult_t do_balencing(void) {
      *                       /
      *                    1290
      */
-    bst_node_t *node1300 = &nodes[9];
-    bst_node_t *node1290 = &nodes[10];
+    struct bst_node *node1300 = &nodes[9];
+    struct bst_node *node1290 = &nodes[10];
     bst_insertnode(&bst, node1300, 1300, NULL);
     bst_insertnode(&bst, node1290, 1290, NULL);
 
@@ -388,7 +388,7 @@ SHELLFUNC static testresult_t do_balencing(void) {
      *                             \
      *                             1400
      */
-    bst_node_t *node1400 = &nodes[11];
+    struct bst_node *node1400 = &nodes[11];
     bst_insertnode(&bst, node1400, 1400, NULL);
 
     TEST_EXPECT(bst.root == node1100);
@@ -410,10 +410,9 @@ SHELLFUNC static testresult_t do_balencing(void) {
     return TEST_OK;
 }
 
-typedef struct testtree testtree_t;
 struct testtree {
-    bst_t bst;
-    bst_node_t nodes[7];
+    struct bst bst;
+    struct bst_node nodes[7];
 };
 
 /*
@@ -427,7 +426,7 @@ struct testtree {
  *            \                        \
  *             69                       6
 */
-SHELLFUNC static void inittesttree(testtree_t *out) {
+SHELLFUNC static void inittesttree(struct testtree *out) {
     memset(out, 0, sizeof(*out));
 
     out->nodes[0].key = 50;
@@ -466,7 +465,7 @@ SHELLFUNC static void inittesttree(testtree_t *out) {
 }
 
 SHELLFUNC static testresult_t do_removenode_unbalenced(void) {
-    testtree_t tree;
+    struct testtree tree;
     /*
      * Remove a terminal node
      *        50
@@ -481,7 +480,7 @@ SHELLFUNC static testresult_t do_removenode_unbalenced(void) {
     inittesttree(&tree);
     bst_removenode_unbalenced(&tree.bst, ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 69)));
     TEST_EXPECT(bst_findnode(&tree.bst, 69) == NULL);
-    bst_node_t *node63 = ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 63));
+    struct bst_node *node63 = ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 63));
     TEST_EXPECT(node63->children[BST_DIR_LEFT] == NULL);
     TEST_EXPECT(node63->children[BST_DIR_RIGHT] == NULL);
 
@@ -500,8 +499,8 @@ SHELLFUNC static testresult_t do_removenode_unbalenced(void) {
     inittesttree(&tree);
     bst_removenode_unbalenced(&tree.bst, ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 63)));
     TEST_EXPECT(bst_findnode(&tree.bst, 63) == NULL);
-    bst_node_t *node75 = ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 75));
-    bst_node_t *node69 = ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 69));
+    struct bst_node *node75 = ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 75));
+    struct bst_node *node69 = ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 69));
     TEST_EXPECT(node75->children[BST_DIR_LEFT] == node69);
     TEST_EXPECT(node75->children[BST_DIR_RIGHT] == NULL);
     TEST_EXPECT(node69->parent == node75);
@@ -518,8 +517,8 @@ SHELLFUNC static testresult_t do_removenode_unbalenced(void) {
      */
     bst_removenode_unbalenced(&tree.bst, ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 75)));
     TEST_EXPECT(bst_findnode(&tree.bst, 75) == NULL);
-    bst_node_t *node25 = ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 25));
-    bst_node_t *node50 = ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 50));
+    struct bst_node *node25 = ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 25));
+    struct bst_node *node50 = ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 50));
     TEST_EXPECT(node50->children[BST_DIR_LEFT] == node25);
     TEST_EXPECT(node50->children[BST_DIR_RIGHT] == node69);
     TEST_EXPECT(node69->parent == node50);
@@ -529,7 +528,7 @@ SHELLFUNC static testresult_t do_removenode_unbalenced(void) {
 }
 
 SHELLFUNC static testresult_t do_findnode(void) {
-    testtree_t tree;
+    struct testtree tree;
     inittesttree(&tree);
 
     TEST_EXPECT(ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 12))->key == 12);
@@ -542,7 +541,7 @@ SHELLFUNC static testresult_t do_findnode(void) {
 }
 
 SHELLFUNC static testresult_t do_minmaxof(void) {
-    testtree_t tree;
+    struct testtree tree;
     inittesttree(&tree);
 
     TEST_EXPECT(ASSERT_NONNULL_BSTNODE(bst_minof_tree(&tree.bst))->key == 12);
@@ -552,7 +551,7 @@ SHELLFUNC static testresult_t do_minmaxof(void) {
 }
 
 SHELLFUNC static testresult_t do_dirinparent(void) {
-    testtree_t tree;
+    struct testtree tree;
     inittesttree(&tree);
 
     TEST_EXPECT(bst_dirinparent(ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 25))) == BST_DIR_LEFT);
@@ -564,10 +563,10 @@ SHELLFUNC static testresult_t do_dirinparent(void) {
 }
 
 SHELLFUNC static testresult_t do_successor(void) {
-    testtree_t tree;
+    struct testtree tree;
     inittesttree(&tree);
 
-    bst_node_t *node = ASSERT_NONNULL_BSTNODE(bst_minof_tree(&tree.bst));
+    struct bst_node *node = ASSERT_NONNULL_BSTNODE(bst_minof_tree(&tree.bst));
     TEST_EXPECT(node->key == 12);
     node = ASSERT_NONNULL_BSTNODE(bst_successor(node));
     TEST_EXPECT(node->key == 25);
@@ -588,10 +587,10 @@ SHELLFUNC static testresult_t do_successor(void) {
 }
 
 SHELLFUNC static testresult_t do_predecessor(void) {
-    testtree_t tree;
+    struct testtree tree;
     inittesttree(&tree);
 
-    bst_node_t *node = ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 69));
+    struct bst_node *node = ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 69));
     TEST_EXPECT(node->key == 69);
     node = ASSERT_NONNULL_BSTNODE(bst_predecessor(node));
     TEST_EXPECT(node->key == 63);
@@ -610,10 +609,10 @@ SHELLFUNC static testresult_t do_predecessor(void) {
 }
 
 SHELLFUNC static testresult_t do_rotate(void) {
-    testtree_t tree;
+    struct testtree tree;
     inittesttree(&tree);
 
-    bst_node_t *subtreeroot = ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 75));
+    struct bst_node *subtreeroot = ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 75));
     bst_rotate(&tree.bst, subtreeroot, BST_DIR_RIGHT);
     /*
      * Rotation result should look like this
@@ -629,7 +628,7 @@ SHELLFUNC static testresult_t do_rotate(void) {
      */
     TEST_EXPECT(ASSERT_NONNULL_BSTNODE(subtreeroot->children[BST_DIR_LEFT])->key == 69);
     TEST_EXPECT(subtreeroot->children[BST_DIR_RIGHT] == NULL);
-    bst_node_t *newsubtreeroot = ASSERT_NONNULL_BSTNODE(subtreeroot->parent);
+    struct bst_node *newsubtreeroot = ASSERT_NONNULL_BSTNODE(subtreeroot->parent);
     TEST_EXPECT(newsubtreeroot->key == 63);
     TEST_EXPECT(newsubtreeroot->children[BST_DIR_LEFT] == NULL);
     TEST_EXPECT(newsubtreeroot->children[BST_DIR_RIGHT] == subtreeroot);
@@ -668,7 +667,7 @@ SHELLFUNC static testresult_t do_rotate(void) {
 }
 
 SHELLFUNC static testresult_t do_height(void) {
-    testtree_t tree;
+    struct testtree tree;
     inittesttree(&tree);
 
     TEST_EXPECT(ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 25))->height == 1);
@@ -678,7 +677,7 @@ SHELLFUNC static testresult_t do_height(void) {
     return TEST_OK;
 }
 
-SHELLRODATA static test_t const TESTS[] = {
+SHELLRODATA static struct test const TESTS[] = {
     { .name = "insert node unbalenced",     .fn = do_insertnode_unbalenced },
     { .name = "remove node unbalenced",     .fn = do_removenode_unbalenced },
     { .name = "insert node & balencing",    .fn = do_balencing             },
@@ -691,7 +690,7 @@ SHELLRODATA static test_t const TESTS[] = {
     { .name = "height",                     .fn = do_height                },
 };
 
-SHELLDATA const testgroup_t TESTGROUP_BST = {
+SHELLDATA const struct testgroup TESTGROUP_BST = {
     .name = "bst",
     .tests = TESTS,
     .testslen = sizeof(TESTS)/sizeof(*TESTS),

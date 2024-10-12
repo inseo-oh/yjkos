@@ -8,10 +8,10 @@
 #include <string.h>
 
 // Each trap entry is a list of trap handlers.
-static list_t s_traps[YJKERNEL_ARCH_TRAP_COUNT];
+static struct list s_traps[YJKERNEL_ARCH_TRAP_COUNT];
 
-static uint32_t calculatechecksum(traphandler_t const *handler) {
-    traphandler_t temp;
+static uint32_t calculatechecksum(struct traphandler const *handler) {
+    struct traphandler temp;
     memcpy(&temp, handler, sizeof(temp));
     temp.checksum = 0;
     STATIC_ASSERT_TEST(sizeof(*handler) % sizeof(uint32_t) == 0);
@@ -23,18 +23,18 @@ static uint32_t calculatechecksum(traphandler_t const *handler) {
     return ((uint32_t)~0) - sum;
 }
 
-void trapmanager_register(traphandler_t *out, int trapnum, void (*callback)(int trapnum, void *trapframe, void *data), void *data) {
+void trapmanager_register(struct traphandler *out, int trapnum, void (*callback)(int trapnum, void *trapframe, void *data), void *data) {
     bool previnterrupts = arch_interrupts_disable();
     out->callback = callback;
     out->data = data;
     list_insertback(&s_traps[trapnum], &out->node, out);
     out->checksum = calculatechecksum(out);
     if (out->node.prev != NULL) {
-        traphandler_t *handler = out->node.prev->data;
+        struct traphandler *handler = out->node.prev->data;
         handler->checksum = calculatechecksum(handler);
     }
     if (out->node.next != NULL) {
-        traphandler_t *handler = out->node.next->data;
+        struct traphandler *handler = out->node.next->data;
         handler->checksum = calculatechecksum(handler);
     }
     interrupts_restore(previnterrupts);
@@ -53,8 +53,8 @@ void trapmanager_trap(int trapnum, void *trapframe) {
         tty_printf("no trap handler registered for trap %d\n", trapnum);
         return;
     }
-    for (list_node_t *handlernode = s_traps[trapnum].front; handlernode != NULL; handlernode = handlernode->next) {
-        traphandler_t *handler = handlernode->data;
+    for (struct list_node *handlernode = s_traps[trapnum].front; handlernode != NULL; handlernode = handlernode->next) {
+        struct traphandler *handler = handlernode->data;
         uint32_t expectedchecksum = calculatechecksum(handler);
         uint32_t gotchecksum = handler->checksum;
         if (expectedchecksum != gotchecksum) {

@@ -39,7 +39,7 @@ static bool const CONFIG_SERIAL_DEBUG = true;
 
 //-----------------------------------------------------------------------------
 
-static archx86_serial_t s_serial0;
+static struct archx86_serial s_serial0;
 static bool s_serial0ready = false;
 
 NORETURN void archx86_kernelinit(uint32_t mbmagic, physptr_t mbinfoaddr) {

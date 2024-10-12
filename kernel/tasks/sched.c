@@ -17,28 +17,28 @@
 //
 // When opportunities become zero, that queue is no longer selected, thus lower priority queues
 // are selected less than higher priority ones.
-static list_t s_queues;
-static list_node_t *s_currentqueuenode;
-static thread_t *s_runningthread;
+static struct list s_queues;
+static struct list_node *s_currentqueuenode;
+static struct thread *s_runningthread;
 
-FAILABLE_FUNCTION sched_getqueue(sched_queue_t **queue_out, sched_priority_t priority) {
+FAILABLE_FUNCTION sched_getqueue(struct sched_queue **queue_out, sched_priority_t priority) {
 FAILABLE_PROLOGUE
-    list_node_t *insertafter = NULL;
-    sched_queue_t *chosenqueue = NULL;
+    struct list_node *insertafter = NULL;
+    struct sched_queue *chosenqueue = NULL;
     bool shouldinsertfront = false;
     if (s_queues.front != NULL) {
-        list_node_t *queuenode = s_queues.front;
-        sched_queue_t *queue = queuenode->data;
+        struct list_node *queuenode = s_queues.front;
+        struct sched_queue *queue = queuenode->data;
         assert(queue);
         if (priority < queue->priority) {
             shouldinsertfront = true;
         }
     }
     if (!shouldinsertfront) {
-        for (list_node_t *queuenode = s_queues.front; queuenode != NULL; queuenode = queuenode->next) {
-            sched_queue_t *queue = queuenode->data;
+        for (struct list_node *queuenode = s_queues.front; queuenode != NULL; queuenode = queuenode->next) {
+            struct sched_queue *queue = queuenode->data;
             assert(queue);
-            list_node_t *nextququenode = queuenode->next;
+            struct list_node *nextququenode = queuenode->next;
             // Found the queue
             if (queue->priority == priority) {
                 chosenqueue = queue;
@@ -49,7 +49,7 @@ FAILABLE_PROLOGUE
                 insertafter = queuenode;
                 break;
             }
-            sched_queue_t *nextqueue = nextququenode->data;
+            struct sched_queue *nextqueue = nextququenode->data;
             assert(nextqueue);
             // Given priority is between current and next queue's priority.
             if ((queue->priority < priority) && (priority < nextqueue->priority)) {
@@ -61,7 +61,7 @@ FAILABLE_PROLOGUE
     if (chosenqueue != NULL) {
         *queue_out = chosenqueue;
     } else {
-        sched_queue_t *queue = heap_alloc(sizeof(*queue), HEAP_FLAG_ZEROMEMORY);
+        struct sched_queue *queue = heap_alloc(sizeof(*queue), HEAP_FLAG_ZEROMEMORY);
         if (!queue) {
             THROW(ERR_NOMEM);
         }
@@ -77,14 +77,14 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-sched_queue_t *sched_picknextqueue(void) {
-    list_node_t *node = s_currentqueuenode;
+struct sched_queue *sched_picknextqueue(void) {
+    struct list_node *node = s_currentqueuenode;
     for (size_t i = 0; i < 2; i++) {
         for (; node != NULL; node = node->next) {
             if (s_currentqueuenode == node) {
                 continue;
             }
-            sched_queue_t *queue = node->data;
+            struct sched_queue *queue = node->data;
             assert(queue);
             if (queue->opportunities != 0) {
                 break;
@@ -105,13 +105,13 @@ sched_queue_t *sched_picknextqueue(void) {
         }
         // Reset opportunities.
         size_t opportunities = 1;
-        for (list_node_t *node = s_queues.back; node != NULL; node = node->prev, opportunities++) {
-            sched_queue_t *queue = node->data;
+        for (struct list_node *node = s_queues.back; node != NULL; node = node->prev, opportunities++) {
+            struct sched_queue *queue = node->data;
             assert(queue);
             queue->opportunities = opportunities;
         }
     }
-    sched_queue_t *queue = node->data;
+    struct sched_queue *queue = node->data;
     assert(queue);
     queue->opportunities--;
     s_currentqueuenode = &queue->node;
@@ -120,18 +120,18 @@ sched_queue_t *sched_picknextqueue(void) {
 
 void sched_printqueues(void) {
     tty_printf("----- QUEUE LIST -----\n");
-    for (list_node_t *queuenode = s_queues.front; queuenode != NULL; queuenode = queuenode->next) {
-        sched_queue_t *queue = queuenode->data;
+    for (struct list_node *queuenode = s_queues.front; queuenode != NULL; queuenode = queuenode->next) {
+        struct sched_queue *queue = queuenode->data;
         tty_printf("queue %p - Pri %d [threads exist: %d]\n", queue, queue->priority, queue->threads.front != NULL);
-        for (list_node_t *threadnode = queue->threads.front; threadnode != NULL; threadnode = threadnode->next) {
-            tty_printf(" - thread_t %p\n", threadnode);
+        for (struct list_node *threadnode = queue->threads.front; threadnode != NULL; threadnode = threadnode->next) {
+            tty_printf(" - thread %p\n", threadnode);
         }
     }
 }
 
-FAILABLE_FUNCTION sched_queue(thread_t *thread) {
+FAILABLE_FUNCTION sched_queue(struct thread *thread) {
 FAILABLE_PROLOGUE
-    sched_queue_t *queue;
+    struct sched_queue *queue;
     TRY(sched_getqueue(&queue, thread->priority));
     list_insertfront(&queue->threads, &thread->sched_queuelistnode, thread);
 FAILABLE_EPILOGUE_BEGIN
@@ -139,11 +139,11 @@ FAILABLE_EPILOGUE_END
 }
 
 void sched_schedule(void) {
-    sched_queue_t *queue = sched_picknextqueue();
+    struct sched_queue *queue = sched_picknextqueue();
     if (queue == NULL) {
         return;
     }
-    list_node_t *nextthreadnode = list_removeback(&queue->threads);
+    struct list_node *nextthreadnode = list_removeback(&queue->threads);
     if (nextthreadnode == NULL) {
         return;
     }
@@ -153,8 +153,8 @@ void sched_schedule(void) {
             tty_printf("failed to queue current thread (error %d)\n", status);
         }
     }
-    thread_t *nextthread = nextthreadnode->data;
-    thread_t *oldthread = s_runningthread;
+    struct thread *nextthread = nextthreadnode->data;
+    struct thread *oldthread = s_runningthread;
     assert(nextthread != oldthread);
     s_runningthread = nextthread;
     thread_switch(oldthread, nextthread);
@@ -163,9 +163,9 @@ void sched_schedule(void) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static thread_t *thread1;
-static thread_t *thread2;
-static thread_t *thread3;
+static struct thread *thread1;
+static struct thread *thread2;
+static struct thread *thread3;
 
 static char s_videobuf[25][80];
 

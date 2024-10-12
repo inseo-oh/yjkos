@@ -33,7 +33,7 @@ static size_t measuredec_signed(int64_t i) {
     return len + measuredec_unsigned(i);
 }
 
-static FAILABLE_FUNCTION printdec_unsigned(stream_t *self, uint64_t i) {
+static FAILABLE_FUNCTION printdec_unsigned(struct stream *self, uint64_t i) {
 FAILABLE_PROLOGUE
     unsigned long divisor = 1;
     {
@@ -51,7 +51,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION printdec_signed(stream_t *self, int64_t i) {
+static FAILABLE_FUNCTION printdec_signed(struct stream *self, int64_t i) {
 FAILABLE_PROLOGUE
     if (i < 0) {
         TRY(stream_putchar(self, '-'));
@@ -78,7 +78,7 @@ static size_t measurehex(unsigned long i) {
     return len;
 }
 
-static FAILABLE_FUNCTION printhex(stream_t *self, unsigned long i, bool uppercase) {
+static FAILABLE_FUNCTION printhex(struct stream *self, unsigned long i, bool uppercase) {
 FAILABLE_PROLOGUE
     char a = uppercase ? 'A' : 'a';
     unsigned long divisor = 1;
@@ -101,14 +101,14 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-FAILABLE_FUNCTION stream_putchar(stream_t *self, char c) {
+FAILABLE_FUNCTION stream_putchar(struct stream *self, char c) {
 FAILABLE_PROLOGUE
     TRY(self->ops->write(self, &c, 1));
 FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-FAILABLE_FUNCTION stream_putstr(stream_t *self, char const *s) {
+FAILABLE_FUNCTION stream_putstr(struct stream *self, char const *s) {
 FAILABLE_PROLOGUE
     for (char const *nextchar = s; *nextchar != '\0'; nextchar++) {
         TRY(stream_putchar(self, *nextchar));
@@ -131,7 +131,7 @@ typedef enum {
     LENMOD_PTRDIFF,
 } lenmod_t;
 
-FAILABLE_FUNCTION stream_vprintf(stream_t *self, char const *fmt, va_list ap) {
+FAILABLE_FUNCTION stream_vprintf(struct stream *self, char const *fmt, va_list ap) {
 FAILABLE_PROLOGUE
     uint8_t flags;
     char padchar;
@@ -366,7 +366,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-FAILABLE_FUNCTION stream_printf(stream_t *self, char const *fmt, ...) {
+FAILABLE_FUNCTION stream_printf(struct stream *self, char const *fmt, ...) {
 FAILABLE_PROLOGUE
     va_list ap;
 
@@ -377,7 +377,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-FAILABLE_FUNCTION stream_waitchar(char *char_out, stream_t *self, ticktime_t timeout) {
+FAILABLE_FUNCTION stream_waitchar(char *char_out, struct stream *self, ticktime_t timeout) {
 FAILABLE_PROLOGUE
     size_t size = 0;
     if (timeout != 0) {
@@ -396,7 +396,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-FAILABLE_FUNCTION stream_getchar(char *char_out, stream_t *self) {
+FAILABLE_FUNCTION stream_getchar(char *char_out, struct stream *self) {
 FAILABLE_PROLOGUE
     size_t size = 0;
 

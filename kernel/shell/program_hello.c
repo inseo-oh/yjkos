@@ -8,7 +8,7 @@ SHELLFUNC static int program_main(int argc, char *argv[]) {
     return 0;
 }
 
-SHELLDATA shell_program_t g_shell_program_hello = {
+SHELLDATA struct shell_program g_shell_program_hello = {
     .name = "hello",
     .main = program_main,
 };

@@ -3,7 +3,7 @@
 #include <kernel/io/tty.h>
 #include <string.h>
 
-SHELLRODATA static testgroup_t const * const TESTGROUPS[] = {
+SHELLRODATA static struct testgroup const * const TESTGROUPS[] = {
     // lib
     &TESTGROUP_BITMAP,
     &TESTGROUP_BST,
@@ -15,7 +15,7 @@ SHELLRODATA static testgroup_t const * const TESTGROUPS[] = {
     &TESTGROUP_HEAP,
 };
 
-SHELLFUNC static bool runtests(testgroup_t const *group) {
+SHELLFUNC static bool runtests(struct testgroup const *group) {
     size_t okcount = 0, failcount = 0;
     tty_printf("running test group '%s' (%zu tests)\n", group->name, group->testslen);
     for (size_t i = 0; i < group->testslen; i++) {
@@ -83,7 +83,7 @@ SHELLFUNC static int program_main(int argc, char *argv[]) {
             continue;
         }
         notests = false;
-        testgroup_t const *group = NULL;
+        struct testgroup const *group = NULL;
         for (size_t j = 0; j < sizeof(TESTGROUPS)/sizeof(void *); j++) {
             if (strcmp(argv[i], TESTGROUPS[j]->name) == 0) {
                 group = TESTGROUPS[j];
@@ -106,7 +106,7 @@ testdone:
     return 0;
 }
 
-SHELLDATA shell_program_t g_shell_program_runtest = {
+SHELLDATA struct shell_program g_shell_program_runtest = {
     .name = "runtest",
     .main = program_main,
 };

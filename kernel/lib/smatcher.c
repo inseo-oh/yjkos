@@ -4,23 +4,23 @@
 #include <stdbool.h>
 #include <string.h>
 
-void smatcher_init(smatcher_t *out, char const *str) {
+void smatcher_init(struct smatcher *out, char const *str) {
     smatcher_init_with_len(out, str, strlen(str));
 }
 
-void smatcher_init_with_len(smatcher_t *out, char const *str, size_t len) {
+void smatcher_init_with_len(struct smatcher *out, char const *str, size_t len) {
     memset(out, 0, sizeof(*out));
     out->str = str;
     out->len = len;
 }
 
-void smatcher_slice(smatcher_t *out, smatcher_t const *self, size_t firstchar, size_t lastchar) {
+void smatcher_slice(struct smatcher *out, struct smatcher const *self, size_t firstchar, size_t lastchar) {
     assert(firstchar <= lastchar);
     size_t len = lastchar - firstchar + 1;
     smatcher_init_with_len(out, &self->str[firstchar], len);
 }
 
-bool smatcher_consumestringifmatch(smatcher_t *self, char const *str) {
+bool smatcher_consumestringifmatch(struct smatcher *self, char const *str) {
     size_t len = strlen(str);
     if ((self->len - self->currentindex) < len) {
         return false;
@@ -32,7 +32,7 @@ bool smatcher_consumestringifmatch(smatcher_t *self, char const *str) {
     return true;
 }
 
-bool smatcher_consumewordifmatch(smatcher_t *self, char const *str) {
+bool smatcher_consumewordifmatch(struct smatcher *self, char const *str) {
     size_t len = strlen(str);
     if ((self->len - self->currentindex) < len) {
         return false;
@@ -48,13 +48,13 @@ bool smatcher_consumewordifmatch(smatcher_t *self, char const *str) {
     return true;
 }
 
-void smatcher_skipwhitespaces(smatcher_t *self) {
+void smatcher_skipwhitespaces(struct smatcher *self) {
     while(isspace(self->str[self->currentindex])) {
         self->currentindex++;
     }
 }
 
-bool smatcher_consumeword(char const **str_out, size_t *len_out, smatcher_t *self) {
+bool smatcher_consumeword(char const **str_out, size_t *len_out, struct smatcher *self) {
     if ((self->currentindex == self->len) || isspace(self->str[self->currentindex])) {
         return false;
     }

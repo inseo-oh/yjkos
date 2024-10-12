@@ -4,8 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef struct TSS TSS;
-struct TSS {
+struct tss {
     uint16_t link;
     uint16_t _reserved0;
     uint32_t esp0;
@@ -46,7 +45,7 @@ struct TSS {
     uint16_t iopb;
     uint32_t ssp;
 };
-STATIC_ASSERT_SIZE(TSS, 108);
+STATIC_ASSERT_SIZE(struct tss, 108);
 
 
 static uint8_t const GDT_FLAG_G  = 1 << 3;
@@ -74,7 +73,7 @@ static uint8_t const GDT_ACCESS_FLAG_TYPE_TSS32_AVL = 0x9;
 static uint8_t const GDT_ACCESS_FLAG_TYPE_BUSY      = 0xb;
 
 static void initdescriptor(
-    archx86_gdt_segmentdescriptor_t *out,
+    struct archx86_gdt_segmentdescriptor *out,
     uint32_t base,
     uint32_t limit,
     uint8_t flags,
@@ -88,8 +87,8 @@ static void initdescriptor(
     out->base_b31tob24 = ((base >> 24) & 0xff);
 }
 
-static archx86_gdt_t s_gdt;
-static TSS s_tss;
+static struct archx86_gdt s_gdt;
+static struct tss s_tss;
 static uint8_t s_esp0stack[4096];
 
 void archx86_gdt_init(void) {
@@ -117,13 +116,12 @@ void archx86_gdt_init(void) {
 }
 
 void archx86_gdt_load(void) {
-    typedef struct gdtr gdtr_t;
     struct gdtr {
         uint16_t size;
         uint32_t offset;
     } __attribute__((packed));
 
-    volatile gdtr_t gdtr;
+    volatile struct gdtr gdtr;
     gdtr.offset = (uintptr_t)&s_gdt;
     gdtr.size = sizeof(s_gdt);
     __asm__ volatile("lgdt (%0)" ::"r"(&gdtr));

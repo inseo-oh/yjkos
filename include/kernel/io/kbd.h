@@ -9,6 +9,7 @@
 static uint16_t const KBD_FLAG_LOCK_CAPS   = 1 << 0;
 static uint16_t const KBD_FLAG_LOCK_NUM    = 1 << 1;
 static uint16_t const KBD_FLAG_LOCK_SCROLL = 1 << 2;
+
 // Modifier key flags
 static uint16_t const KBD_FLAG_MOD_LSHIFT = 1 << 8;
 static uint16_t const KBD_FLAG_MOD_RSHIFT = 1 << 9;
@@ -18,6 +19,7 @@ static uint16_t const KBD_FLAG_MOD_LALT   = 1 << 12;
 static uint16_t const KBD_FLAG_MOD_RALT   = 1 << 13;
 static uint16_t const KBD_FLAG_MOD_LSUPER = 1 << 14;
 static uint16_t const KBD_FLAG_MOD_RSUPER = 1 << 15;
+
 #define KBD_FLAG_MOD_SHIFT (KBD_FLAG_MOD_LSHIFT | KBD_FLAG_MOD_RSHIFT)
 #define KBD_FLAG_MOD_CTRL  (KBD_FLAG_MOD_LCTRL  | KBD_FLAG_MOD_RCTRL )
 #define KBD_FLAG_MOD_ALT   (KBD_FLAG_MOD_LALT   | KBD_FLAG_MOD_RALT  )
@@ -141,27 +143,25 @@ typedef enum {
     KBD_KEY_COUNT
 } kbd_key_t;
 
-typedef struct kbd_keyevent kbd_keyevent_t;
 struct kbd_keyevent {
     kbd_key_t key;
     char chr;
     bool is_down : 1;
 };
 
-typedef struct kbddev kbddev_t;
-typedef struct kbddev_ops kbddev_ops_t;
+struct kbddev;
 struct kbddev_ops {
-    FAILABLE_FUNCTION (*updateleds)(kbddev_t *self, bool scroll, bool caps, bool num);
+    FAILABLE_FUNCTION (*updateleds)(struct kbddev *self, bool scroll, bool caps, bool num);
 };
 struct kbddev {
-    list_node_t node;
-    iodev_t iodev;
+    struct list_node node;
+    struct iodev iodev;
     void *data;
-    kbddev_ops_t const *ops;
+    struct kbddev_ops const *ops;
 };
 
-bool kbd_pullevent(kbd_keyevent_t *event);
+bool kbd_pullevent(struct kbd_keyevent *out);
 void kbd_keypressed(kbd_key_t key);
 void kbd_keyreleased(kbd_key_t key);
-FAILABLE_FUNCTION kbd_register(kbddev_t *dev_out, kbddev_ops_t const *ops, void *data);
+FAILABLE_FUNCTION kbd_register(struct kbddev *dev_out, struct kbddev_ops const *ops, void *data);
 

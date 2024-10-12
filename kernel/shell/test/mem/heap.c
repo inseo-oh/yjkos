@@ -14,13 +14,13 @@ SHELLFUNC static testresult_t do_badalloc(void) {
     return TEST_OK;
 }
 
-SHELLRODATA static test_t const TESTS[] = {
+SHELLRODATA static struct test const TESTS[] = {
     { .name = "heap random test", .fn = do_randalloc },
     { .name = "bad heap_alloc",   .fn = do_badalloc  },
     // TODO: Add tests for calloc and reallocarray
 };
 
-SHELLDATA const testgroup_t TESTGROUP_HEAP = {
+SHELLDATA const struct testgroup TESTGROUP_HEAP = {
     .name = "heap",
     .tests = TESTS,
     .testslen = sizeof(TESTS)/sizeof(*TESTS),

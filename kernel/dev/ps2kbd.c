@@ -44,10 +44,9 @@ typedef enum {
     CMDSTATE_FAILED,
 } cmdstate_t;
 
-typedef struct cmd cmd_t;
-struct cmd {
+struct cmdcontext {
     _Atomic(cmdstate_t) state;
-    list_node_t node;
+    struct list_node node;
     bool noretry, async;
     uint8_t responsedata;
     uint8_t cmdbyte, resendcount, needdata;
@@ -60,21 +59,20 @@ static uint8_t const FLAG_FAKENUMPADMUL_DOWN = 1 << 1;
 static uint8_t const FLAG_FAKELCTRL_DOWN   = 1 << 2;
 static uint8_t const FLAG_FAKENUMLOCK_DOWN = 1 << 3;
 
-typedef struct context context_t; 
-struct context {
-    kbddev_t device;
+struct kbdcontext {
+    struct kbddev device;
     keyboardstate_t state;
-    ps2port_t *port;
-    list_t cmdqueue;
+    struct ps2port *port;
+    struct list cmdqueue;
     uint8_t flags, keybytes[8], nextkeybyteindex;
 };
 
-static void cmdfinished(ps2port_t *port, cmdstate_t final_state) {
-    context_t *ctx = port->devicedata;
+static void cmdfinished(struct ps2port *port, cmdstate_t final_state) {
+    struct kbdcontext *ctx = port->devicedata;
     assert(ctx);
-    list_node_t *cmdnode = list_removeback(&ctx->cmdqueue);
+    struct list_node *cmdnode = list_removeback(&ctx->cmdqueue);
     assert(cmdnode);
-    cmd_t *cmd = cmdnode->data;
+    struct cmdcontext *cmd = cmdnode->data;
     cmd->state = final_state;
     if (cmd->async) {
         heap_free(cmd);
@@ -227,10 +225,10 @@ static kbd_key_t const KEYMAP_E0[256] = {
 #undef KEY_WITH_SHIFTED
 #undef KEY_WITH_NUMLOCK
 
-static void reportbadscancode(ps2port_t *port) {
+static void reportbadscancode(struct ps2port *port) {
     static char const *MESSAGE_HEADER = "bad scancode sequence";
 
-    context_t *ctx = port->devicedata;
+    struct kbdcontext *ctx = port->devicedata;
     assert(ctx);
     // TODO: Find better ways to print than below mess
     switch(ctx->nextkeybyteindex) {
@@ -261,7 +259,7 @@ static void reportbadscancode(ps2port_t *port) {
     }
 }
 
-static void keypressed(ps2port_t *port, kbd_key_t key) {
+static void keypressed(struct ps2port *port, kbd_key_t key) {
     if (key == KBD_KEY_INVALID) {
         reportbadscancode(port);
         return;
@@ -269,7 +267,7 @@ static void keypressed(ps2port_t *port, kbd_key_t key) {
     kbd_keypressed(key);
 }
 
-static void keyreleased(ps2port_t *port, kbd_key_t key) {
+static void keyreleased(struct ps2port *port, kbd_key_t key) {
     if (key == KBD_KEY_INVALID) {
         reportbadscancode(port);
         return;
@@ -278,8 +276,8 @@ static void keyreleased(ps2port_t *port, kbd_key_t key) {
 
 }
 
-static void checkprintscreen_press(ps2port_t *port) {
-    context_t *ctx = port->devicedata;
+static void checkprintscreen_press(struct ps2port *port) {
+    struct kbdcontext *ctx = port->devicedata;
     assert(ctx);
     uint8_t flagmask = FLAG_FAKELSHIFT_DOWN | FLAG_FAKENUMPADMUL_DOWN;
 
@@ -288,8 +286,8 @@ static void checkprintscreen_press(ps2port_t *port) {
     }
 }
 
-static void checkprintscreen_release(ps2port_t *port) {
-    context_t *ctx = port->devicedata;
+static void checkprintscreen_release(struct ps2port *port) {
+    struct kbdcontext *ctx = port->devicedata;
     assert(ctx);
     uint8_t flagmask = FLAG_FAKELSHIFT_DOWN | FLAG_FAKENUMPADMUL_DOWN;
 
@@ -298,8 +296,8 @@ static void checkprintscreen_release(ps2port_t *port) {
     }
 }
 
-static void checkpause_press(ps2port_t *port) {
-    context_t *ctx = port->devicedata;
+static void checkpause_press(struct ps2port *port) {
+    struct kbdcontext *ctx = port->devicedata;
     assert(ctx);
     uint8_t flagmask = FLAG_FAKELCTRL_DOWN | FLAG_FAKENUMLOCK_DOWN;
 
@@ -308,8 +306,8 @@ static void checkpause_press(ps2port_t *port) {
     }
 }
 
-static void checkpause_release(ps2port_t *port) {
-    context_t *ctx = port->devicedata;
+static void checkpause_release(struct ps2port *port) {
+    struct kbdcontext *ctx = port->devicedata;
     assert(ctx);
     uint8_t flagmask = FLAG_FAKELCTRL_DOWN | FLAG_FAKENUMLOCK_DOWN;
 
@@ -318,9 +316,9 @@ static void checkpause_release(ps2port_t *port) {
     }
 }
 
-static FAILABLE_FUNCTION ps2_op_bytereceived(ps2port_t *port, uint8_t byte) {
+static FAILABLE_FUNCTION ps2_op_bytereceived(struct ps2port *port, uint8_t byte) {
 FAILABLE_PROLOGUE
-    context_t *ctx = port->devicedata;
+    struct kbdcontext *ctx = port->devicedata;
     assert(ctx);
     if (ctx->state == STATE_DEFAULT) {
         ctx->nextkeybyteindex = 0;
@@ -330,12 +328,12 @@ FAILABLE_PROLOGUE
 
     switch(byte) {
         case PS2_RESPONSE_ACK: {
-            list_node_t *cmdnode = ctx->cmdqueue.back;
+            struct list_node *cmdnode = ctx->cmdqueue.back;
             if (cmdnode == NULL) {
                 iodev_printf(&ctx->device.iodev, "received ACK, but there are no commands\n");
                 break;
             }
-            cmd_t *cmd = cmdnode->data;
+            struct cmdcontext *cmd = cmdnode->data;
             if (cmd->state != CMDSTATE_WAITINGRESPONSE) {
                 iodev_printf(&ctx->device.iodev, "received ACK on command %#x with incorrect state(expected %d, got %d)\n", CMDSTATE_WAITINGRESPONSE, cmd->state);
             } else {
@@ -354,12 +352,12 @@ FAILABLE_PROLOGUE
             goto FAILABLE_EPILOGUE_LABEL;
         }
         case PS2_RESPONSE_RESEND: {
-            list_node_t *cmdnode = ctx->cmdqueue.back;
+            struct list_node *cmdnode = ctx->cmdqueue.back;
             if (cmdnode == NULL) {
                 iodev_printf(&ctx->device.iodev, "received RESEND, but there are no commands\n");
                 break;
             }
-            cmd_t *cmd = cmdnode->data;
+            struct cmdcontext *cmd = cmdnode->data;
             if (cmd->state != CMDSTATE_WAITINGRESPONSE) {
                 iodev_printf(&ctx->device.iodev, "received RESEND on command %#x with incorrect state(expected %d, got %d)\n", cmd->cmdbyte, CMDSTATE_WAITINGRESPONSE, cmd->state);
             } else {
@@ -379,12 +377,12 @@ FAILABLE_PROLOGUE
             goto FAILABLE_EPILOGUE_LABEL;
         }
         case CMD_ECHO: {
-            list_node_t *cmdnode = ctx->cmdqueue.back;
+            struct list_node *cmdnode = ctx->cmdqueue.back;
             if (cmdnode == NULL) {
                 iodev_printf(&ctx->device.iodev, "received ECHO, but there are no commands\n");
                 break;
             }
-            cmd_t *cmd = cmdnode->data;
+            struct cmdcontext *cmd = cmdnode->data;
             if (cmd->state != CMDSTATE_WAITINGRESPONSE) {
                 iodev_printf(&ctx->device.iodev, "received ECHO on command %#x with incorrect state(expected %d, got %d)\n", cmd->cmdbyte, CMDSTATE_WAITINGRESPONSE, cmd->state);
             } else if (cmd->cmdbyte != CMD_ECHO) {
@@ -400,12 +398,12 @@ FAILABLE_PROLOGUE
     }
     switch(ctx->state) {
         case STATE_WAITING_RESPONSEDATA: {
-            list_node_t *cmdnode = ctx->cmdqueue.back;
+            struct list_node *cmdnode = ctx->cmdqueue.back;
             if (!cmdnode) {
                 iodev_printf(&ctx->device.iodev, "received response data, but there are no commands\n");
                 break;
             }
-            cmd_t *cmd = cmdnode->data;
+            struct cmdcontext *cmd = cmdnode->data;
             if (cmd->state != CMDSTATE_WAITINGRESPONSE) {
                 iodev_printf(&ctx->device.iodev, "received response data on command %#x with incorrect state(expected %d, got %d)\n", cmd->cmdbyte, CMDSTATE_WAITINGRESPONSE, cmd->state);
             } else {
@@ -553,12 +551,12 @@ FAILABLE_EPILOGUE_END
 }
 
 // If command sends back additional result bytes, set `result_out` non-NULL value where the result will be stored.
-static FAILABLE_FUNCTION requestcmd(uint8_t *result_out, ps2port_t *port, uint8_t cmdbyte, bool noretry, bool async) {
+static FAILABLE_FUNCTION requestcmd(uint8_t *result_out, struct ps2port *port, uint8_t cmdbyte, bool noretry, bool async) {
 FAILABLE_PROLOGUE
-    context_t *ctx = port->devicedata;
+    struct kbdcontext *ctx = port->devicedata;
     assert(ctx);
     assert(!async || (async && !result_out)); // async mode cannot be used to receive values
-    cmd_t *cmd = heap_alloc(sizeof(*cmd), HEAP_FLAG_ZEROMEMORY);
+    struct cmdcontext *cmd = heap_alloc(sizeof(*cmd), HEAP_FLAG_ZEROMEMORY);
     if (!cmd) {
         THROW(ERR_NOMEM);
     }
@@ -605,7 +603,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION echo(ps2port_t *port, bool async) {
+static FAILABLE_FUNCTION echo(struct ps2port *port, bool async) {
 FAILABLE_PROLOGUE
     TRY(requestcmd(NULL, port, CMD_ECHO, false, async));
 FAILABLE_EPILOGUE_BEGIN
@@ -616,7 +614,7 @@ static uint8_t const LED_SCROLL = 1 << 0;
 static uint8_t const LED_NUM    = 1 << 1;
 static uint8_t const LED_CAPS   = 1 << 2;
 
-static FAILABLE_FUNCTION setledstate(ps2port_t *port, uint8_t leds, bool async) {
+static FAILABLE_FUNCTION setledstate(struct ps2port *port, uint8_t leds, bool async) {
 FAILABLE_PROLOGUE
     TRY(requestcmd(NULL, port, CMD_SETLEDS, false, async));
     TRY(requestcmd(NULL, port, leds, true, async));
@@ -624,7 +622,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION getscancodeset(uint8_t *result_out, ps2port_t *port) {
+static FAILABLE_FUNCTION getscancodeset(uint8_t *result_out, struct ps2port *port) {
 FAILABLE_PROLOGUE
     assert(result_out);
     TRY(requestcmd(NULL, port, CMD_SCANCODESET, false, false));
@@ -633,7 +631,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION setscancodeset(ps2port_t *port, uint8_t set, bool async) {
+static FAILABLE_FUNCTION setscancodeset(struct ps2port *port, uint8_t set, bool async) {
 FAILABLE_PROLOGUE
     assert(set != 0);
     TRY(requestcmd(NULL, port, CMD_SCANCODESET, false, async));
@@ -642,8 +640,8 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION kbd_op_updateleds(kbddev_t *kbd, bool scroll, bool caps, bool num) {
-    context_t *ctx = kbd->data;
+static FAILABLE_FUNCTION kbd_op_updateleds(struct kbddev *kbd, bool scroll, bool caps, bool num) {
+    struct kbdcontext *ctx = kbd->data;
     uint8_t led_state = 0;
     if (scroll) {
         led_state |= LED_SCROLL;
@@ -657,17 +655,17 @@ static FAILABLE_FUNCTION kbd_op_updateleds(kbddev_t *kbd, bool scroll, bool caps
     return setledstate(ctx->port, led_state, true);
 }
 
-static kbddev_ops_t const KEYBOARD_CALLBACKS = {
+static struct kbddev_ops const KEYBOARD_CALLBACKS = {
     .updateleds = kbd_op_updateleds,
 };
 
-static ps2port_ops_t const PS2_OPS = {
+static struct ps2port_ops const PS2_OPS = {
     .bytereceived = ps2_op_bytereceived,
 };
 
-FAILABLE_FUNCTION ps2kbd_init(ps2port_t *port) {
+FAILABLE_FUNCTION ps2kbd_init(struct ps2port *port) {
 FAILABLE_PROLOGUE
-    context_t *ctx = heap_alloc(sizeof(*ctx), HEAP_FLAG_ZEROMEMORY);
+    struct kbdcontext *ctx = heap_alloc(sizeof(*ctx), HEAP_FLAG_ZEROMEMORY);
     if (ctx == NULL) {
         THROW(ERR_NOMEM);
     }

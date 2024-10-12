@@ -14,11 +14,10 @@
 #include <stdint.h>
 #include <string.h>
 
-typedef struct pagetable pagetable_t;
 struct pagetable {
     archx86_mmuentry entry[ARCHX86_MMU_ENTRY_COUNT];
 };
-STATIC_ASSERT_TEST(sizeof(pagetable_t) == ARCHX86_MMU_PAGE_SIZE);
+STATIC_ASSERT_TEST(sizeof(struct pagetable) == ARCHX86_MMU_PAGE_SIZE);
 
 #define ENTRY_BIT_MASK   0x3FFUL
 
@@ -38,7 +37,7 @@ STATIC_ASSERT_TEST(sizeof(pagetable_t) == ARCHX86_MMU_PAGE_SIZE);
 
 
 static archx86_mmuentry *s_pagedir = (archx86_mmuentry *)PAGEDIR_PD_BASE;
-static pagetable_t *s_pagetables = (pagetable_t *)PAGEDIR_PT_BASE(0);
+static struct pagetable *s_pagetables = (struct pagetable *)PAGEDIR_PT_BASE(0);
 
 static uintptr_t makevirtaddr(size_t pde, size_t pte, size_t offset) {
     return MAKE_VIRTADDR(pde, pte, offset);
@@ -71,7 +70,7 @@ void arch_mmu_flushtlb(void) {
 
 FAILABLE_FUNCTION arch_mmu_emulate(physptr_t *physaddr_out, uintptr_t virtaddr, memmapflags_t flags, bool isfromuser) {
 FAILABLE_PROLOGUE
-    archx86_mmu_emulateresult_t result;
+    struct archx86_mmu_emulateresult result;
     *physaddr_out = 0;
     if (!(flags & MAP_PROT_READ)) {
         THROW(ERR_PERM);
@@ -300,7 +299,7 @@ void arch_mmu_scratchmap(physptr_t physaddr, bool nocache) {
 // Internal API
 //------------------------------------------------------------------------------
 
-bool archx86_mmu_emulate(archx86_mmu_emulateresult_t *result_out, uintptr_t virtaddr, bool iswrite, bool isfromuser) {
+bool archx86_mmu_emulate(struct archx86_mmu_emulateresult *result_out, uintptr_t virtaddr, bool iswrite, bool isfromuser) {
     uint16_t pde = pdeindex(virtaddr);
     uint16_t pte = pteindex(virtaddr);
     bool ok = true;

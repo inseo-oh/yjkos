@@ -7,15 +7,15 @@
 #include <stddef.h>
 #include <stdint.h>
 
-static stream_t *s_console;
+static struct stream *s_console;
 // NOTE: Debug console is output only
-static stream_t *s_debugconsole;
+static struct stream *s_debugconsole;
 
-void tty_setconsole(stream_t *device) {
+void tty_setconsole(struct stream *device) {
     s_console = device;
 }
 
-void tty_setdebugconsole(stream_t *device) {
+void tty_setdebugconsole(struct stream *device) {
     s_debugconsole = device;
 }
 

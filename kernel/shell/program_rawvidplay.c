@@ -15,7 +15,7 @@ SHELLFUNC static int program_main(int argc, char *argv[]) {
         tty_printf("usage: rawvidplay <rawvideo file>\n");
         return 1;
     }
-    fd_t *fd;
+    struct fd *fd;
     status_t status = vfs_openfile(&fd, argv[1], 0);
     if (status != OK) {
         tty_printf("can't open file\n");
@@ -39,7 +39,7 @@ SHELLFUNC static int program_main(int argc, char *argv[]) {
     return 0;
 }
 
-SHELLDATA shell_program_t g_shell_program_rawvidplay = {
+SHELLDATA struct shell_program g_shell_program_rawvidplay = {
     .name = "rawvidplay",
     .main = program_main,
 };

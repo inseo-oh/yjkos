@@ -2,19 +2,17 @@
 #include <stdint.h>
 #include <stddef.h>
 
-typedef struct bst_node bst_node_t;
 struct bst_node {
-    bst_node_t *parent;
-    bst_node_t *children[2];
+    struct bst_node *parent;
+    struct bst_node *children[2];
     void *data;
     intmax_t key;
     int32_t bf;
     int32_t height;
 };
 
-typedef struct bst bst_t;
 struct bst {
-    bst_node_t *root;
+    struct bst_node *root;
 };
 
 typedef enum {
@@ -23,25 +21,25 @@ typedef enum {
 } bst_dir_t;
 
 // This is not necessary if it's static variable(which is initialized by zero).
-void bst_init(bst_t *self);
-void bst_insertnode(bst_t *self, bst_node_t *node, intmax_t key, void *data);
-void bst_removenode(bst_t *self, bst_node_t *node);
-bst_node_t *bst_findnode(bst_t *self, intmax_t key);
-bst_node_t *bst_minof_tree(bst_t *self);
-bst_node_t *bst_maxof_tree(bst_t *self);
-bst_node_t *bst_minof(bst_node_t *subtreeroot);
-bst_node_t *bst_maxof(bst_node_t *subtreeroot);
-bst_node_t *bst_successor(bst_node_t *node);
-bst_node_t *bst_predecessor(bst_node_t *node);
-bst_dir_t bst_dirinparent(bst_node_t *node);
-void bst_rotate(bst_t *self, bst_node_t *subtreeroot, bst_dir_t dir);
-void bst_recalculateheight(bst_node_t *subtreeroot);
-void bst_recalculatebf_tree(bst_t *self);
-void bst_recalculatebf(bst_node_t *subtreeroot);
-void bst_checkandrebalence(bst_t *self, bst_node_t *startNode);
+void bst_init(struct bst *self);
+void bst_insertnode(struct bst *self, struct bst_node *node, intmax_t key, void *data);
+void bst_removenode(struct bst *self, struct bst_node *node);
+struct bst_node *bst_findnode(struct bst *self, intmax_t key);
+struct bst_node *bst_minof_tree(struct bst *self);
+struct bst_node *bst_maxof_tree(struct bst *self);
+struct bst_node *bst_minof(struct bst_node *subtreeroot);
+struct bst_node *bst_maxof(struct bst_node *subtreeroot);
+struct bst_node *bst_successor(struct bst_node *node);
+struct bst_node *bst_predecessor(struct bst_node *node);
+bst_dir_t bst_dirinparent(struct bst_node *node);
+void bst_rotate(struct bst *self, struct bst_node *subtreeroot, bst_dir_t dir);
+void bst_recalculateheight(struct bst_node *subtreeroot);
+void bst_recalculatebf_tree(struct bst *self);
+void bst_recalculatebf(struct bst_node *subtreeroot);
+void bst_checkandrebalence(struct bst *self, struct bst_node *startNode);
 
-// Unbalenced operations will break tree balence, but it *is* still valid bst_t.
+// Unbalenced operations will break tree balence, but it *is* still valid BST.
 // It will be just slower to search than balenced tree.
 // (For balenced operations, use the ones without ~Unbalenced suffix)
-void bst_insertnode_unbalenced(bst_t *self, bst_node_t *node, intmax_t key, void *data);
-void bst_removenode_unbalenced(bst_t *self, bst_node_t *node);
+void bst_insertnode_unbalenced(struct bst *self, struct bst_node *node, intmax_t key, void *data);
+void bst_removenode_unbalenced(struct bst *self, struct bst_node *node);

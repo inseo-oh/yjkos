@@ -21,7 +21,7 @@
 
 static _Atomic int s_nextfdnum = 0;
 
-FAILABLE_FUNCTION vfs_registerfile(fd_t *out, fd_ops_t const *ops, vfs_fscontext_t *fscontext, void *data) {
+FAILABLE_FUNCTION vfs_registerfile(struct fd *out, struct fd_ops const *ops, struct vfs_fscontext *fscontext, void *data) {
 FAILABLE_PROLOGUE
     out->id = s_nextfdnum++;
     if (out->id == INT_MAX) {
@@ -36,7 +36,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-void vfs_unregisterfile(fd_t *self) {
+void vfs_unregisterfile(struct fd *self) {
     if (self == NULL) {
         return;
     }
@@ -45,8 +45,8 @@ void vfs_unregisterfile(fd_t *self) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static list_t s_fstypes; // vfs_fstype_t items
-static list_t s_mounts;  // vfs_fscontext_t items
+static struct list s_fstypes; // struct vfs_fstype items
+static struct list s_mounts;  // struct vfs_fscontext items
 
 // Resolves and removes . and .. in the path.
 static FAILABLE_FUNCTION removerelpath(char **newpath_out, char const *path) {
@@ -113,9 +113,9 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION mount(vfs_fstype_t *fstype, ldisk_t *disk, char const *mountpath) {
+static FAILABLE_FUNCTION mount(struct vfs_fstype *fstype, struct ldisk *disk, char const *mountpath) {
 FAILABLE_PROLOGUE
-    vfs_fscontext_t *context;
+    struct vfs_fscontext *context;
     char *newmountpath;
     TRY(removerelpath(&newmountpath, mountpath));
     TRY(fstype->ops->mount(&context, disk));
@@ -131,14 +131,14 @@ FAILABLE_EPILOGUE_END
 }
 
 // Returns ERR_INVAL if `mountpath` is not a mount point.
-static FAILABLE_FUNCTION findmount(vfs_fscontext_t **out, char const *mountpath) {
+static FAILABLE_FUNCTION findmount(struct vfs_fscontext **out, char const *mountpath) {
 FAILABLE_PROLOGUE
     char *newmountpath = NULL;
     TRY(removerelpath(&newmountpath, mountpath));
     assert(s_mounts.front != NULL);
-    vfs_fscontext_t *result = NULL;
-    for (list_node_t *mountnode = s_mounts.front; mountnode != NULL; mountnode = mountnode->next) {
-        vfs_fscontext_t *entry = mountnode->data;
+    struct vfs_fscontext *result = NULL;
+    for (struct list_node *mountnode = s_mounts.front; mountnode != NULL; mountnode = mountnode->next) {
+        struct vfs_fscontext *entry = mountnode->data;
         assert(entry);
         if (strcmp(entry->mountpath, newmountpath) == 0) {
             result = entry;
@@ -154,11 +154,11 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-FAILABLE_FUNCTION vfs_mount(char const *fstype, ldisk_t *disk, char const *mountpath) {
+FAILABLE_FUNCTION vfs_mount(char const *fstype, struct ldisk *disk, char const *mountpath) {
 FAILABLE_PROLOGUE
     if (fstype == NULL) {
         // Try all possible filesystems
-        for (list_node_t *fstypenode = s_fstypes.front; fstypenode != NULL; fstypenode = fstypenode->next) {
+        for (struct list_node *fstypenode = s_fstypes.front; fstypenode != NULL; fstypenode = fstypenode->next) {
             status_t mountstatus = mount(fstypenode->data, disk, mountpath);
             if ((mountstatus != OK) && (mountstatus != ERR_INVAL)) {
                 // If it was ERR_INVAL, that's probably wrong filesystem type. For others, abort and report the error.
@@ -169,9 +169,9 @@ FAILABLE_PROLOGUE
         }
     } else {
         // Find filesystem with given name.
-        vfs_fstype_t *fstyperesult = NULL;
-        for (list_node_t *fstypenode = s_fstypes.front; fstypenode != NULL; fstypenode = fstypenode->next) {
-            vfs_fstype_t *currentfstype = fstypenode->data;
+        struct vfs_fstype *fstyperesult = NULL;
+        for (struct list_node *fstypenode = s_fstypes.front; fstypenode != NULL; fstypenode = fstypenode->next) {
+            struct vfs_fstype *currentfstype = fstypenode->data;
             if (strcmp(currentfstype->name, fstype) == 0) {
                 fstyperesult = currentfstype;
             }
@@ -187,7 +187,7 @@ FAILABLE_EPILOGUE_END
 
 FAILABLE_FUNCTION vfs_umount(char const *mountpath) {
 FAILABLE_PROLOGUE
-    vfs_fscontext_t *fscontext;
+    struct vfs_fscontext *fscontext;
     TRY(findmount(&fscontext, mountpath));
     char *contextmountpath = fscontext->mountpath;
     TRY(fscontext->fstype->ops->umount(fscontext));
@@ -196,7 +196,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-void vfs_registerfstype(vfs_fstype_t *out, char const *name, vfs_fstype_ops_t const *ops) {
+void vfs_registerfstype(struct vfs_fstype *out, char const *name, struct vfs_fstype_ops const *ops) {
     memset(out, 0, sizeof(*out));
     out->name = name;
     out->ops = ops;
@@ -205,7 +205,7 @@ void vfs_registerfstype(vfs_fstype_t *out, char const *name, vfs_fstype_ops_t co
 
 void vfs_mountroot(void) {
     tty_printf("vfs: mounting the first usable filesystem...\n");
-    list_t *devlist = iodev_getlist(IODEV_TYPE_LOGICAL_DISK);
+    struct list *devlist = iodev_getlist(IODEV_TYPE_LOGICAL_DISK);
     if (devlist == NULL || devlist->front == NULL) {
         tty_printf("no logical disks. Mounting dummyfs as root\n");
         status_t status = vfs_mount("dummyfs", NULL, "/");
@@ -214,9 +214,9 @@ void vfs_mountroot(void) {
         }
         return;
     }
-    for (list_node_t *devnode = devlist->front; devnode != NULL; devnode = devnode->next) {
-        iodev_t *iodev = devnode->data;
-        ldisk_t *disk = iodev->data;
+    for (struct list_node *devnode = devlist->front; devnode != NULL; devnode = devnode->next) {
+        struct iodev *iodev = devnode->data;
+        struct ldisk *disk = iodev->data;
         status_t status = vfs_mount(NULL, disk, "/");
         if (status != OK) {
             continue;
@@ -225,16 +225,16 @@ void vfs_mountroot(void) {
     }
 }
 
-static FAILABLE_FUNCTION resolvepath(vfs_fscontext_t **out, char const *path, void (*callback)(vfs_fscontext_t *fscontext, char const *path, void *data), void *data) {
+static FAILABLE_FUNCTION resolvepath(struct vfs_fscontext **out, char const *path, void (*callback)(struct vfs_fscontext *fscontext, char const *path, void *data), void *data) {
 FAILABLE_PROLOGUE
     char *newpath = NULL;
     TRY(removerelpath(&newpath, path));
     // There should be a rootfs at very least.
     assert(s_mounts.front != NULL);
-    vfs_fscontext_t *result = NULL;
+    struct vfs_fscontext *result = NULL;
     size_t lastmatchlen = 0;
-    for (list_node_t *mountnode = s_mounts.front; mountnode != NULL; mountnode = mountnode->next) {
-        vfs_fscontext_t *entry = mountnode->data;
+    for (struct list_node *mountnode = s_mounts.front; mountnode != NULL; mountnode = mountnode->next) {
+        struct vfs_fscontext *entry = mountnode->data;
         size_t len = strlen(entry->mountpath);
         if (lastmatchlen <= len) {
             if (strncmp(entry->mountpath, path, len) == 0) {
@@ -252,22 +252,21 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-typedef struct opencontext opencontext_t;
-struct opencontext {
-    fd_t *fdresult;
+struct openfilecontext {
+    struct fd *fdresult;
     int flags;
     status_t status;
 };
 
-static void resolvepathcallback_openfile(vfs_fscontext_t *fscontext, char const *path, void *data) {
-    opencontext_t *context = data;
+static void resolvepathcallback_openfile(struct vfs_fscontext *fscontext, char const *path, void *data) {
+    struct openfilecontext *context = data;
     context->status = fscontext->fstype->ops->open(&context->fdresult, fscontext, path, context->flags);
 }
 
-FAILABLE_FUNCTION vfs_openfile(fd_t **out, char const *path, int flags) {
+FAILABLE_FUNCTION vfs_openfile(struct fd **out, char const *path, int flags) {
 FAILABLE_PROLOGUE
-    vfs_fscontext_t *fscontext;
-    opencontext_t context;
+    struct vfs_fscontext *fscontext;
+    struct openfilecontext context;
     context.flags = flags;
     TRY(resolvepath(&fscontext, path, resolvepathcallback_openfile, &context));
     if (context.status != OK) {
@@ -278,19 +277,19 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-void vfs_closefile(fd_t *fd) {
+void vfs_closefile(struct fd *fd) {
     fd->ops->close(fd);
 }
 
-FAILABLE_FUNCTION vfs_readfile(fd_t *fd, void *buf, size_t *len_inout) {
+FAILABLE_FUNCTION vfs_readfile(struct fd *fd, void *buf, size_t *len_inout) {
     return fd->ops->read(fd, buf, len_inout);
 }
 
-FAILABLE_FUNCTION vfs_writefile(fd_t *fd, void const *buf, size_t *len_inout) {
+FAILABLE_FUNCTION vfs_writefile(struct fd *fd, void const *buf, size_t *len_inout) {
     return fd->ops->write(fd, buf, len_inout);
 }
 
-FAILABLE_FUNCTION vfs_seekfile(fd_t *fd, off_t offset, int whence) {
+FAILABLE_FUNCTION vfs_seekfile(struct fd *fd, off_t offset, int whence) {
     return fd->ops->seek(fd, offset, whence);
 }
 

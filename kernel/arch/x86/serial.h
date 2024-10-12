@@ -6,12 +6,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-typedef struct archx86_serial_t archx86_serial_t;
-struct archx86_serial_t {
-    stream_t stream;
+struct archx86_serial {
+    struct stream stream;
     uint32_t masterclock;
     archx86_ioaddr_t baseaddr;
-    archx86_pic_irqhandler_t irqhandler;
+    struct archx86_pic_irqhandler irqhandler;
     uint8_t irq;
     _Atomic(int) txint;
     _Atomic(int) rxint;
@@ -22,6 +21,6 @@ struct archx86_serial_t {
     bool useirq : 1;
 };
 
-FAILABLE_FUNCTION archx86_serial_init(archx86_serial_t *out, archx86_ioaddr_t baseaddr, uint32_t masterclock, uint8_t irq);
-FAILABLE_FUNCTION archx86_serial_config(archx86_serial_t *self, uint32_t baudrate);
-void archx86_serial_useirq(archx86_serial_t *self);
+FAILABLE_FUNCTION archx86_serial_init(struct archx86_serial *out, archx86_ioaddr_t baseaddr, uint32_t masterclock, uint8_t irq);
+FAILABLE_FUNCTION archx86_serial_config(struct archx86_serial *self, uint32_t baudrate);
+void archx86_serial_useirq(struct archx86_serial *self);

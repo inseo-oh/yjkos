@@ -29,8 +29,7 @@ enum {
     SHELL_MAX_NAME_LEN    = 20,
 };
 
-typedef union cmd cmd_t;
-union cmd {
+union shellcmd {
     cmdkind_t kind;
     struct {
         cmdkind_t kind;
@@ -39,9 +38,9 @@ union cmd {
     } runprogram;
 };
 
-SHELLBSS static list_t s_programs;
+SHELLBSS static struct list s_programs;
 
-SHELLFUNC static FAILABLE_FUNCTION parsecmd(cmd_t *out, smatcher_t *cmdstr) {
+SHELLFUNC static FAILABLE_FUNCTION parsecmd(union shellcmd *out, struct smatcher *cmdstr) {
 FAILABLE_PROLOGUE
     size_t oldcurrentindex = cmdstr->currentindex;
     char **argv = NULL;
@@ -95,7 +94,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-SHELLFUNC static void cmd_destroy(cmd_t *cmd) {
+SHELLFUNC static void cmd_destroy(union shellcmd *cmd) {
     switch(cmd->kind) {
         case KIND_RUNPROGRAM:
             for (int i = 0; i < cmd->runprogram.argc; i++) {
@@ -107,7 +106,7 @@ SHELLFUNC static void cmd_destroy(cmd_t *cmd) {
     }
 }
 
-SHELLFUNC static void cmd_dump(cmd_t const *cmd) {
+SHELLFUNC static void cmd_dump(union shellcmd const *cmd) {
     switch(cmd->kind) {
         case KIND_RUNPROGRAM:
             tty_printf("[cmd_dump] RUNPROGRAM\n");
@@ -124,14 +123,14 @@ SHELLFUNC static void cmd_dump(cmd_t const *cmd) {
     }
 }
 
-SHELLFUNC static int cmd_exec(cmd_t const *cmd) {
+SHELLFUNC static int cmd_exec(union shellcmd const *cmd) {
     switch(cmd->kind) {
         case KIND_RUNPROGRAM: {
             assert(cmd->runprogram.argc != 0);
             assert(cmd->runprogram.argv != NULL);
-            shell_program_t *program_to_run = NULL;
-            for (list_node_t * programnode = s_programs.front; programnode != NULL; programnode = programnode->next) {
-                shell_program_t *program = programnode->data;
+            struct shell_program *program_to_run = NULL;
+            for (struct list_node * programnode = s_programs.front; programnode != NULL; programnode = programnode->next) {
+                struct shell_program *program = programnode->data;
                 if (strcmp(program->name, cmd->runprogram.argv[0]) == 0) {
                     program_to_run = program;
                     break;
@@ -150,14 +149,14 @@ SHELLFUNC static int cmd_exec(cmd_t const *cmd) {
     }
 }
 
-SHELLFUNC static void registerprogram(shell_program_t *program) {
+SHELLFUNC static void registerprogram(struct shell_program *program) {
     list_insertback(&s_programs, &program->node, program);
 }
 
 SHELLFUNC FAILABLE_FUNCTION shell_execcmd(char const *str) {
 FAILABLE_PROLOGUE
-    cmd_t cmd;
-    smatcher_t linematcher;
+    union shellcmd cmd;
+    struct smatcher linematcher;
     smatcher_init(&linematcher, str);
     TRY(parsecmd(&cmd, &linematcher));
     if (cmd.kind != KIND_EMPTY) {

@@ -93,10 +93,10 @@ void archx86_pic_unmaskirq(uint8_t irq) {
     setirqmask(getirqmask()&  ~(1 << irq));
 }
 
-static traphandler_t s_traphandler[IRQS_TOTAL];
+static struct traphandler s_traphandler[IRQS_TOTAL];
 
 // Each IRQ entry is a list of IRQ handlers.
-static list_t s_irqs[IRQS_TOTAL];
+static struct list s_irqs[IRQS_TOTAL];
 
 // Default handler that just EOIs given IRQ
 static void irqhandler(int trapnum, void *trapframe, void *data) {
@@ -109,8 +109,8 @@ static void irqhandler(int trapnum, void *trapframe, void *data) {
         tty_printf("no irq handler registered for irq %d\n", trapnum);
         return;
     }
-    for (list_node_t *handlernode = s_irqs[irqnum].front; handlernode != NULL; handlernode = handlernode->next) {
-        archx86_pic_irqhandler_t *handler = handlernode->data;
+    for (struct list_node *handlernode = s_irqs[irqnum].front; handlernode != NULL; handlernode = handlernode->next) {
+        struct archx86_pic_irqhandler *handler = handlernode->data;
         handler->callback(irqnum, handler->data);
     }
     if (!is_suprious_irq) {
@@ -140,7 +140,7 @@ void archx86_pic_init(void) {
     setirqmask(~(1 << 2));
 }
 
-void archx86_pic_registerhandler(archx86_pic_irqhandler_t *out, int irqnum, void (*callback)(int irqnum, void *data), void *data) {
+void archx86_pic_registerhandler(struct archx86_pic_irqhandler *out, int irqnum, void (*callback)(int irqnum, void *data), void *data) {
     bool previnterrupts = arch_interrupts_disable();
     out->callback = callback;
     out->data = data;

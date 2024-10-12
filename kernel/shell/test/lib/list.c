@@ -4,8 +4,8 @@
 #include <string.h>
 
 SHELLFUNC static testresult_t do_insertfront(void) {
-    list_t lst;
-    list_node_t nodes[3];
+    struct list lst;
+    struct list_node nodes[3];
 
     memset(&lst, 0x55, sizeof(lst));
     memset(nodes, 0x55, sizeof(nodes));
@@ -39,8 +39,8 @@ SHELLFUNC static testresult_t do_insertfront(void) {
 }
 
 SHELLFUNC static testresult_t do_insertback(void) {
-    list_t lst;
-    list_node_t nodes[3];
+    struct list lst;
+    struct list_node nodes[3];
 
     memset(nodes, 0x55, sizeof(nodes));
     list_init(&lst);
@@ -73,8 +73,8 @@ SHELLFUNC static testresult_t do_insertback(void) {
 }
 
 SHELLFUNC static testresult_t do_insertafter(void) {
-    list_t lst;
-    list_node_t nodes[5];
+    struct list lst;
+    struct list_node nodes[5];
 
     memset(nodes, 0x55, sizeof(nodes));
     list_init(&lst);
@@ -105,8 +105,8 @@ SHELLFUNC static testresult_t do_insertafter(void) {
 }
 
 SHELLFUNC static testresult_t do_insertbefore(void) {
-    list_t lst;
-    list_node_t nodes[5];
+    struct list lst;
+    struct list_node nodes[5];
 
     memset(nodes, 0x55, sizeof(nodes));
     list_init(&lst);
@@ -137,9 +137,9 @@ SHELLFUNC static testresult_t do_insertbefore(void) {
 }
 
 SHELLFUNC static testresult_t do_removefront(void) {
-    list_t lst;
-    list_node_t nodes[3];
-    list_node_t *removednode;
+    struct list lst;
+    struct list_node nodes[3];
+    struct list_node *removednode;
 
     memset(nodes, 0x55, sizeof(nodes));
     list_init(&lst);
@@ -175,9 +175,9 @@ SHELLFUNC static testresult_t do_removefront(void) {
 }
 
 SHELLFUNC static testresult_t do_removeback(void) {
-    list_t lst;
-    list_node_t nodes[3];
-    list_node_t *removednode;
+    struct list lst;
+    struct list_node nodes[3];
+    struct list_node *removednode;
 
     memset(nodes, 0x55, sizeof(nodes));
     list_init(&lst);
@@ -213,8 +213,8 @@ SHELLFUNC static testresult_t do_removeback(void) {
 }
 
 SHELLFUNC static testresult_t do_removenode(void) {
-    list_t lst;
-    list_node_t nodes[3];
+    struct list lst;
+    struct list_node nodes[3];
 
     memset(nodes, 0x55, sizeof(nodes));
     list_init(&lst);
@@ -244,7 +244,7 @@ SHELLFUNC static testresult_t do_removenode(void) {
     return TEST_OK;
 }
 
-SHELLRODATA static test_t const TESTS[] = {
+SHELLRODATA static struct test const TESTS[] = {
     { .name = "insert front",   .fn = do_insertfront  },
     { .name = "insert back",    .fn = do_insertback   },
     { .name = "insert after",   .fn = do_insertafter  },
@@ -254,7 +254,7 @@ SHELLRODATA static test_t const TESTS[] = {
     { .name = "remove node",    .fn = do_removenode   },
 };
 
-SHELLDATA const testgroup_t TESTGROUP_LIST = {
+SHELLDATA const struct testgroup TESTGROUP_LIST = {
     .name = "list",
     .tests = TESTS,
     .testslen = sizeof(TESTS)/sizeof(*TESTS),

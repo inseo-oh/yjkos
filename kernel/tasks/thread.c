@@ -6,9 +6,9 @@
 #include <stdint.h>
 #include <string.h>
 
-FAILABLE_FUNCTION thread_create(thread_t **thread_out, size_t minstacksize, uintptr_t entryaddr) {
+FAILABLE_FUNCTION thread_create(struct thread **thread_out, size_t minstacksize, uintptr_t entryaddr) {
 FAILABLE_PROLOGUE
-    thread_t *thread = heap_alloc(sizeof(*thread), HEAP_FLAG_ZEROMEMORY);
+    struct thread *thread = heap_alloc(sizeof(*thread), HEAP_FLAG_ZEROMEMORY);
     if (thread == NULL) {
         THROW(ERR_NOMEM);
     }
@@ -20,12 +20,11 @@ FAILABLE_EPILOGUE_BEGIN
             arch_thread_destroy(thread->arch_thread);
             heap_free(thread);
         }
-
     }
 FAILABLE_EPILOGUE_END
 }
 
-void thread_delete(thread_t *thread) {
+void thread_delete(struct thread *thread) {
     if (thread == NULL) {
         return;
     }
@@ -34,7 +33,7 @@ void thread_delete(thread_t *thread) {
 }
 
 // `from` may be NULL if task switching is done for the first time.
-void thread_switch(thread_t *from, thread_t *to) {
+void thread_switch(struct thread *from, struct thread *to) {
     if (from == NULL) {
         arch_thread_switch(NULL, to->arch_thread);
         return;

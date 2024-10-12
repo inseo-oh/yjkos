@@ -23,12 +23,12 @@ SHELLFUNC static testresult_t do_badalloc(void) {
     return TEST_OK;
 }
 
-SHELLRODATA static test_t const TESTS[] = {
+SHELLRODATA static struct test const TESTS[] = {
     { .name = "random allocation test", .fn = do_randalloc },
     { .name = "bad allocation",         .fn = do_badalloc  },
 };
 
-SHELLDATA const testgroup_t TESTGROUP_PMM = {
+SHELLDATA const struct testgroup TESTGROUP_PMM = {
     .name = "pmm",
     .tests = TESTS,
     .testslen = sizeof(TESTS)/sizeof(*TESTS),

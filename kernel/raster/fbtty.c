@@ -9,7 +9,7 @@
 
 static int32_t s_rows;
 
-static void updatescreen_op(vt100tty_screenline_t *screenlines) {
+static void updatescreen_op(struct vt100tty_screenline *screenlines) {
     fb_drawrect(fb_getwidth(), fb_getheight(), 0, 0, black());
     for (int32_t i = 0; i < s_rows; i++) {
         fb_drawtext(screenlines[i].chars, 0, i * psf_getheight(), white());
@@ -21,7 +21,7 @@ void fbtty_init(void) {
     int32_t columns = fb_getwidth() / psf_getwidth();
     int32_t rows = fb_getheight() / psf_getheight();
     s_rows = rows;
-    vt100tty_screenline_t *screenlines = heap_calloc(sizeof(*screenlines), rows, HEAP_FLAG_ZEROMEMORY);
+    struct vt100tty_screenline *screenlines = heap_calloc(sizeof(*screenlines), rows, HEAP_FLAG_ZEROMEMORY);
     if (screenlines == NULL) {
         goto oom;
     }

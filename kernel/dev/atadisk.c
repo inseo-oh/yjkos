@@ -13,7 +13,7 @@ enum {
     MAX_RETRIES = 3,
 };
 
-static FAILABLE_FUNCTION waitirq(atadisk_t *disk) {
+static FAILABLE_FUNCTION waitirq(struct atadisk *disk) {
 FAILABLE_PROLOGUE
     enum {
         STATUS_POLL_PERIOD = 10,
@@ -42,7 +42,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION waitbusyclear(atadisk_t *disk) {
+static FAILABLE_FUNCTION waitbusyclear(struct atadisk *disk) {
 FAILABLE_PROLOGUE
     enum {
         STATUS_POLL_PERIOD = 10,
@@ -66,7 +66,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION waitbusyclear_irq(atadisk_t *disk) {
+static FAILABLE_FUNCTION waitbusyclear_irq(struct atadisk *disk) {
 FAILABLE_PROLOGUE
     while(1) {
         TRY(waitirq(disk));
@@ -78,7 +78,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION waitdrqset(atadisk_t *disk) {
+static FAILABLE_FUNCTION waitdrqset(struct atadisk *disk) {
 FAILABLE_PROLOGUE
     ticktime_t starttime = g_ticktime;
     bool ok = false;
@@ -99,21 +99,20 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static void extractstring_from_identifydata(char *dest, ata_databuf_t *rawdata, size_t startoffset, size_t endoffset) {
+static void extractstring_from_identifydata(char *dest, struct ata_databuf *rawdata, size_t startoffset, size_t endoffset) {
     for (size_t i = startoffset; i <= endoffset; i++) {
         dest[(i - startoffset) * 2] = rawdata->data[i] >> 8;
         dest[(i - startoffset) * 2 + 1] = rawdata->data[i];
     }
 }
 
-typedef struct identifyresult identifyresult_t;
 struct identifyresult {
     char serial[41];
     char firmware[9];
     char modelnum[41];
 };
 
-static FAILABLE_FUNCTION identifydevice(identifyresult_t *out, atadisk_t *disk) {
+static FAILABLE_FUNCTION identifydevice(struct identifyresult *out, struct atadisk *disk) {
 FAILABLE_PROLOGUE
     TRY(disk->ops->selectdisk(disk));
     disk->ops->setlbaparam(disk, 0);
@@ -146,7 +145,7 @@ FAILABLE_PROLOGUE
     if (!ok) {
         THROW(ERR_IO);
     }
-    ata_databuf_t buffer;
+    struct ata_databuf buffer;
     disk->ops->readdata(&buffer, disk);
     memset(out, 0, sizeof(*out));
     extractstring_from_identifydata(out->serial, &buffer, 10, 19);
@@ -157,7 +156,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION flushcache(atadisk_t *disk) {
+static FAILABLE_FUNCTION flushcache(struct atadisk *disk) {
 FAILABLE_PROLOGUE
     TRY(disk->ops->selectdisk(disk));
     disk->ops->issuecmd(disk, ATA_CMD_FLUSHCACHE);
@@ -166,7 +165,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION writesectors(atadisk_t *disk, uint32_t lba, size_t sectorcount, void const *buf) {
+static FAILABLE_FUNCTION writesectors(struct atadisk *disk, uint32_t lba, size_t sectorcount, void const *buf) {
 FAILABLE_PROLOGUE
     disk->ops->lock(disk);
     bool candma = disk->ops->dma_beginsession(disk);
@@ -239,7 +238,7 @@ FAILABLE_PROLOGUE
                 // Use PIO
                 disk->ops->issuecmd(disk, ATA_CMD_WRITESECTORS);
                 for (size_t sector = 0; sector < currentsectorcount; sector++) {
-                    ata_databuf_t buffer;
+                    struct ata_databuf buffer;
                     TRY(waitbusyclear(disk));
                     TRY(waitdrqset(disk));
                     for (size_t i = 0; i < 256; i++) {
@@ -289,7 +288,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION readsectors(atadisk_t *disk, uint32_t lba, size_t sectorcount, void *buf) {
+static FAILABLE_FUNCTION readsectors(struct atadisk *disk, uint32_t lba, size_t sectorcount, void *buf) {
 FAILABLE_PROLOGUE
     disk->ops->lock(disk);
     bool candma = disk->ops->dma_beginsession(disk);
@@ -360,7 +359,7 @@ FAILABLE_PROLOGUE
                 // Use PIO
                 disk->ops->issuecmd(disk, ATA_CMD_READSECTORS);
                 for (size_t sector = 0; sector < currentsectorcount; sector++) {
-                    ata_databuf_t buffer;
+                    struct ata_databuf buffer;
                     TRY(waitbusyclear_irq(disk));
                     TRY(waitdrqset(disk));
                     disk->ops->readdata(&buffer, disk);
@@ -397,26 +396,26 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION op_read(pdisk_t *self, void *buf, size_t blockaddr, size_t blockcount) {
-    atadisk_t *disk = self->data;
+static FAILABLE_FUNCTION op_read(struct pdisk *self, void *buf, size_t blockaddr, size_t blockcount) {
+    struct atadisk *disk = self->data;
     return readsectors(disk, blockaddr, blockcount, buf);
 }
-static FAILABLE_FUNCTION op_write(pdisk_t *self, void const *buf, size_t blockaddr, size_t blockcount) {
-    atadisk_t *disk = self->data;
+static FAILABLE_FUNCTION op_write(struct pdisk *self, void const *buf, size_t blockaddr, size_t blockcount) {
+    struct atadisk *disk = self->data;
     return writesectors(disk, blockaddr, blockcount, buf);
 }
 
-static pdisk_ops_t const OPS = {
+static struct pdisk_ops const OPS = {
     .read = op_read,
     .write = op_write,
 };
 
-FAILABLE_FUNCTION atadisk_register(atadisk_t *disk_out, atadisk_ops_t const *ops, void *data) {
+FAILABLE_FUNCTION atadisk_register(struct atadisk *disk_out, struct atadisk_ops const *ops, void *data) {
 FAILABLE_PROLOGUE
     memset(disk_out, 0, sizeof(*disk_out));
     disk_out->ops = ops;
     disk_out->data = data;
-    identifyresult_t result;
+    struct identifyresult result;
     TRY(identifydevice(&result, disk_out));
     TRY(pdisk_register(&disk_out->physdisk, ATA_SECTOR_SIZE, &OPS, disk_out));
     iodev_printf(&disk_out->physdisk.iodev, "   model: %s\n", result.modelnum);

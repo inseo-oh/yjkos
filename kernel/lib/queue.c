@@ -4,22 +4,22 @@
 #include <stdint.h>
 #include <string.h>
 
-void queue_init(queue_t *queue, void *buf, size_t itemsize, size_t cap) {
+void queue_init(struct queue *queue, void *buf, size_t itemsize, size_t cap) {
     memset(queue, 0, sizeof(*queue));
     queue->itemsize = itemsize;
     queue->cap = cap;
     queue->buf = buf;
 }
 
-bool queue_isfull(queue_t const *self) {
+bool queue_isfull(struct queue const *self) {
     return ((self->enqueueindex == self->dequeueindex) && (self->lastwasenqueue));
 }
 
-bool queue_isempty(queue_t const *self) {
+bool queue_isempty(struct queue const *self) {
     return ((self->enqueueindex == self->dequeueindex) && (!self->lastwasenqueue));
 }
 
-FAILABLE_FUNCTION queue_enqueue_impl(queue_t *self, void const *data, size_t itemsize) {
+FAILABLE_FUNCTION queue_enqueue_impl(struct queue *self, void const *data, size_t itemsize) {
 FAILABLE_PROLOGUE
     assert(itemsize == self->itemsize);
     if (queue_isfull(self)) {
@@ -33,7 +33,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-WARN_UNUSED_RESULT bool queue_dequeue_impl(void *out_buf, queue_t *self, size_t itemsize) {
+WARN_UNUSED_RESULT bool queue_dequeue_impl(void *out_buf, struct queue *self, size_t itemsize) {
     assert(itemsize == self->itemsize);
     if (queue_isempty(self)) {
         return false;
@@ -45,7 +45,7 @@ WARN_UNUSED_RESULT bool queue_dequeue_impl(void *out_buf, queue_t *self, size_t 
     return true;
 }
 
-WARN_UNUSED_RESULT void *queue_peek(queue_t const *self, size_t itemsize) {
+WARN_UNUSED_RESULT void *queue_peek(struct queue const *self, size_t itemsize) {
     assert(itemsize == self->itemsize);
     if (queue_isempty(self)) {
         return NULL;

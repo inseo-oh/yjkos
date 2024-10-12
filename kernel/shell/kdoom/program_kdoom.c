@@ -103,7 +103,7 @@ SHELLFUNC static void* dopen(const char* filename, const char* mode) {
     if (mode[0] == 'w') {
         return NULL;
     }
-    fd_t *fd;
+    struct fd *fd;
     status_t status = vfs_openfile(&fd, filename, 0);
     if (status != OK) {
         tty_printf("[kdoom] failed to open file %s (error %d)\n", filename, status);
@@ -244,7 +244,7 @@ SHELLFUNC static int program_main(int argc, char *argv[]) {
 
 #endif
 
-SHELLDATA shell_program_t g_shell_program_kdoom = {
+SHELLDATA struct shell_program g_shell_program_kdoom = {
     .name = "kdoom",
     .main = program_main,
 };

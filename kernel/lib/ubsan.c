@@ -11,14 +11,12 @@
 
 typedef void *valuehandle_t;
 
-typedef struct sourcelocation sourcelocation_t;
 struct sourcelocation {
     char const *filename;
     uint32_t line;
     uint32_t column;
 };
 
-typedef struct typedescriptor typedescriptor_t;
 struct typedescriptor {
     uint16_t typekind; // See UBSAN_KIND_~ values
     uint16_t typeinfo;
@@ -49,7 +47,7 @@ enum {
     UBSAN_KIND_UNKNOWN = 0xffff,
 };
 
-static void printtypedescriptor(typedescriptor_t const *desc) {
+static void printtypedescriptor(struct typedescriptor const *desc) {
     if (desc == NULL) {
         tty_printf("<no info>");
         return;
@@ -71,13 +69,12 @@ static void printtypedescriptor(typedescriptor_t const *desc) {
     void __ubsan_handle_##_name( __VA_ARGS__ ) __attribute__((used));                  \
     NORETURN void __ubsan_handle_##_name##_abort( __VA_ARGS__ ) __attribute__((used))
 
-typedef struct typemismatch_data typemismatch_data_t;
 struct typemismatch_data {
-    sourcelocation_t loc;
-    typedescriptor_t *type;
+    struct sourcelocation loc;
+    struct typedescriptor *type;
 };
 
-DEFINE_RECOVERABLE_ERROR(type_mismatch_v1, typemismatch_data_t *data, valuehandle_t ptr);
+DEFINE_RECOVERABLE_ERROR(type_mismatch_v1, struct typemismatch_data *data, valuehandle_t ptr);
 static NORETURN void die(void) {
     panic("execution aborted by ubsanitizer\n");
 }
@@ -87,7 +84,7 @@ static void printheadermessage(void) {
     arch_stacktrace();
 }
 
-static void typemismatch(typemismatch_data_t *data, valuehandle_t ptr) {
+static void typemismatch(struct typemismatch_data *data, valuehandle_t ptr) {
     bool previnterrupts = arch_interrupts_disable();
     printheadermessage();
     tty_printf("type mismatch error at %s:%d:%d!\n", data->loc.filename, data->loc.line, data->loc.column);
@@ -97,21 +94,20 @@ static void typemismatch(typemismatch_data_t *data, valuehandle_t ptr) {
     tty_printf("\n");
     interrupts_restore(previnterrupts);
 }
-void __ubsan_handle_type_mismatch_v1(typemismatch_data_t *data, valuehandle_t ptr) {
+void __ubsan_handle_type_mismatch_v1(struct typemismatch_data *data, valuehandle_t ptr) {
     typemismatch(data, ptr);
 }
-NORETURN void __ubsan_handle_type_mismatch_v1_abort(typemismatch_data_t *data, valuehandle_t ptr) {
+NORETURN void __ubsan_handle_type_mismatch_v1_abort(struct typemismatch_data *data, valuehandle_t ptr) {
     typemismatch(data, ptr);
     die();
 }
 
-typedef struct ptroverflow_data ptroverflow_data_t;
 struct ptroverflow_data {
-    sourcelocation_t loc;
+    struct sourcelocation loc;
 };
 
-DEFINE_RECOVERABLE_ERROR(pointer_overflow, ptroverflow_data_t *data, valuehandle_t base, valuehandle_t result);
-static void ptroverflow(ptroverflow_data_t *data, valuehandle_t base, valuehandle_t result) {
+DEFINE_RECOVERABLE_ERROR(pointer_overflow, struct ptroverflow_data *data, valuehandle_t base, valuehandle_t result);
+static void ptroverflow(struct ptroverflow_data *data, valuehandle_t base, valuehandle_t result) {
     bool previnterrupts = arch_interrupts_disable();
     printheadermessage();
     tty_printf("pointer overflow error at %s:%d:%d!\n", data->loc.filename, data->loc.column, data->loc.line);
@@ -119,24 +115,22 @@ static void ptroverflow(ptroverflow_data_t *data, valuehandle_t base, valuehandl
     tty_printf("resulting pointer: %p\n", result);
     interrupts_restore(previnterrupts);
 }
-void __ubsan_handle_pointer_overflow(ptroverflow_data_t *data, valuehandle_t base, valuehandle_t result) {
+void __ubsan_handle_pointer_overflow(struct ptroverflow_data *data, valuehandle_t base, valuehandle_t result) {
     ptroverflow(data, base, result);
 }
-NORETURN void __ubsan_handle_pointer_overflow_abort(ptroverflow_data_t *data, valuehandle_t base, valuehandle_t result) {
+NORETURN void __ubsan_handle_pointer_overflow_abort(struct ptroverflow_data *data, valuehandle_t base, valuehandle_t result) {
     ptroverflow(data, base, result);
     die();
 }
 
-typedef struct outofbounds_data outofbounds_data_t;
-
 struct outofbounds_data {
-    sourcelocation_t loc;
-    typedescriptor_t *array_type;
-    typedescriptor_t *index_type;
+    struct sourcelocation loc;
+    struct typedescriptor *array_type;
+    struct typedescriptor *index_type;
 };
 
-DEFINE_RECOVERABLE_ERROR(out_of_bounds, outofbounds_data_t *data, valuehandle_t index);
-static void outofbounds(outofbounds_data_t *data, valuehandle_t index) {
+DEFINE_RECOVERABLE_ERROR(out_of_bounds, struct outofbounds_data *data, valuehandle_t index);
+static void outofbounds(struct outofbounds_data *data, valuehandle_t index) {
     bool previnterrupts = arch_interrupts_disable();
     printheadermessage();
     tty_printf("out of bounds error at %s:%d:%d!\n", data->loc.filename, data->loc.column, data->loc.line);
@@ -149,22 +143,21 @@ static void outofbounds(outofbounds_data_t *data, valuehandle_t index) {
     tty_printf("index value: %zu\n", (size_t)index);
     interrupts_restore(previnterrupts);
 }
-void __ubsan_handle_out_of_bounds(outofbounds_data_t *data, valuehandle_t index) {
+void __ubsan_handle_out_of_bounds(struct outofbounds_data *data, valuehandle_t index) {
     outofbounds(data, index);
 }
-NORETURN void __ubsan_handle_out_of_bounds_abort(outofbounds_data_t *data, valuehandle_t index) {
+NORETURN void __ubsan_handle_out_of_bounds_abort(struct outofbounds_data *data, valuehandle_t index) {
     outofbounds(data, index);
     die();
 }
 
-typedef struct shiftoutofbounds_data_t shiftoutofbounds_data_t;
-struct shiftoutofbounds_data_t {
-    sourcelocation_t loc;
-    typedescriptor_t *lhstype;
-    typedescriptor_t *rhstype;
+struct shiftoutofbounds_data {
+    struct sourcelocation loc;
+    struct typedescriptor *lhstype;
+    struct typedescriptor *rhstype;
 };
-DEFINE_RECOVERABLE_ERROR(shift_out_of_bounds, shiftoutofbounds_data_t *data, valuehandle_t lhs, valuehandle_t rhs);
-static void shiftoutofbounds(shiftoutofbounds_data_t *data, valuehandle_t lhs, valuehandle_t rhs) {
+DEFINE_RECOVERABLE_ERROR(shift_out_of_bounds, struct shiftoutofbounds_data *data, valuehandle_t lhs, valuehandle_t rhs);
+static void shiftoutofbounds(struct shiftoutofbounds_data *data, valuehandle_t lhs, valuehandle_t rhs) {
     bool previnterrupts = arch_interrupts_disable();
     printheadermessage();
     tty_printf("shift out of bounds error at %s:%d:%d!\n", data->loc.filename, data->loc.column, data->loc.line);
@@ -178,21 +171,20 @@ static void shiftoutofbounds(shiftoutofbounds_data_t *data, valuehandle_t lhs, v
     tty_printf("rhs value(as size_t): %zu\n", (size_t)rhs);
     interrupts_restore(previnterrupts);
 }
-void __ubsan_handle_shift_out_of_bounds(shiftoutofbounds_data_t *data, valuehandle_t lhs, valuehandle_t rhs) {
+void __ubsan_handle_shift_out_of_bounds(struct shiftoutofbounds_data *data, valuehandle_t lhs, valuehandle_t rhs) {
     shiftoutofbounds(data, lhs, rhs);
 }
-NORETURN void __ubsan_handle_shift_out_of_bounds_abort(shiftoutofbounds_data_t *data, valuehandle_t lhs, valuehandle_t rhs) {
+NORETURN void __ubsan_handle_shift_out_of_bounds_abort(struct shiftoutofbounds_data *data, valuehandle_t lhs, valuehandle_t rhs) {
     shiftoutofbounds(data, lhs, rhs);
     die();
 }
 
-typedef struct invalidvalue_data invalidvalue_data_t;
 struct invalidvalue_data {
-    sourcelocation_t loc;
-    typedescriptor_t *type;
+    struct sourcelocation loc;
+    struct typedescriptor *type;
 };
-DEFINE_RECOVERABLE_ERROR(load_invalid_value, invalidvalue_data_t *data, valuehandle_t val);
-static void loadinvalidvalue(invalidvalue_data_t *data, valuehandle_t val) {
+DEFINE_RECOVERABLE_ERROR(load_invalid_value, struct invalidvalue_data *data, valuehandle_t val);
+static void loadinvalidvalue(struct invalidvalue_data *data, valuehandle_t val) {
     bool previnterrupts = arch_interrupts_disable();
     printheadermessage();
     tty_printf("load invalid value error at %s:%d:%d!\n", data->loc.filename, data->loc.column, data->loc.line);
@@ -202,23 +194,21 @@ static void loadinvalidvalue(invalidvalue_data_t *data, valuehandle_t val) {
     tty_printf("value(as size_t): %zu\n", (size_t)val);
     interrupts_restore(previnterrupts);
 }
-void __ubsan_handle_load_invalid_value(invalidvalue_data_t *data, valuehandle_t val) {
+void __ubsan_handle_load_invalid_value(struct invalidvalue_data *data, valuehandle_t val) {
     loadinvalidvalue(data, val);
 }
-NORETURN void __ubsan_handle_load_invalid_value_abort(invalidvalue_data_t *data, valuehandle_t val) {
+NORETURN void __ubsan_handle_load_invalid_value_abort(struct invalidvalue_data *data, valuehandle_t val) {
     loadinvalidvalue(data, val);
     die();
 }
 
-
-typedef struct overflow_data overflow_data_t;
 struct overflow_data {
-    sourcelocation_t loc;
-    typedescriptor_t *type;
+    struct sourcelocation loc;
+    struct typedescriptor *type;
 };
 
-DEFINE_RECOVERABLE_ERROR(add_overflow, overflow_data_t *data, valuehandle_t lhs, valuehandle_t rhs);
-static void overflow(char const *type, overflow_data_t *data, valuehandle_t lhs, valuehandle_t rhs) {
+DEFINE_RECOVERABLE_ERROR(add_overflow, struct overflow_data *data, valuehandle_t lhs, valuehandle_t rhs);
+static void overflow(char const *type, struct overflow_data *data, valuehandle_t lhs, valuehandle_t rhs) {
     bool previnterrupts = arch_interrupts_disable();
     printheadermessage();
     tty_printf("%s overflow error at %s:%d:%d!\n", type, data->loc.filename, data->loc.column, data->loc.line);
@@ -232,11 +222,11 @@ static void overflow(char const *type, overflow_data_t *data, valuehandle_t lhs,
 }
 
 #define DEFINE_OVERFLOW_ERROR(type, name)                                                                                \
-    DEFINE_RECOVERABLE_ERROR(type##_overflow, overflow_data_t *data, valuehandle_t lhs, valuehandle_t rhs);              \
-    void __ubsan_handle_##type##_overflow(overflow_data_t *data, valuehandle_t lhs, valuehandle_t rhs) {                 \
+    DEFINE_RECOVERABLE_ERROR(type##_overflow, struct overflow_data *data, valuehandle_t lhs, valuehandle_t rhs);              \
+    void __ubsan_handle_##type##_overflow(struct overflow_data *data, valuehandle_t lhs, valuehandle_t rhs) {                 \
         overflow(name, data, lhs, rhs);                                                                                  \
     }                                                                                                                    \
-    NORETURN void __ubsan_handle_handle_##type##_overflow(overflow_data_t *data, valuehandle_t lhs, valuehandle_t rhs) { \
+    NORETURN void __ubsan_handle_handle_##type##_overflow(struct overflow_data *data, valuehandle_t lhs, valuehandle_t rhs) { \
         overflow(name, data, lhs, rhs);                                                                                  \
         die();                                                                                                           \
     }

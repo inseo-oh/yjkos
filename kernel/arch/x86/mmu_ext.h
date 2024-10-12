@@ -74,8 +74,7 @@ static uint8_t const ARCHX86_MMU_EMUTRANS_FAULT_FLAG_PTE_MISSING = 1 << 3;
 static uint8_t const ARCHX86_MMU_EMUTRANS_FAULT_FLAG_PTE_WRITE   = 1 << 4;
 static uint8_t const ARCHX86_MMU_EMUTRANS_FAULT_FLAG_PTE_USER    = 1 << 5;
 
-typedef struct archx86_mmu_emulateresult_t archx86_mmu_emulateresult_t;
-struct archx86_mmu_emulateresult_t {
+struct archx86_mmu_emulateresult {
     physptr_t physaddr;
     uint8_t faultflags; // See ARCHX86_MMU_EMUTRANS_*
 };
@@ -85,6 +84,6 @@ void archx86_writeprotect_afterearlyinit(void);
 void archx86_mmu_init(void);
 void archx86_mmu_setupstackbottomtrap(void);
 
-bool archx86_mmu_emulate(archx86_mmu_emulateresult_t *result_out, uintptr_t virtaddr, bool iswrite, bool isfromuser);
+bool archx86_mmu_emulate(struct archx86_mmu_emulateresult *result_out, uintptr_t virtaddr, bool iswrite, bool isfromuser);
 
 #endif

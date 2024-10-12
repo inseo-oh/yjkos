@@ -59,11 +59,10 @@ static uint8_t const STATUS_TIMEOUT_ERR      = 1 << 6;
 static uint8_t const STATUS_PARITY_ERR       = 1 << 7;
 
 
-typedef struct port port_t;
-struct port {
-    ps2port_t ps2port;
+struct portcontext {
+    struct ps2port ps2port;
     uint8_t portidx;
-    archx86_pic_irqhandler_t irqhandler;
+    struct archx86_pic_irqhandler irqhandler;
 };
 
 static FAILABLE_FUNCTION waitforrecv(void) {
@@ -142,9 +141,9 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION stream_op_write(stream_t *self, void *data, size_t size) {
+static FAILABLE_FUNCTION stream_op_write(struct stream *self, void *data, size_t size) {
 FAILABLE_PROLOGUE
-    struct port *port = self->data;
+    struct portcontext *port = self->data;
 
     for (size_t idx = 0; idx < size; idx++) {
         uint8_t c = ((uint8_t *)data)[idx];
@@ -159,7 +158,7 @@ FAILABLE_EPILOGUE_END
 }
 
 static void irqhandler(int irqnum, void *data) {
-    struct port *port = data;
+    struct portcontext *port = data;
     uint8_t value = archx86_in8(DATA_PORT);
     if (CONFIG_COMM_DEBUG) {
         tty_printf("ps2: irq on port %u - data %#x\n", port->portidx, value);
@@ -168,14 +167,14 @@ static void irqhandler(int irqnum, void *data) {
     archx86_pic_sendeoi(irqnum);
 }
 
-static stream_ops_t const OPS = {
+static struct stream_ops const OPS = {
     PS2_COMMON_STREAM_CALLBACKS,
     .write = stream_op_write,
 };
 
 static void discoveredport(size_t portindex) {
     assert(portindex < 2);
-    port_t *port = heap_alloc(sizeof(*port), HEAP_FLAG_ZEROMEMORY);
+    struct portcontext *port = heap_alloc(sizeof(*port), HEAP_FLAG_ZEROMEMORY);
     if (port == NULL) {
         tty_printf("ps2: not enough memory to register port %u\n", portindex);
         goto fail;

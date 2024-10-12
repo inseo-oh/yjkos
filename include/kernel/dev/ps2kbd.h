@@ -4,5 +4,5 @@
 #include <kernel/status.h>
 #include <stdint.h>
 
-FAILABLE_FUNCTION ps2kbd_init(ps2port_t *port);
+FAILABLE_FUNCTION ps2kbd_init(struct ps2port *port);
 

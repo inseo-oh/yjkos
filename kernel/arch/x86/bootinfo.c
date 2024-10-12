@@ -14,13 +14,12 @@
 #include <stdint.h>
 #include <string.h>
 
-typedef struct region region_t;
-struct region {
+struct memregion {
     physptr_t base;
     size_t len;
 };
 
-static void excluderegion(region_t *before_out, region_t *after_out, physptr_t addr, size_t len, physptr_t excludeaddr, size_t excludelen) {
+static void excluderegion(struct memregion *before_out, struct memregion *after_out, physptr_t addr, size_t len, physptr_t excludeaddr, size_t excludelen) {
     physptr_t start = addr;
     physptr_t end = start + len;
     physptr_t excludestart = excludeaddr;
@@ -56,7 +55,7 @@ static void excluderegion(region_t *before_out, region_t *after_out, physptr_t a
     }
 }
 
-static region_t const REGIONS_TO_EXCLUDE[] = {
+static struct memregion const REGIONS_TO_EXCLUDE[] = {
     {.base = 0x0,                                   .len = 0x100000                           },
     {.base = ARCHX86_KERNEL_PHYSICAL_ADDRESS_BEGIN, .len = ARCHX86_KERNEL_PHYSICAL_ADDRESS_END},
 };
@@ -194,14 +193,14 @@ void archx86_bootinfo_process(physptr_t infoaddr) {
             // Excluding each region can result 0 or 1 additional entries, meaning after processing one exclusion entry,
             // the list can grow by 2x, and that list becomes input when processing next exclusion entry.
             // So the maximum size for resulting list would be 2^EXCLUDE_COUNT.
-            region_t resultregions[1 << EXCLUDE_COUNT];
+            struct memregion resultregions[1 << EXCLUDE_COUNT];
             size_t resultregionscount = 1;
             resultregions[0].base = addr;
             resultregions[0].len = len;
             for (size_t i = 0; i < EXCLUDE_COUNT; i++) {
                 size_t oldregionscount = resultregionscount;
                 for (size_t j = 0; j < oldregionscount; j++) {
-                    region_t r1, r2;
+                    struct memregion r1, r2;
                     if (resultregions[j].len == 0) {
                         continue;
                     }

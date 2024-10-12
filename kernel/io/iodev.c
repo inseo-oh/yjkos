@@ -9,19 +9,18 @@
 #include <stdint.h>
 #include <string.h>
 
-typedef struct iodevtype iodevtype_t;
 struct iodevtype {
-    list_node_t node;
-    list_t devices;
+    struct list_node node;
+    struct list devices;
     char const *name;
     _Atomic size_t nextid;
 };
 
-static list_t s_devtypes; // Contains iodevtype_t nodes.
+static struct list s_devtypes; // Contains iodevtype_t nodes.
 
-static iodevtype_t *getiodevtypefor(char const *devtype) {
-    for (list_node_t *typenode = s_devtypes.front; typenode != NULL; typenode = typenode->next) {
-        iodevtype_t *type = typenode->data;
+static struct iodevtype *getiodevtypefor(char const *devtype) {
+    for (struct list_node *typenode = s_devtypes.front; typenode != NULL; typenode = typenode->next) {
+        struct iodevtype *type = typenode->data;
         if (strcmp(devtype, type->name) == 0) {
             return type;
         }
@@ -29,16 +28,16 @@ static iodevtype_t *getiodevtypefor(char const *devtype) {
     return NULL;
 }
 
-FAILABLE_FUNCTION iodev_register(iodev_t *dev_out, char const *devtype, void *data) {
+FAILABLE_FUNCTION iodev_register(struct iodev *dev_out, char const *devtype, void *data) {
 FAILABLE_PROLOGUE
     bool previnterrupts = arch_interrupts_disable();
     // Look for existing iodevtype_t
     dev_out->devtype = devtype;
     dev_out->data = data;
-    iodevtype_t *desttype = getiodevtypefor(devtype);
+    struct iodevtype *desttype = getiodevtypefor(devtype);
     // If there's no such type, create a new type.
     if (desttype == NULL) {
-        iodevtype_t *type = heap_alloc(sizeof(*type), HEAP_FLAG_ZEROMEMORY);
+        struct iodevtype *type = heap_alloc(sizeof(*type), HEAP_FLAG_ZEROMEMORY);
         if (type == NULL) {
             THROW(ERR_NOMEM);
         }
@@ -58,7 +57,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-void iodev_printf(iodev_t *device, char const *fmt, ...) {
+void iodev_printf(struct iodev *device, char const *fmt, ...) {
     tty_printf("%s%d: ", device->devtype, device->id);
     va_list ap;
     va_start(ap, fmt);
@@ -66,8 +65,8 @@ void iodev_printf(iodev_t *device, char const *fmt, ...) {
     va_end(ap);
 }
 
-list_t *iodev_getlist(char const *devtype) {
-    iodevtype_t *type = getiodevtypefor(devtype);
+struct list *iodev_getlist(char const *devtype) {
+    struct iodevtype *type = getiodevtypefor(devtype);
     if (type == NULL) {
         return NULL;
     }

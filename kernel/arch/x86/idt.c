@@ -6,7 +6,6 @@
 #include <stdint.h>
 #include <string.h>
 
-typedef struct gatedescriptor gatedescriptor_t; 
 struct gatedescriptor {
     uint16_t offset_b15tob0;
     uint16_t segmentselector;
@@ -14,7 +13,7 @@ struct gatedescriptor {
     uint8_t flags;
     uint16_t offset_b31tob16;
 };
-STATIC_ASSERT_SIZE(gatedescriptor_t, 8);
+STATIC_ASSERT_SIZE(struct gatedescriptor, 8);
 
 static uint8_t const IDT_FLAG_TYPE_INT32  = 0xe << 0; 
 static uint8_t const IDT_FLAG_TYPE_TRAP32 = 0xf << 0; 
@@ -26,12 +25,11 @@ static uint8_t const IDT_FLAG_DPL3 = IDT_FLAG_DPL(3);
 #undef IDT_FLAG_DPL
 static uint8_t const IDT_FLAG_P = 1 << 7;
 
-typedef struct idt idt; 
 struct idt {
-    gatedescriptor_t entries[256];
+    struct gatedescriptor entries[256];
 };
 
-static void initdescriptor(gatedescriptor_t *out, uint32_t offset, uint16_t flags) {
+static void initdescriptor(struct gatedescriptor *out, uint32_t offset, uint16_t flags) {
     memset(out, 0, sizeof(*out));
     out->offset_b15tob0 = offset;
     out->segmentselector = ARCHX86_GDT_KERNEL_CS;
@@ -112,7 +110,7 @@ static handler_t *KERNEL_INTERRUPT_HANDLERS[] = {
     archx86_isr_interrupt252entry, archx86_isr_interrupt253entry, archx86_isr_interrupt254entry, archx86_isr_interrupt255entry,
 };
 
-static idt s_idt __attribute__((section(".data.ro_after_early_init")));
+static struct idt s_idt __attribute__((section(".data.ro_after_early_init")));
 
 void archx86_idt_init(void) {
     enum {
@@ -137,13 +135,12 @@ void archx86_idt_init(void) {
 }
 
 void archx86_idt_load(void) {
-    typedef struct idtr idtr_t;
     struct idtr {
         uint16_t size;
         uint32_t offset;
     } __attribute__((packed));
 
-    volatile idtr_t idtr;
+    volatile struct idtr idtr;
     idtr.offset = (uintptr_t)&s_idt;
     idtr.size = sizeof(s_idt);
     __asm__ volatile("lidt (%0)" ::"r"(&idtr));

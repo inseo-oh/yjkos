@@ -9,16 +9,15 @@
 #include <stdint.h>
 #include <string.h>
 
-typedef struct chr chr_t;
 struct chr {
     char chr;
     uint8_t attr;
 };
-STATIC_ASSERT_SIZE(chr_t, 2);
+STATIC_ASSERT_SIZE(struct chr, 2);
 
 
-static stream_t s_stream;
-static chr_t *s_chars;
+static struct stream s_stream;
+static struct chr *s_chars;
 
 static size_t s_totalcolumns, s_totalrows;
 static uint16_t s_currentcolumn, s_currentrow;
@@ -63,7 +62,7 @@ static void writechar(char chr) {
 }
 
 
-static FAILABLE_FUNCTION stream_op_write(stream_t *self, void *data, size_t size) {
+static FAILABLE_FUNCTION stream_op_write(struct stream *self, void *data, size_t size) {
 FAILABLE_PROLOGUE
     (void)self;
 
@@ -75,13 +74,13 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION stream_op_read(size_t *size_out, stream_t *self, void *buf, size_t size) {
+static FAILABLE_FUNCTION stream_op_read(size_t *size_out, struct stream *self, void *buf, size_t size) {
 FAILABLE_PROLOGUE
     (void)self;
     
     size_t read_len = 0;
     for (size_t idx = 0; idx < size; idx++) {
-        kbd_keyevent_t event;
+        struct kbd_keyevent event;
         if (!kbd_pullevent(&event)) {
             break;
         }
@@ -100,7 +99,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static stream_ops_t const OPS = {
+static struct stream_ops const OPS = {
     .write = stream_op_write,
     .read = stream_op_read,
 };

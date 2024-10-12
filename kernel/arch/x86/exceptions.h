@@ -1,7 +1,6 @@
 #pragma once
 #include <stdint.h>
 
-typedef struct trapframe trapframe_t;
 struct trapframe {
     uint32_t gs;
     uint32_t fs;

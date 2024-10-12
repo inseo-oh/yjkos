@@ -3,7 +3,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef struct archx86_gdt_segmentdescriptor archx86_gdt_segmentdescriptor_t;
+// XXX: Move this to `gdt.c`?
+
 struct archx86_gdt_segmentdescriptor {
     uint16_t limit_b15tob0;
     uint16_t base_b15tob0;
@@ -14,19 +15,18 @@ struct archx86_gdt_segmentdescriptor {
 };
 STATIC_ASSERT_SIZE(struct archx86_gdt_segmentdescriptor, 8);
 
-typedef struct archx86_gdt archx86_gdt_t;
 struct archx86_gdt {
-    archx86_gdt_segmentdescriptor_t nulldescriptor;
-    archx86_gdt_segmentdescriptor_t kernelcode;
-    archx86_gdt_segmentdescriptor_t kerneldata;
-    archx86_gdt_segmentdescriptor_t tss;
+    struct archx86_gdt_segmentdescriptor nulldescriptor;
+    struct archx86_gdt_segmentdescriptor kernelcode;
+    struct archx86_gdt_segmentdescriptor kerneldata;
+    struct archx86_gdt_segmentdescriptor tss;
 };
-STATIC_ASSERT_SIZE(archx86_gdt_t, sizeof(archx86_gdt_segmentdescriptor_t) * 4);
+STATIC_ASSERT_SIZE(struct archx86_gdt, sizeof(struct archx86_gdt_segmentdescriptor) * 4);
 
 enum {
-    ARCHX86_GDT_KERNEL_CS = offsetof(archx86_gdt_t, kernelcode),
-    ARCHX86_GDT_KERNEL_DS = offsetof(archx86_gdt_t, kerneldata),
-    ARCHX86_GDT_TSS       = offsetof(archx86_gdt_t, tss),
+    ARCHX86_GDT_KERNEL_CS = offsetof(struct archx86_gdt, kernelcode),
+    ARCHX86_GDT_KERNEL_DS = offsetof(struct archx86_gdt, kerneldata),
+    ARCHX86_GDT_TSS       = offsetof(struct archx86_gdt, tss),
 };
 
 void archx86_gdt_init(void);

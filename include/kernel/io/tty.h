@@ -4,14 +4,14 @@
 #include <stdarg.h>
 #include <stdint.h>
 
+struct stream;
+
 #define CON_BACKSPACE   '\x7f'
 #define CON_DELETE      '\x08'
 
-typedef struct stream stream_t;
-
 // For tty_~console functions, pass NULL to disable the console.
-void tty_setconsole(stream_t *device);
-void tty_setdebugconsole(stream_t *device);
+void tty_setconsole(struct stream *device);
+void tty_setdebugconsole(struct stream *device);
 void tty_putc(char c);
 void tty_puts(char const *s);
 void tty_vprintf(char const *fmt, va_list ap);

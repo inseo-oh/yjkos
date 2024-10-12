@@ -42,7 +42,6 @@ static ino_t const INODE_ROOTDIRECTORY = 2;
 typedef uint32_t blkgroupaddr_t;
 typedef uint32_t blkptr_t;
 
-typedef struct fscontext fscontext_t;
 struct fscontext {
     //--------------------------------------------------------------------------
     // Superblock
@@ -92,13 +91,12 @@ struct fscontext {
     //--------------------------------------------------------------------------
     // Other fields needed for FS management
     //--------------------------------------------------------------------------
-    ldisk_t *disk;
+    struct ldisk *disk;
     size_t blkgroupcount;
     size_t blkgroupdescriptorblk;
-    vfs_fscontext_t vfs_fscontext;
+    struct vfs_fscontext vfs_fscontext;
 };
 
-typedef struct blkgroupdescriptor blkgroupdescriptor_t;
 struct blkgroupdescriptor {
     blkptr_t blkusagebitmap;
     blkptr_t inodeusagebitmap;
@@ -109,7 +107,6 @@ struct blkgroupdescriptor {
     uint8_t unused[14];
 };
 
-typedef struct inocontext inocontext_t;
 struct inocontext {
     off_t size;
     size_t hardlinks;
@@ -129,7 +126,7 @@ struct inocontext {
     uint16_t uid;
     uint16_t gid;
 
-    fscontext_t *fs;
+    struct fscontext *fs;
     blkptr_t currentblockaddr;
     size_t nextdirectptrindex;
     size_t cnt;
@@ -154,7 +151,7 @@ static uint16_t const INODE_TYPE_SYMBOLIC_LINK = 0xa000;
 static uint16_t const INODE_TYPE_UNIX_SOCKET   = 0xc000;
 
 // `out` must be able to hold `blkcount * self->blocksize` bytes.
-static FAILABLE_FUNCTION readblocks(fscontext_t *self, void *buf, blkptr_t blockaddr, blkcnt_t blkcount) {
+static FAILABLE_FUNCTION readblocks(struct fscontext *self, void *buf, blkptr_t blockaddr, blkcnt_t blkcount) {
 FAILABLE_PROLOGUE
     // TODO: support cases where self->blocksize < self->disk->physdisk->blocksize
     assert((self->blocksize % self->disk->physdisk->blocksize) == 0);
@@ -166,7 +163,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION allocblockbuf(uint8_t **out, fscontext_t *self, blkcnt_t count, uint8_t flags) {
+static FAILABLE_FUNCTION allocblockbuf(uint8_t **out, struct fscontext *self, blkcnt_t count, uint8_t flags) {
 FAILABLE_PROLOGUE
     uint8_t *buf = heap_calloc(count, self->blocksize, flags);
     if (buf == NULL) {
@@ -177,7 +174,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION readblocks_alloc(uint8_t **out, fscontext_t *self, blkptr_t blockaddr, blkcnt_t blkcount) {
+static FAILABLE_FUNCTION readblocks_alloc(uint8_t **out, struct fscontext *self, blkptr_t blockaddr, blkcnt_t blkcount) {
 FAILABLE_PROLOGUE
     uint8_t *buf = NULL;
     TRY(allocblockbuf(&buf, self, blkcount, 0));
@@ -190,7 +187,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION readblockgroupdescriptor(blkgroupdescriptor_t *out, fscontext_t *self, blkgroupaddr_t blockgroup) {
+static FAILABLE_FUNCTION readblockgroupdescriptor(struct blkgroupdescriptor *out, struct fscontext *self, blkgroupaddr_t blockgroup) {
 FAILABLE_PROLOGUE
     enum {
         DESCRIPTOR_SIZE = 32
@@ -216,13 +213,13 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static blkgroupaddr_t blockgroup_of_inode(fscontext_t *self, ino_t inodeaddr) {
+static blkgroupaddr_t blockgroup_of_inode(struct fscontext *self, ino_t inodeaddr) {
     return (inodeaddr - 1) / self->inodesinblkgroup;
 }
 
-static FAILABLE_FUNCTION locateinode(blkptr_t *blk_out, off_t *off_out, fscontext_t *self, ino_t inodeaddr) {
+static FAILABLE_FUNCTION locateinode(blkptr_t *blk_out, off_t *off_out, struct fscontext *self, ino_t inodeaddr) {
 FAILABLE_PROLOGUE
-    blkgroupdescriptor_t blkgroup;
+    struct blkgroupdescriptor blkgroup;
     TRY(readblockgroupdescriptor(&blkgroup, self, blockgroup_of_inode(self, inodeaddr)));
     off_t index = (inodeaddr - 1) % self->inodesinblkgroup;
     assert(index < (SIZE_MAX / self->inodesize));
@@ -232,7 +229,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION nextinodeblock(inocontext_t *self) {
+static FAILABLE_FUNCTION nextinodeblock(struct inocontext *self) {
 FAILABLE_PROLOGUE
     enum {
         DIRECT_BLOCK_POINTER_COUNT = sizeof(self->directblkptrs) / sizeof(*self->directblkptrs)
@@ -332,7 +329,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static void rewindinode(inocontext_t *self) {
+static void rewindinode(struct inocontext *self) {
     heap_free(self->blockbuf.buf);
     heap_free(self->singlyindirectbuf.buf);
     heap_free(self->doublyindirectbuf.buf);
@@ -356,7 +353,7 @@ static void rewindinode(inocontext_t *self) {
     }
 }
 
-static FAILABLE_FUNCTION skipreadinode(inocontext_t *self, size_t len) {
+static FAILABLE_FUNCTION skipreadinode(struct inocontext *self, size_t len) {
 FAILABLE_PROLOGUE
     size_t remaininglen = len;
 
@@ -402,7 +399,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION seekinode(inocontext_t *self, off_t offset, int whence) {
+static FAILABLE_FUNCTION seekinode(struct inocontext *self, off_t offset, int whence) {
 FAILABLE_PROLOGUE
     switch(whence) {
         case SEEK_SET: {
@@ -432,7 +429,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION readinode(inocontext_t *self, void *buf, size_t len) {
+static FAILABLE_FUNCTION readinode(struct inocontext *self, void *buf, size_t len) {
 FAILABLE_PROLOGUE
     size_t remaininglen = len;
     uint8_t *dest = buf;
@@ -501,7 +498,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION openinode(inocontext_t *out, fscontext_t *self, ino_t inode) {
+static FAILABLE_FUNCTION openinode(struct inocontext *out, struct fscontext *self, ino_t inode) {
 FAILABLE_PROLOGUE
     blkptr_t blockaddr;
     off_t offset;
@@ -549,7 +546,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static void closeinode(inocontext_t *self) {
+static void closeinode(struct inocontext *self) {
     if (self == NULL) {
         return;
     }
@@ -560,7 +557,7 @@ static void closeinode(inocontext_t *self) {
 }
 
 struct DIR {
-    inocontext_t inocontext;
+    struct inocontext inocontext;
 };
 
 // Returns ERR_EOF when it reaches end of the directory.
@@ -608,7 +605,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION opendirectory(DIR **dir_out, fscontext_t *self, ino_t inode) {
+static FAILABLE_FUNCTION opendirectory(DIR **dir_out, struct fscontext *self, ino_t inode) {
 FAILABLE_PROLOGUE
     bool inodeopened = false;
     DIR *dir = heap_alloc(sizeof(*dir), HEAP_FLAG_ZEROMEMORY);
@@ -639,7 +636,7 @@ static void closedirectory(DIR *self) {
     heap_free(self);
 }
 
-static FAILABLE_FUNCTION openfile(inocontext_t *out, fscontext_t *self, ino_t inode) {
+static FAILABLE_FUNCTION openfile(struct inocontext *out, struct fscontext *self, ino_t inode) {
 FAILABLE_PROLOGUE
     bool inodeopened = false;
     TRY(openinode(out, self, inode));
@@ -657,14 +654,14 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static void closefile(inocontext_t *self) {
+static void closefile(struct inocontext *self) {
     if (self == NULL) {
         return;
     }
     closeinode(self);
 }
 
-static FAILABLE_FUNCTION resolvepath(ino_t *ino_out, fscontext_t *self, ino_t parent, char const *path) {
+static FAILABLE_FUNCTION resolvepath(ino_t *ino_out, struct fscontext *self, ino_t parent, char const *path) {
 FAILABLE_PROLOGUE
     DIR *dir;
     bool diropened = false;
@@ -722,16 +719,15 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-typedef struct openfdcontext openfdcontext_t;
 struct openfdcontext {
-    inocontext_t inocontext;
-    fd_t fd;
+    struct inocontext inocontext;
+    struct fd fd;
     off_t cursorpos;
 };
 
-static FAILABLE_FUNCTION fd_op_read(fd_t *self, void *buf, size_t *len_inout) {
+static FAILABLE_FUNCTION fd_op_read(struct fd *self, void *buf, size_t *len_inout) {
 FAILABLE_PROLOGUE
-    openfdcontext_t *context = self->data;
+    struct openfdcontext *context = self->data;
     off_t maxlen = context->inocontext.size - context->cursorpos;
     size_t readlen = *len_inout;
     if (maxlen < readlen) {
@@ -744,7 +740,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION fd_op_write(fd_t *self, void const *buf, size_t *len_inout) {
+static FAILABLE_FUNCTION fd_op_write(struct fd *self, void const *buf, size_t *len_inout) {
 FAILABLE_PROLOGUE
     (void)self;
     (void)buf;
@@ -754,29 +750,29 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION fd_op_seek(fd_t *self, off_t offset, int whence) {
-    openfdcontext_t *context = self->data;
+static FAILABLE_FUNCTION fd_op_seek(struct fd *self, off_t offset, int whence) {
+    struct openfdcontext *context = self->data;
     return seekinode(&context->inocontext, offset, whence);
 }
 
-static void fd_op_close(fd_t *self) {
-    openfdcontext_t *context = self->data;
+static void fd_op_close(struct fd *self) {
+    struct openfdcontext *context = self->data;
     vfs_unregisterfile(self);
     closefile(&context->inocontext);
     heap_free(context);
 }
 
-static fd_ops_t const FD_OPS = {
+static struct fd_ops const FD_OPS = {
     .read  = fd_op_read,
     .write = fd_op_write,
     .seek  = fd_op_seek,
     .close = fd_op_close,
 };
 
-static FAILABLE_FUNCTION vfs_op_mount(vfs_fscontext_t **out, ldisk_t *disk) {
+static FAILABLE_FUNCTION vfs_op_mount(struct vfs_fscontext **out, struct ldisk *disk) {
 FAILABLE_PROLOGUE
     uint8_t superblk[1024];
-    fscontext_t *context = heap_alloc(sizeof(*context), HEAP_FLAG_ZEROMEMORY);
+    struct fscontext *context = heap_alloc(sizeof(*context), HEAP_FLAG_ZEROMEMORY);
     //--------------------------------------------------------------------------
     // Read superblock
     //--------------------------------------------------------------------------
@@ -904,21 +900,21 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION vfs_op_umount(vfs_fscontext_t *self) {
+static FAILABLE_FUNCTION vfs_op_umount(struct vfs_fscontext *self) {
 FAILABLE_PROLOGUE
     heap_free(self->data);
 FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION vfs_op_open(fd_t **out, vfs_fscontext_t *self, char const *path, int flags) {
+static FAILABLE_FUNCTION vfs_op_open(struct fd **out, struct vfs_fscontext *self, char const *path, int flags) {
 FAILABLE_PROLOGUE
     bool fileopened = false;
     bool fileregistered = false;
     ino_t inode;
-    fscontext_t *fscontext = self->data;
+    struct fscontext *fscontext = self->data;
     (void)flags;
-    openfdcontext_t *fdcontext = heap_alloc(sizeof(*fdcontext), HEAP_FLAG_ZEROMEMORY);
+    struct openfdcontext *fdcontext = heap_alloc(sizeof(*fdcontext), HEAP_FLAG_ZEROMEMORY);
     fileopened = true;
     TRY(resolvepath(&inode, fscontext, INODE_ROOTDIRECTORY, path));
     TRY(openfile(&fdcontext->inocontext, fscontext, inode));
@@ -939,13 +935,13 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static vfs_fstype_ops_t const FSTYPE_OPS = {
+static struct vfs_fstype_ops const FSTYPE_OPS = {
     .mount  = vfs_op_mount,
     .umount = vfs_op_umount,
     .open   = vfs_op_open,
 };
 
-static vfs_fstype_t s_fstype;
+static struct vfs_fstype s_fstype;
 
 void fsinit_init_ext2(void) {
     vfs_registerfstype(&s_fstype, "ext2", &FSTYPE_OPS);

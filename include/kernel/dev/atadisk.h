@@ -31,7 +31,6 @@ enum {
     ATA_SECTOR_SIZE              = 512,
 };
 
-typedef struct ata_databuf ata_databuf_t;
 struct ata_databuf {
     uint16_t data[256];
 };
@@ -44,26 +43,25 @@ typedef enum {
     ATA_DMASTATUS_BUSY,
 } ata_dmastatus_t;
 
-typedef struct atadisk atadisk_t;
-typedef struct atadisk_ops atadisk_ops_t;
+struct atadisk;
 struct atadisk_ops {
-    bool (*dma_beginsession)(atadisk_t *self);
-    void (*dma_endsession)(atadisk_t *self);
-    void (*lock)(atadisk_t *self);
-    void (*unlock)(atadisk_t *self);
-    ata_status_t (*readstatus)(atadisk_t *self);
-    FAILABLE_FUNCTION (*selectdisk)(atadisk_t *self);
-    void (*setfeaturesparam)(atadisk_t *self, uint16_t data);
-    void (*setcountparam)(atadisk_t *self, uint16_t data);
-    void (*setlbaparam)(atadisk_t *self, uint32_t data);
-    void (*setdeviceparam)(atadisk_t *self, uint8_t data);
-    uint32_t (*getlbaoutput)(atadisk_t *self);
-    void (*issuecmd)(atadisk_t *self, atacmd_t cmd);
-    bool (*getirqflag)(atadisk_t *self);
-    void (*clearirqflag)(atadisk_t *self);
-    void (*readdata)(ata_databuf_t *out, atadisk_t *self);
-    void (*writedata)(atadisk_t *self, ata_databuf_t *buffer);
-    void (*softreset)(atadisk_t *self);
+    bool (*dma_beginsession)(struct atadisk *self);
+    void (*dma_endsession)(struct atadisk *self);
+    void (*lock)(struct atadisk *self);
+    void (*unlock)(struct atadisk *self);
+    ata_status_t (*readstatus)(struct atadisk *self);
+    FAILABLE_FUNCTION (*selectdisk)(struct atadisk *self);
+    void (*setfeaturesparam)(struct atadisk *self, uint16_t data);
+    void (*setcountparam)(struct atadisk *self, uint16_t data);
+    void (*setlbaparam)(struct atadisk *self, uint32_t data);
+    void (*setdeviceparam)(struct atadisk *self, uint8_t data);
+    uint32_t (*getlbaoutput)(struct atadisk *self);
+    void (*issuecmd)(struct atadisk *self, atacmd_t cmd);
+    bool (*getirqflag)(struct atadisk *self);
+    void (*clearirqflag)(struct atadisk *self);
+    void (*readdata)(struct ata_databuf *out, struct atadisk *self);
+    void (*writedata)(struct atadisk *self, struct ata_databuf *buffer);
+    void (*softreset)(struct atadisk *self);
 
     // DMA API
     // The order of operation is:
@@ -75,17 +73,16 @@ struct atadisk_ops {
     // 6. [DMA] Deinitialize DMA transfer
     // (Step 5 and 6 are separate, so that DMA can be deinitialized safely if something fails between
     // Step 1 and Step 3)
-    FAILABLE_FUNCTION (*dma_inittransfer)(atadisk_t *self, void *buffer, size_t len, bool isread);
-    FAILABLE_FUNCTION (*dma_begintransfer)(atadisk_t *self);
-    ata_dmastatus_t (*dma_checktransfer)(atadisk_t *self);
-    void (*dma_endtransfer)(atadisk_t *self, bool wasSuccess);
-    void (*dma_deinittransfer)(atadisk_t *self);
-
+    FAILABLE_FUNCTION (*dma_inittransfer)(struct atadisk *self, void *buffer, size_t len, bool isread);
+    FAILABLE_FUNCTION (*dma_begintransfer)(struct atadisk *self);
+    ata_dmastatus_t (*dma_checktransfer)(struct atadisk *self);
+    void (*dma_endtransfer)(struct atadisk *self, bool wasSuccess);
+    void (*dma_deinittransfer)(struct atadisk *self);
 };
 struct atadisk {
-    pdisk_t physdisk;
-    atadisk_ops_t const *ops;
+    struct pdisk physdisk;
+    struct atadisk_ops const *ops;
     void *data;
 };
 
-FAILABLE_FUNCTION atadisk_register(atadisk_t *disk_out, atadisk_ops_t const *ops, void *data);
+FAILABLE_FUNCTION atadisk_register(struct atadisk *disk_out, struct atadisk_ops const *ops, void *data);

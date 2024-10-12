@@ -4,26 +4,26 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef int8_t sched_priority_t;
-typedef struct thread thread_t;
+struct thread;
 
-typedef struct sched_queue sched_queue_t;
+typedef int8_t sched_priority_t;
+
 struct sched_queue {
-    list_node_t node;
+    struct list_node node;
     // Lower value -> Higher priority (Works similiarly to UNIX niceness value)
     sched_priority_t priority;
     size_t opportunities;
-    list_t threads;
+    struct list threads;
 };
 
 // NOTE: Most scheduler functions are considered as critical section, so it is safe to turn off interrupts
 //       before using any of these!
 //       TODO: Just do that in sched itself :D
 
-FAILABLE_FUNCTION sched_getqueue(sched_queue_t **queue_out, sched_priority_t priority);
-sched_queue_t *sched_picknextqueue(void);
+FAILABLE_FUNCTION sched_getqueue(struct sched_queue **queue_out, sched_priority_t priority);
+struct sched_queue *sched_picknextqueue(void);
 void sched_printqueues(void);
-FAILABLE_FUNCTION sched_queue(thread_t *thread);
+FAILABLE_FUNCTION sched_queue(struct thread *thread);
 void sched_schedule(void);
 
 void sched_test(void);

@@ -12,20 +12,15 @@
 #include <string.h>
 #include <sys/types.h>
 
-typedef struct fscontext fscontext_t;
-struct fscontext {
-    vfs_fscontext_t vfs_fscontext;
-};
 
-static FAILABLE_FUNCTION vfs_op_mount(vfs_fscontext_t **out, ldisk_t *disk) {
+static FAILABLE_FUNCTION vfs_op_mount(struct vfs_fscontext **out, struct ldisk *disk) {
 FAILABLE_PROLOGUE
-    fscontext_t *context = heap_alloc(sizeof(*context), HEAP_FLAG_ZEROMEMORY);
+    struct vfs_fscontext *context = heap_alloc(sizeof(*context), HEAP_FLAG_ZEROMEMORY);
     if (context == NULL) {
         THROW(ERR_NOMEM);
     }
-    context->vfs_fscontext.data = context;
     (void)disk;
-    *out = &context->vfs_fscontext;
+    *out = context;
 FAILABLE_EPILOGUE_BEGIN
     if (DID_FAIL) {
         heap_free(context);
@@ -33,14 +28,14 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION vfs_op_umount(vfs_fscontext_t *self) {
+static FAILABLE_FUNCTION vfs_op_umount(struct vfs_fscontext *self) {
 FAILABLE_PROLOGUE
-    heap_free(self->data);
+    heap_free(self);
 FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION vfs_op_open(fd_t **out, vfs_fscontext_t *self, char const *path, int flags) {
+static FAILABLE_FUNCTION vfs_op_open(struct fd **out, struct vfs_fscontext *self, char const *path, int flags) {
 FAILABLE_PROLOGUE
     (void)out;
     (void)self;
@@ -51,13 +46,13 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static vfs_fstype_ops_t const FSTYPE_OPS = {
+static struct vfs_fstype_ops const FSTYPE_OPS = {
     .mount  = vfs_op_mount,
     .umount = vfs_op_umount,
     .open   = vfs_op_open,
 };
 
-static vfs_fstype_t s_fstype;
+static struct vfs_fstype s_fstype;
 
 void fsinit_init_dummyfs(void) {
     vfs_registerfstype(&s_fstype, "dummyfs", &FSTYPE_OPS);

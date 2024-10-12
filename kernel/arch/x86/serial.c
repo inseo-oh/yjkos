@@ -76,7 +76,7 @@ static uint8_t const  MCR_FLAG_OUT1     = 1 << 2;
 static uint8_t const  MCR_FLAG_OUT2     = 1 << 3;
 static uint8_t const  MCR_FLAG_LOOPBACK = 1 << 4;
 
-static FAILABLE_FUNCTION getdivisor(uint16_t *out, archx86_serial_t *self, uint32_t baudrate) {
+static FAILABLE_FUNCTION getdivisor(uint16_t *out, struct archx86_serial *self, uint32_t baudrate) {
 FAILABLE_PROLOGUE
     bool found = false;
     for (uint32_t divisor = 1; divisor <= 0xffff; ++divisor) {
@@ -95,48 +95,48 @@ FAILABLE_EPILOGUE_END
 }
 
 
-static void writereg(archx86_serial_t *self, uint8_t regidx, uint8_t val) {
+static void writereg(struct archx86_serial *self, uint8_t regidx, uint8_t val) {
     archx86_out8(self->baseaddr + regidx, val);    
 }
 
-static uint8_t readreg(archx86_serial_t *self, uint8_t regidx) {
+static uint8_t readreg(struct archx86_serial *self, uint8_t regidx) {
     return archx86_in8(self->baseaddr + regidx);
 }
 
-static void setdlab(archx86_serial_t *self) {
+static void setdlab(struct archx86_serial *self) {
     uint8_t val = archx86_in8(REG_LCR);
     val |= LCR_FLAG_DLAB;
     writereg(self, REG_LCR, val);
 }
 
-static void cleardlab(archx86_serial_t *self) {
+static void cleardlab(struct archx86_serial *self) {
     uint8_t val = archx86_in8(REG_LCR);
     val &= ~LCR_FLAG_DLAB;
     writereg(self, REG_LCR, val);
 }
 
-static void writeier(archx86_serial_t *self, uint8_t val) {
+static void writeier(struct archx86_serial *self, uint8_t val) {
     cleardlab(self);
     writereg(self, REG_IER, val);
 }
 
-static void writedl(archx86_serial_t *self, uint16_t dl) {
+static void writedl(struct archx86_serial *self, uint16_t dl) {
     setdlab(self);
     writereg(self, REG_DLL, dl);
     writereg(self, REG_DLH, dl >> 8);
 }
 
-static void writedata(archx86_serial_t *self, uint8_t val) {
+static void writedata(struct archx86_serial *self, uint8_t val) {
     cleardlab(self);
     writereg(self, REG_DATA, val);
 }
 
-uint8_t readdata(archx86_serial_t *self) {
+uint8_t readdata(struct archx86_serial *self) {
     cleardlab(self);
     return readreg(self, REG_DATA);
 }
 
-static void waitreadytosend(archx86_serial_t *self) {
+static void waitreadytosend(struct archx86_serial *self) {
     if (!self->useirq || !arch_interrupts_areenabled()) {
         while (!(readreg(self, REG_LSR) & LSR_FLAG_TX_HOLDING_REG_EMPTY)) {}
     } else {
@@ -145,7 +145,7 @@ static void waitreadytosend(archx86_serial_t *self) {
     }
 }
 
-static void waitreadytorecv(archx86_serial_t *self) {
+static void waitreadytorecv(struct archx86_serial *self) {
     if (!self->useirq || !arch_interrupts_areenabled()) {
         while (!(readreg(self, REG_LSR) & LSR_FLAG_DATA_READY)) {}
     } else {
@@ -155,7 +155,7 @@ static void waitreadytorecv(archx86_serial_t *self) {
 }
 
 
-static FAILABLE_FUNCTION runloopbacktest(archx86_serial_t *self) {
+static FAILABLE_FUNCTION runloopbacktest(struct archx86_serial *self) {
 FAILABLE_PROLOGUE
 
     uint8_t oldmcr = readreg(self, REG_MCR);
@@ -189,9 +189,9 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION stream_op_write(stream_t *self, void *data, size_t size) {
+static FAILABLE_FUNCTION stream_op_write(struct stream *self, void *data, size_t size) {
 FAILABLE_PROLOGUE
-    archx86_serial_t *cport = (archx86_serial_t *)self->data;
+    struct archx86_serial *cport = (struct archx86_serial *)self->data;
 
     for (size_t idx = 0; idx < size; idx++) {
         uint8_t c = ((uint8_t *)data)[idx];
@@ -214,7 +214,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION stream_op_read(size_t *size_out, stream_t *self, void *buf, size_t size) {
+static FAILABLE_FUNCTION stream_op_read(size_t *size_out, struct stream *self, void *buf, size_t size) {
 FAILABLE_PROLOGUE
     for (size_t idx = 0; idx < size; idx++) {
         waitreadytorecv(self->data);
@@ -225,13 +225,13 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static stream_ops_t const OPS = {
+static struct stream_ops const OPS = {
     .read = stream_op_read,
     .write = stream_op_write,
 };
 
 static void irqhandler(int irqnum, void *data) {
-    archx86_serial_t *self = data;
+    struct archx86_serial *self = data;
     uint8_t ier = readreg(self, REG_IER);
     uint8_t iir = readreg(self, REG_IIR);
     uint8_t lsr =readreg(self, REG_LSR);
@@ -248,7 +248,7 @@ static void irqhandler(int irqnum, void *data) {
     archx86_pic_sendeoi(irqnum);
 }
 
-FAILABLE_FUNCTION archx86_serial_init(archx86_serial_t *out, archx86_ioaddr_t baseaddr, uint32_t masterclock, uint8_t irq) {
+FAILABLE_FUNCTION archx86_serial_init(struct archx86_serial *out, archx86_ioaddr_t baseaddr, uint32_t masterclock, uint8_t irq) {
 FAILABLE_PROLOGUE
     memset(out, 0, sizeof(*out));
     out->stream.data = out;
@@ -263,7 +263,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-FAILABLE_FUNCTION archx86_serial_config(archx86_serial_t *self, uint32_t baudrate) {
+FAILABLE_FUNCTION archx86_serial_config(struct archx86_serial *self, uint32_t baudrate) {
 FAILABLE_PROLOGUE
     uint16_t dl_val;
 
@@ -274,7 +274,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-void archx86_serial_useirq(archx86_serial_t *self) {
+void archx86_serial_useirq(struct archx86_serial *self) {
     archx86_pic_registerhandler(&self->irqhandler, self->irq, irqhandler, self);
     archx86_pic_unmaskirq(self->irq);
     writeier(self, 0x3); // Transmit and Receive interrupts

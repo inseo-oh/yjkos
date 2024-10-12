@@ -18,7 +18,7 @@ SHELLRODATA static uint32_t const TEST_INTS[] = {
 };
 
 SHELLFUNC static testresult_t do_test(void) {
-    queue_t queue;
+    struct queue queue;
     uint32_t buf[5];
     QUEUE_INIT_FOR_ARRAY(&queue, buf);
     TEST_EXPECT(QUEUE_ENQUEUE(&queue, &TEST_INTS[0]) == OK);
@@ -53,11 +53,11 @@ SHELLFUNC static testresult_t do_test(void) {
 }
 
 
-SHELLRODATA static test_t const TESTS[] = {
+SHELLRODATA static struct test const TESTS[] = {
     { .name = "queue", .fn = do_test },
 };
 
-SHELLDATA const testgroup_t TESTGROUP_QUEUE = {
+SHELLDATA const struct testgroup TESTGROUP_QUEUE = {
     .name = "queue",
     .tests = TESTS,
     .testslen = sizeof(TESTS)/sizeof(*TESTS),

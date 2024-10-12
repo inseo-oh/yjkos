@@ -7,15 +7,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef struct funcstackframe funcstackframe_t;
 struct funcstackframe {
-    funcstackframe_t *next;
+    struct funcstackframe *next;
     uint32_t eip;
 };
 
-static void stacktrace_with_frame(funcstackframe_t *startingframe) {
+static void stacktrace_with_frame(struct funcstackframe *startingframe) {
     tty_printf("stack trace:\n");
-    funcstackframe_t *frame = startingframe;
+    struct funcstackframe *frame = startingframe;
     while (frame != NULL) {
         physptr_t physaddr;
         status_t status = arch_mmu_virttophys(&physaddr, (uintptr_t)frame);
@@ -33,12 +32,12 @@ void arch_stacktrace_for_trapframe(void *trapframe) {
         tty_printf("stack trace:\n  <no trace info available>\n");
         return;
     }
-    tty_printf("pc: %#lx\n", ((trapframe_t *)trapframe)->eip);
-    stacktrace_with_frame((void *)((trapframe_t *)trapframe)->ebp);
+    tty_printf("pc: %#lx\n", ((struct trapframe *)trapframe)->eip);
+    stacktrace_with_frame((void *)((struct trapframe *)trapframe)->ebp);
 }
 
 void arch_stacktrace(void) {
-    funcstackframe_t *frame;
+    struct funcstackframe *frame;
     __asm__ ("mov %%ebp, %0" : "=r"(frame));
     stacktrace_with_frame(frame);
 }

@@ -9,12 +9,12 @@
 #include <stdint.h>
 #include <string.h>
 
-static stream_t s_stream;
+static struct stream s_stream;
 
 static size_t s_totalcolumns, s_totalrows;
 static uint16_t s_currentcolumn = 0, s_currentrow = 0;
-static vt100tty_screenline_t *s_screenlines;
-static void (*updatescreen)(vt100tty_screenline_t *s_screenlines);
+static struct vt100tty_screenline *s_screenlines;
+static void (*updatescreen)(struct vt100tty_screenline *s_screenlines);
 
 static void advanceline(bool wastextoverflow) {
     s_currentcolumn = 0;
@@ -48,7 +48,7 @@ static void writechar(char chr) {
     s_currentcolumn++;
 }
 
-static FAILABLE_FUNCTION stream_op_write(stream_t *self, void *data, size_t size) {
+static FAILABLE_FUNCTION stream_op_write(struct stream *self, void *data, size_t size) {
 FAILABLE_PROLOGUE
     (void)self;
 
@@ -61,13 +61,13 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION stream_op_read(size_t *size_out, stream_t *self, void *buf, size_t size) {
+static FAILABLE_FUNCTION stream_op_read(size_t *size_out, struct stream *self, void *buf, size_t size) {
 FAILABLE_PROLOGUE
     (void)self;
     
     size_t read_len = 0;
     for (size_t idx = 0; idx < size; idx++) {
-        kbd_keyevent_t event;
+        struct kbd_keyevent event;
         if (!kbd_pullevent(&event)) {
             break;
         }
@@ -86,12 +86,12 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static stream_ops_t const OPS = {
+static struct stream_ops const OPS = {
     .write = stream_op_write,
     .read = stream_op_read,
 };
 
-void vt100tty_init(vt100tty_screenline_t *screenlines, size_t columns, size_t rows, void (*updatescreen_op)(vt100tty_screenline_t *s_screenlines)) {
+void vt100tty_init(struct vt100tty_screenline *screenlines, size_t columns, size_t rows, void (*updatescreen_op)(struct vt100tty_screenline *s_screenlines)) {
     s_stream.data = NULL;
     s_stream.ops = &OPS;
     s_totalcolumns = columns;

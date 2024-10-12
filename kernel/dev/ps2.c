@@ -14,11 +14,11 @@
 #include <stdint.h>
 #include <string.h>
 
-static list_t s_ports;
+static struct list s_ports;
 
-FAILABLE_FUNCTION ps2port_stream_op_read(size_t *size_out, stream_t *self, void *buf, size_t size) {
+FAILABLE_FUNCTION ps2port_stream_op_read(size_t *size_out, struct stream *self, void *buf, size_t size) {
 FAILABLE_PROLOGUE
-    ps2port_t *port = self->data;
+    struct ps2port *port = self->data;
     size_t writtensize = 0;
     ticktime_t starttime = g_ticktime;
     while(writtensize == 0) {
@@ -48,7 +48,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION sendandwaitack(ps2port_t *port, uint8_t cmd) {
+static FAILABLE_FUNCTION sendandwaitack(struct ps2port *port, uint8_t cmd) {
 FAILABLE_PROLOGUE
     uint8_t res;
     TRY(stream_putchar(&port->stream, cmd));
@@ -66,7 +66,7 @@ typedef enum {
     DEVTYPE_MOUSE,
 } devtype_t;
 
-static FAILABLE_FUNCTION identifydevice(devtype_t *out, ps2port_t *port) {
+static FAILABLE_FUNCTION identifydevice(devtype_t *out, struct ps2port *port) {
 FAILABLE_PROLOGUE
     TRY(sendandwaitack(port, PS2_CMD_DISABLESCANNING));
     TRY(sendandwaitack(port, PS2_CMD_IDENTIFY));
@@ -123,7 +123,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static FAILABLE_FUNCTION initdev(ps2port_t *port) {
+static FAILABLE_FUNCTION initdev(struct ps2port *port) {
 FAILABLE_PROLOGUE
     // Send reset command
     bool resetack = false;
@@ -185,7 +185,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-FAILABLE_FUNCTION ps2port_register(ps2port_t *port_out, stream_ops_t const *ops, void *data) {
+FAILABLE_FUNCTION ps2port_register(struct ps2port *port_out, struct stream_ops const *ops, void *data) {
 FAILABLE_PROLOGUE
     TRY(iodev_register(&port_out->device, IODEV_TYPE_PS2PORT, port_out));
     port_out->node.data = port_out;
@@ -201,8 +201,8 @@ FAILABLE_EPILOGUE_END
 
 void ps2_initdevices(void) {
     // XXX: Use iodev to enumerate devices instead.
-    for (list_node_t *devicenode = s_ports.front; devicenode != NULL; devicenode = devicenode->next) {
-        ps2port_t *port = devicenode->data;
+    for (struct list_node *devicenode = s_ports.front; devicenode != NULL; devicenode = devicenode->next) {
+        struct ps2port *port = devicenode->data;
         status_t status = initdev(port); 
         if (status != OK) {
             iodev_printf(&port->device, "failed to initialize (error %d)\n", status);
@@ -210,7 +210,7 @@ void ps2_initdevices(void) {
     }
 }
 
-void ps2port_receivedbyte(ps2port_t *port, uint8_t byte) {
+void ps2port_receivedbyte(struct ps2port *port, uint8_t byte) {
     if (port->ops == NULL) {
         status_t status = QUEUE_ENQUEUE(&port->recvqueue, &byte);
         if (status != OK) {

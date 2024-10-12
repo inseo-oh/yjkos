@@ -16,7 +16,7 @@ struct arch_thread {
     uint32_t stack[];
 };
 
-FAILABLE_FUNCTION arch_thread_create(arch_thread_t **thread_out, size_t minstacksize, uintptr_t entryaddr) {
+FAILABLE_FUNCTION arch_thread_create(struct arch_thread **thread_out, size_t minstacksize, uintptr_t entryaddr) {
 FAILABLE_PROLOGUE
     enum {
         STACK_IDX_EDI,
@@ -37,10 +37,10 @@ FAILABLE_PROLOGUE
     }
     assert((stacksize % sizeof(uint32_t)) == 0);
     tty_printf("creating thread with %uk stack and entry point %#lx\n", stacksize/1024, entryaddr);
-    if ((SIZE_MAX - sizeof(arch_thread_t)) < + stacksize) {
+    if ((SIZE_MAX - sizeof(struct arch_thread)) < + stacksize) {
         THROW(ERR_NOMEM);
     }
-    arch_thread_t *thread = heap_alloc(sizeof(*thread) + stacksize, 0);
+    struct arch_thread *thread = heap_alloc(sizeof(*thread) + stacksize, 0);
     if (thread == NULL) {
         THROW(ERR_NOMEM);
     }
@@ -60,11 +60,11 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-void arch_thread_destroy(arch_thread_t *thread) {
+void arch_thread_destroy(struct arch_thread *thread) {
     heap_free(thread);
 }
 
-void arch_thread_switch(arch_thread_t *from, arch_thread_t *to) {
+void arch_thread_switch(struct arch_thread *from, struct arch_thread *to) {
     if (CONFIG_DEBUG_CONTEXT_SWITCH) {
         tty_printf("context switch from=%p, to=%p(esp=%p)\n", from, to, to->savedesp);
     }
