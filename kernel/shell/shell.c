@@ -19,10 +19,10 @@ static bool const CONFIG_DUMPCMD = false;
 //-----------------------------------------------------------------------------
 
 
-typedef enum {
-    KIND_EMPTY,
-    KIND_RUNPROGRAM,
-} cmdkind_t;
+enum cmdkind {
+    CMDKIND_EMPTY,
+    CMDKIND_RUNPROGRAM,
+};
 
 enum {
     SHELL_MAX_CMDLINE_LEN = 80,
@@ -30,9 +30,9 @@ enum {
 };
 
 union shellcmd {
-    cmdkind_t kind;
+    enum cmdkind kind;
     struct {
-        cmdkind_t kind;
+        enum cmdkind kind;
         char **argv;
         int argc;
     } runprogram;
@@ -47,7 +47,7 @@ FAILABLE_PROLOGUE
     int argc = 0;
     smatcher_skipwhitespaces(cmdstr);
     if (cmdstr->currentindex == cmdstr->len) {
-        out->kind = KIND_EMPTY;
+        out->kind = CMDKIND_EMPTY;
     } else {
         while(1) {
             smatcher_skipwhitespaces(cmdstr);
@@ -79,7 +79,7 @@ FAILABLE_PROLOGUE
             argv[newargc - 1][len] = '\0';
             argc = newargc;
         }
-        out->runprogram.kind = KIND_RUNPROGRAM;
+        out->runprogram.kind = CMDKIND_RUNPROGRAM;
         out->runprogram.argc = argc;
         out->runprogram.argv = argv;
     }
@@ -96,26 +96,26 @@ FAILABLE_EPILOGUE_END
 
 SHELLFUNC static void cmd_destroy(union shellcmd *cmd) {
     switch(cmd->kind) {
-        case KIND_RUNPROGRAM:
+        case CMDKIND_RUNPROGRAM:
             for (int i = 0; i < cmd->runprogram.argc; i++) {
                 heap_free(cmd->runprogram.argv[i]);
             }
             heap_free(cmd->runprogram.argv);
-        case KIND_EMPTY:
+        case CMDKIND_EMPTY:
             break;
     }
 }
 
 SHELLFUNC static void cmd_dump(union shellcmd const *cmd) {
     switch(cmd->kind) {
-        case KIND_RUNPROGRAM:
+        case CMDKIND_RUNPROGRAM:
             tty_printf("[cmd_dump] RUNPROGRAM\n");
             tty_printf("[cmd_dump]  - argc %d\n", cmd->runprogram.argc);
             for (int i = 0; i < cmd->runprogram.argc; i++) {
                 tty_printf("[cmd_dump]  - argv[%d] - [%s]\n", i, cmd->runprogram.argv[i]);
             }
             break;
-        case KIND_EMPTY:
+        case CMDKIND_EMPTY:
             tty_printf("[cmd_dump] EMPTY\n");
             break;
         default:
@@ -125,7 +125,7 @@ SHELLFUNC static void cmd_dump(union shellcmd const *cmd) {
 
 SHELLFUNC static int cmd_exec(union shellcmd const *cmd) {
     switch(cmd->kind) {
-        case KIND_RUNPROGRAM: {
+        case CMDKIND_RUNPROGRAM: {
             assert(cmd->runprogram.argc != 0);
             assert(cmd->runprogram.argv != NULL);
             struct shell_program *program_to_run = NULL;
@@ -142,7 +142,7 @@ SHELLFUNC static int cmd_exec(union shellcmd const *cmd) {
             }
             return program_to_run->main(cmd->runprogram.argc, cmd->runprogram.argv);
         }
-        case KIND_EMPTY:
+        case CMDKIND_EMPTY:
             return 0;
         default:
             panic("shell: cmd_exec internal error - unknown cmd type");
@@ -159,7 +159,7 @@ FAILABLE_PROLOGUE
     struct smatcher linematcher;
     smatcher_init(&linematcher, str);
     TRY(parsecmd(&cmd, &linematcher));
-    if (cmd.kind != KIND_EMPTY) {
+    if (cmd.kind != CMDKIND_EMPTY) {
         if (CONFIG_DUMPCMD) {
             cmd_dump(&cmd);
         }

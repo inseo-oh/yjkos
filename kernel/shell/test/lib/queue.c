@@ -17,7 +17,7 @@ SHELLRODATA static uint32_t const TEST_INTS[] = {
     0xe80d6aa0,
 };
 
-SHELLFUNC static testresult_t do_test(void) {
+SHELLFUNC static bool do_test(void) {
     struct queue queue;
     uint32_t buf[5];
     QUEUE_INIT_FOR_ARRAY(&queue, buf);
@@ -49,7 +49,7 @@ SHELLFUNC static testresult_t do_test(void) {
     TEST_EXPECT(dequeued == TEST_INTS[7]);
     TEST_EXPECT(!QUEUE_DEQUEUE(&dequeued, &queue));
 
-    return TEST_OK;
+    return true;
 }
 
 

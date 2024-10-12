@@ -5,14 +5,14 @@
 #include <kernel/status.h>
 #include <kernel/types.h>
 
-SHELLFUNC static testresult_t do_randalloc(void) {
+SHELLFUNC static bool do_randalloc(void) {
     bool previnterrupts = arch_interrupts_disable();
     TEST_EXPECT(pmm_pagepool_test_random());
     interrupts_restore(previnterrupts);
-    return TEST_OK;
+    return true;
 }
 
-SHELLFUNC static testresult_t do_badalloc(void) {
+SHELLFUNC static bool do_badalloc(void) {
     bool previnterrupts = arch_interrupts_disable();
     size_t pagecount = 0;
     physptr_t addr;
@@ -20,7 +20,7 @@ SHELLFUNC static testresult_t do_badalloc(void) {
     pagecount = ~0;
     TEST_EXPECT(pmm_alloc(&addr, &pagecount) == ERR_NOMEM);
     interrupts_restore(previnterrupts);
-    return TEST_OK;
+    return true;
 }
 
 SHELLRODATA static struct test const TESTS[] = {

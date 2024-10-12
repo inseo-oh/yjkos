@@ -15,17 +15,17 @@
 
 static bool const CONFIG_COMMDEBUG = false;
 
-typedef enum {
-    STATE_DEFAULT,
-    STATE_WAITING_RESPONSEDATA,
-    STATE_WAITING_E0EXT,
-    STATE_WAITING_E1EXT1,
-    STATE_WAITING_E1EXT2,
-    STATE_WAITING_NORMALRELEASE,
-    STATE_WAITING_E0RELEASE,
-    STATE_WAITING_E1RELEASE1,
-    STATE_WAITING_E1RELEASE2,
-} keyboardstate_t;
+enum inputstate {
+    INPUTSTATE_DEFAULT,
+    INPUTSTATE_WAITING_RESPONSEDATA,
+    INPUTSTATE_WAITING_E0EXT,
+    INPUTSTATE_WAITING_E1EXT1,
+    INPUTSTATE_WAITING_E1EXT2,
+    INPUTSTATE_WAITING_NORMALRELEASE,
+    INPUTSTATE_WAITING_E0RELEASE,
+    INPUTSTATE_WAITING_E1RELEASE1,
+    INPUTSTATE_WAITING_E1RELEASE2,
+};
 
 enum {
     MAX_RESEND_COUNT = 3,
@@ -37,15 +37,15 @@ enum {
     RESPONSE_ECHO    = 0xee,
 };
 
-typedef enum {
+enum cmdstate {
     CMDSTATE_QUEUED,
     CMDSTATE_WAITINGRESPONSE,
     CMDSTATE_SUCCESS,
     CMDSTATE_FAILED,
-} cmdstate_t;
+};
 
 struct cmdcontext {
-    _Atomic(cmdstate_t) state;
+    _Atomic(enum cmdstate) state;
     struct list_node node;
     bool noretry, async;
     uint8_t responsedata;
@@ -61,19 +61,19 @@ static uint8_t const FLAG_FAKENUMLOCK_DOWN = 1 << 3;
 
 struct kbdcontext {
     struct kbddev device;
-    keyboardstate_t state;
+    enum inputstate state;
     struct ps2port *port;
     struct list cmdqueue;
     uint8_t flags, keybytes[8], nextkeybyteindex;
 };
 
-static void cmdfinished(struct ps2port *port, cmdstate_t final_state) {
+static void cmdfinished(struct ps2port *port, enum cmdstate finalstate) {
     struct kbdcontext *ctx = port->devicedata;
     assert(ctx);
     struct list_node *cmdnode = list_removeback(&ctx->cmdqueue);
     assert(cmdnode);
     struct cmdcontext *cmd = cmdnode->data;
-    cmd->state = final_state;
+    cmd->state = finalstate;
     if (cmd->async) {
         heap_free(cmd);
     }
@@ -101,7 +101,7 @@ enum {
     KEYMAP_FLAG_NUMLOCK  = 1 << 2,
 };
 
-static kbd_key_t const KEYMAP_DEFAULT[256] = {
+static enum kbd_key const KEYMAP_DEFAULT[256] = {
     [0x76] = KBD_KEY_ESCAPE,
     [0x05] = KBD_KEY_F1,
     [0x06] = KBD_KEY_F2,
@@ -196,7 +196,7 @@ static kbd_key_t const KEYMAP_DEFAULT[256] = {
     [0x71] = KBD_KEY_NUMPAD_POINT,
 };
 
-static kbd_key_t const KEYMAP_E0[256] = {
+static enum kbd_key const KEYMAP_E0[256] = {
     [0x1f] = KBD_KEY_LSUPER,
     [0x11] = KBD_KEY_RALT,
     [0x27] = KBD_KEY_RSUPER,
@@ -259,7 +259,7 @@ static void reportbadscancode(struct ps2port *port) {
     }
 }
 
-static void keypressed(struct ps2port *port, kbd_key_t key) {
+static void keypressed(struct ps2port *port, enum kbd_key key) {
     if (key == KBD_KEY_INVALID) {
         reportbadscancode(port);
         return;
@@ -267,7 +267,7 @@ static void keypressed(struct ps2port *port, kbd_key_t key) {
     kbd_keypressed(key);
 }
 
-static void keyreleased(struct ps2port *port, kbd_key_t key) {
+static void keyreleased(struct ps2port *port, enum kbd_key key) {
     if (key == KBD_KEY_INVALID) {
         reportbadscancode(port);
         return;
@@ -320,7 +320,7 @@ static FAILABLE_FUNCTION ps2_op_bytereceived(struct ps2port *port, uint8_t byte)
 FAILABLE_PROLOGUE
     struct kbdcontext *ctx = port->devicedata;
     assert(ctx);
-    if (ctx->state == STATE_DEFAULT) {
+    if (ctx->state == INPUTSTATE_DEFAULT) {
         ctx->nextkeybyteindex = 0;
     }
     ctx->keybytes[ctx->nextkeybyteindex] = byte;
@@ -341,7 +341,7 @@ FAILABLE_PROLOGUE
                     if (CONFIG_COMMDEBUG) {
                         iodev_printf(&ctx->device.iodev, "command %#x ACKed. waiting for more data...\n", cmd->cmdbyte);
                     }
-                    ctx->state = STATE_WAITING_RESPONSEDATA;
+                    ctx->state = INPUTSTATE_WAITING_RESPONSEDATA;
                 } else {
                     if (CONFIG_COMMDEBUG) {
                         iodev_printf(&ctx->device.iodev, "command %#x finished\n", cmd->cmdbyte);
@@ -397,7 +397,7 @@ FAILABLE_PROLOGUE
         }
     }
     switch(ctx->state) {
-        case STATE_WAITING_RESPONSEDATA: {
+        case INPUTSTATE_WAITING_RESPONSEDATA: {
             struct list_node *cmdnode = ctx->cmdqueue.back;
             if (!cmdnode) {
                 iodev_printf(&ctx->device.iodev, "received response data, but there are no commands\n");
@@ -413,14 +413,14 @@ FAILABLE_PROLOGUE
                 cmd->responsedata = byte;
                 cmdfinished(port, CMDSTATE_SUCCESS);
             }
-            ctx->state = STATE_DEFAULT;
+            ctx->state = INPUTSTATE_DEFAULT;
             break;
         }
-        case STATE_WAITING_E0EXT: {
-            ctx->state = STATE_DEFAULT;
+        case INPUTSTATE_WAITING_E0EXT: {
+            ctx->state = INPUTSTATE_DEFAULT;
             switch (byte) {
                 case 0xf0:
-                    ctx->state = STATE_WAITING_E0RELEASE;
+                    ctx->state = INPUTSTATE_WAITING_E0RELEASE;
                     break;
                 case 0x12:
                     ctx->flags |= FLAG_FAKELSHIFT_DOWN;
@@ -436,8 +436,8 @@ FAILABLE_PROLOGUE
             }
             break;
         }
-        case STATE_WAITING_E0RELEASE: {
-            ctx->state = STATE_DEFAULT;
+        case INPUTSTATE_WAITING_E0RELEASE: {
+            ctx->state = INPUTSTATE_DEFAULT;
             switch (byte) {
                 case 0x12:
                     ctx->flags &= ~FLAG_FAKELSHIFT_DOWN;
@@ -453,11 +453,11 @@ FAILABLE_PROLOGUE
             }
             break;
         }
-        case STATE_WAITING_E1EXT1: {
-            ctx->state = STATE_WAITING_E1EXT2;
+        case INPUTSTATE_WAITING_E1EXT1: {
+            ctx->state = INPUTSTATE_WAITING_E1EXT2;
             switch (byte) {
                 case 0xf0:
-                    ctx->state = STATE_WAITING_E1RELEASE1;
+                    ctx->state = INPUTSTATE_WAITING_E1RELEASE1;
                     break;
                 case 0x14:
                     ctx->flags |= FLAG_FAKELCTRL_DOWN;
@@ -471,8 +471,8 @@ FAILABLE_PROLOGUE
             }
             break;
         }
-        case STATE_WAITING_E1RELEASE1: {
-            ctx->state = STATE_WAITING_E1EXT2;
+        case INPUTSTATE_WAITING_E1RELEASE1: {
+            ctx->state = INPUTSTATE_WAITING_E1EXT2;
             switch (byte) {
                 case 0x14:
                     ctx->flags &= ~FLAG_FAKELCTRL_DOWN;
@@ -486,11 +486,11 @@ FAILABLE_PROLOGUE
             }
             break;
         }
-        case STATE_WAITING_E1EXT2: {
-            ctx->state = STATE_DEFAULT;
+        case INPUTSTATE_WAITING_E1EXT2: {
+            ctx->state = INPUTSTATE_DEFAULT;
             switch (byte) {
                 case 0xf0:
-                    ctx->state = STATE_WAITING_E1RELEASE2;
+                    ctx->state = INPUTSTATE_WAITING_E1RELEASE2;
                     break;
                 case 0x14:
                     ctx->flags |= FLAG_FAKELCTRL_DOWN;
@@ -506,8 +506,8 @@ FAILABLE_PROLOGUE
             }
             break;
         }
-        case STATE_WAITING_E1RELEASE2: {
-            ctx->state = STATE_DEFAULT;
+        case INPUTSTATE_WAITING_E1RELEASE2: {
+            ctx->state = INPUTSTATE_DEFAULT;
             switch (byte) {
                 case 0x14:
                     ctx->flags &= ~FLAG_FAKELCTRL_DOWN;
@@ -523,21 +523,21 @@ FAILABLE_PROLOGUE
             }
             break;
         }
-        case STATE_WAITING_NORMALRELEASE: {
-            ctx->state = STATE_DEFAULT;
+        case INPUTSTATE_WAITING_NORMALRELEASE: {
+            ctx->state = INPUTSTATE_DEFAULT;
             keyreleased(port, KEYMAP_DEFAULT[byte]);
             break;
         }
-        case STATE_DEFAULT: {
+        case INPUTSTATE_DEFAULT: {
             switch(byte) {
                 case 0xe0:
-                    ctx->state = STATE_WAITING_E0EXT;
+                    ctx->state = INPUTSTATE_WAITING_E0EXT;
                     break;
                 case 0xe1:
-                    ctx->state = STATE_WAITING_E1EXT1;
+                    ctx->state = INPUTSTATE_WAITING_E1EXT1;
                     break;
                 case 0xf0: 
-                    ctx->state = STATE_WAITING_NORMALRELEASE;
+                    ctx->state = INPUTSTATE_WAITING_NORMALRELEASE;
                     break;
                 default:
                     keypressed(port, KEYMAP_DEFAULT[byte]);
@@ -670,7 +670,7 @@ FAILABLE_PROLOGUE
         THROW(ERR_NOMEM);
     }
     memset(ctx, 0, sizeof(*ctx));
-    ctx->state = STATE_DEFAULT;
+    ctx->state = INPUTSTATE_DEFAULT;
     ctx->port = port;
     list_init(&ctx->cmdqueue);
     port->devicedata = ctx;

@@ -17,14 +17,14 @@ static uint8_t const ATA_STATUSFLAG_BSY = 1 << 7;
 // ACS-3 6.3 ERROR field
 typedef uint8_t ata_error_t;
 
-typedef enum {
+enum ata_cmd {
     ATA_CMD_FLUSHCACHE     = 0xe7, // ACS-3 7.10
     ATA_CMD_IDENTIFYDEVICE = 0xec, // ACS-3 7.12
     ATA_CMD_READDMA        = 0xc8, // ACS-3 7.21
     ATA_CMD_READSECTORS    = 0x20, // ACS-3 7.28
     ATA_CMD_WRITEDMA       = 0xca, // ACS-3 7.58
     ATA_CMD_WRITESECTORS   = 0x30, // ACS-3 7.67
-} atacmd_t;
+};
 
 enum {
     ATA_MAX_SECTORS_PER_TRANSFER = 256, // Maximum sector count for a 28-bit transfer command.
@@ -35,13 +35,13 @@ struct ata_databuf {
     uint16_t data[256];
 };
 
-typedef enum {
+enum ata_dmastatus {
     ATA_DMASTATUS_FAIL_UDMA_CRC,
     ATA_DMASTATUS_FAIL_OTHER_IO,
     ATA_DMASTATUS_FAIL_NOMEM,
     ATA_DMASTATUS_SUCCESS,
     ATA_DMASTATUS_BUSY,
-} ata_dmastatus_t;
+};
 
 struct atadisk;
 struct atadisk_ops {
@@ -56,7 +56,7 @@ struct atadisk_ops {
     void (*setlbaparam)(struct atadisk *self, uint32_t data);
     void (*setdeviceparam)(struct atadisk *self, uint8_t data);
     uint32_t (*getlbaoutput)(struct atadisk *self);
-    void (*issuecmd)(struct atadisk *self, atacmd_t cmd);
+    void (*issuecmd)(struct atadisk *self, enum ata_cmd cmd);
     bool (*getirqflag)(struct atadisk *self);
     void (*clearirqflag)(struct atadisk *self);
     void (*readdata)(struct ata_databuf *out, struct atadisk *self);
@@ -75,7 +75,7 @@ struct atadisk_ops {
     // Step 1 and Step 3)
     FAILABLE_FUNCTION (*dma_inittransfer)(struct atadisk *self, void *buffer, size_t len, bool isread);
     FAILABLE_FUNCTION (*dma_begintransfer)(struct atadisk *self);
-    ata_dmastatus_t (*dma_checktransfer)(struct atadisk *self);
+    enum ata_dmastatus (*dma_checktransfer)(struct atadisk *self);
     void (*dma_endtransfer)(struct atadisk *self, bool wasSuccess);
     void (*dma_deinittransfer)(struct atadisk *self);
 };

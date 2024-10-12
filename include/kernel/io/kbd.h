@@ -25,7 +25,7 @@ static uint16_t const KBD_FLAG_MOD_RSUPER = 1 << 15;
 #define KBD_FLAG_MOD_ALT   (KBD_FLAG_MOD_LALT   | KBD_FLAG_MOD_RALT  )
 #define KBD_FLAG_MOD_SUPER (KBD_FLAG_MOD_LSUPER | KBD_FLAG_MOD_RSUPER)
 
-typedef enum {
+enum kbd_key {
     KBD_KEY_INVALID = 0,
 
     KBD_KEY_ESCAPE,
@@ -141,10 +141,10 @@ typedef enum {
     KBD_KEY_NUMPAD_ENTER,
 
     KBD_KEY_COUNT
-} kbd_key_t;
+};
 
 struct kbd_keyevent {
-    kbd_key_t key;
+    enum kbd_key key;
     char chr;
     bool is_down : 1;
 };
@@ -161,7 +161,7 @@ struct kbddev {
 };
 
 bool kbd_pullevent(struct kbd_keyevent *out);
-void kbd_keypressed(kbd_key_t key);
-void kbd_keyreleased(kbd_key_t key);
+void kbd_keypressed(enum kbd_key key);
+void kbd_keyreleased(enum kbd_key key);
 FAILABLE_FUNCTION kbd_register(struct kbddev *dev_out, struct kbddev_ops const *ops, void *data);
 

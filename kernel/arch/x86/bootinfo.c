@@ -60,13 +60,13 @@ static struct memregion const REGIONS_TO_EXCLUDE[] = {
     {.base = ARCHX86_KERNEL_PHYSICAL_ADDRESS_BEGIN, .len = ARCHX86_KERNEL_PHYSICAL_ADDRESS_END},
 };
 
-typedef enum {
+enum addrlimitresult {
     ADDRLIMIT_IGNORE,
     ADDRLIMIT_WARN,
     ADDRLIMIT_OK,
-} addrlimitresult_t;
+};
 
-static addrlimitresult_t limitto32bitaddr(physptr_t *addr_out, size_t *len_out, uint64_t addr, uint64_t len) {
+static enum addrlimitresult limitto32bitaddr(physptr_t *addr_out, size_t *len_out, uint64_t addr, uint64_t len) {
     uint64_t firstaddr = addr;
     uint64_t lastaddr = addr + len - 1;
     bool outside32bit = false;

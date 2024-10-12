@@ -33,7 +33,7 @@ enum {
 };
 
 struct keymapentry {
-    kbd_key_t keyalt;
+    enum kbd_key keyalt;
     char chr, chralt;
     uint8_t flags;
 };
@@ -181,7 +181,7 @@ static void updateleds(void) {
     }
 }
 
-static void releaseallkeysexcept(kbd_key_t except) {
+static void releaseallkeysexcept(enum kbd_key except) {
     ASSERT_INTERRUPTS_DISABLED();
     for (size_t key = 1; key < KBD_KEY_COUNT; key++) {
         if (key == except) {
@@ -213,7 +213,7 @@ bool kbd_pullevent(struct kbd_keyevent *out) {
     return QUEUE_DEQUEUE(out, eventqueue());
 }
 
-void kbd_keypressed(kbd_key_t key) {
+void kbd_keypressed(enum kbd_key key) {
     struct keymapentry const *entry = &KEYMAP[key];
     switch(key) {
         // Modifier key except for lock keys, like Shift and Alt.
@@ -258,7 +258,7 @@ void kbd_keypressed(kbd_key_t key) {
         default:
             break;
     }
-    kbd_key_t keytoreport = key;
+    enum kbd_key keytoreport = key;
     char chr = entry->chr;
     if ((entry->flags & KEYMAP_FLAG_NUMLOCK) && !(s_flags & KBD_FLAG_LOCK_NUM)) {
         keytoreport = entry->keyalt;
@@ -282,7 +282,7 @@ void kbd_keypressed(kbd_key_t key) {
     }
 }
 
-void kbd_keyreleased(kbd_key_t key) {
+void kbd_keyreleased(enum kbd_key key) {
     struct keymapentry const *entry = &KEYMAP[key];
     switch(key) {
         // Modifier key except for lock keys, like Shift and Alt.
@@ -313,7 +313,7 @@ void kbd_keyreleased(kbd_key_t key) {
         default:
             break;
     }
-    kbd_key_t keytoreport = key;
+    enum kbd_key keytoreport = key;
     char chr = entry->chr;
     if ((entry->flags & KEYMAP_FLAG_NUMLOCK) && !(s_flags & KBD_FLAG_LOCK_NUM)) {
         keytoreport = entry->keyalt;

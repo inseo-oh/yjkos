@@ -61,12 +61,12 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-typedef enum {
+enum devtype {
     DEVTYPE_KBD,
     DEVTYPE_MOUSE,
-} devtype_t;
+};
 
-static FAILABLE_FUNCTION identifydevice(devtype_t *out, struct ps2port *port) {
+static FAILABLE_FUNCTION identifydevice(enum devtype *out, struct ps2port *port) {
 FAILABLE_PROLOGUE
     TRY(sendandwaitack(port, PS2_CMD_DISABLESCANNING));
     TRY(sendandwaitack(port, PS2_CMD_IDENTIFY));
@@ -81,7 +81,7 @@ FAILABLE_PROLOGUE
         }
         identlen++;
     }
-    devtype_t type = DEVTYPE_KBD;
+    enum devtype type = DEVTYPE_KBD;
     switch(identlen) {
         case 0:
             break;
@@ -163,7 +163,7 @@ FAILABLE_PROLOGUE
         }
     }
     // Identify device
-    devtype_t type = DEVTYPE_KBD;
+    enum devtype type = DEVTYPE_KBD;
     {
         status_t status = identifydevice(&type, port);
         if (status == ERR_IO) {

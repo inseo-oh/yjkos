@@ -2,17 +2,17 @@
 #include "../test.h"
 #include <kernel/lib/bitmap.h>
 
-SHELLFUNC static testresult_t do_makebitmask(void) {
+SHELLFUNC static bool do_makebitmask(void) {
     TEST_EXPECT(makebitmask(0, 0) == 0);
     TEST_EXPECT(makebitmask(1, 0) == 0);
     TEST_EXPECT(makebitmask(1, 1) == (0x1 << 1));
     TEST_EXPECT(makebitmask(2, 2) == (0x3 << 2));
     TEST_EXPECT(makebitmask(12, 3) == (0x7 << 12));
     TEST_EXPECT(makebitmask(29, 3) == (0x7UL << 29));
-    return TEST_OK;
+    return true;
 }
 
-SHELLFUNC static testresult_t do_findfirstsetbit(void) {
+SHELLFUNC static bool do_findfirstsetbit(void) {
     struct bitmap bmp;
     bitword_t words[] = {
         0xe0ddf00d, // 11100000110111011111000000001101
@@ -28,10 +28,10 @@ SHELLFUNC static testresult_t do_findfirstsetbit(void) {
     TEST_EXPECT(bitmap_findfirstsetbit(&bmp, 61) == 64);
     TEST_EXPECT(bitmap_findfirstsetbit(&bmp, -1) == -1);
     TEST_EXPECT(bitmap_findfirstsetbit(&bmp, 0xfffff) == -1);
-    return TEST_OK;
+    return true;
 }
 
-SHELLFUNC static testresult_t do_findlastcontiguousbit(void) {
+SHELLFUNC static bool do_findlastcontiguousbit(void) {
     struct bitmap bmp;
     bitword_t words[] = {
         0xe0ddf00d, // 11100000110111011111000000001101
@@ -50,10 +50,10 @@ SHELLFUNC static testresult_t do_findlastcontiguousbit(void) {
     TEST_EXPECT(bitmap_findlastcontiguousbit(&bmp, 124) == 127);
     TEST_EXPECT(bitmap_findlastcontiguousbit(&bmp, -1) == -1);
     TEST_EXPECT(bitmap_findlastcontiguousbit(&bmp, 0xfffff) == -1);
-    return TEST_OK;
+    return true;
 }
 
-SHELLFUNC static testresult_t do_arebitsset(void) {
+SHELLFUNC static bool do_arebitsset(void) {
     struct bitmap bmp;
     bitword_t words[] = {
         0xe0ddf00d, // 11100000110111011111000000001101
@@ -74,11 +74,11 @@ SHELLFUNC static testresult_t do_arebitsset(void) {
     TEST_EXPECT(bitmap_arebitsset(&bmp, 64, 65) == false);
     TEST_EXPECT(bitmap_arebitsset(&bmp, 0x7fffff, 6) == false);
     TEST_EXPECT(bitmap_arebitsset(&bmp, 31, 0x7fffff) == false);
-    return TEST_OK;
+    return true;
 }
 
 
-SHELLFUNC static testresult_t do_setbits(void) {
+SHELLFUNC static bool do_setbits(void) {
     struct bitmap bmp;
     bitword_t words[] = {
         0, 0, 0,
@@ -102,10 +102,10 @@ SHELLFUNC static testresult_t do_setbits(void) {
     TEST_EXPECT(words[0] == 0xfffffffe);
     TEST_EXPECT(words[1] == 0xffffffff); 
     TEST_EXPECT(words[2] == 0x00000001);
-    return TEST_OK;
+    return true;
 }
 
-SHELLFUNC static testresult_t do_clearbits(void) {
+SHELLFUNC static bool do_clearbits(void) {
     struct bitmap bmp;
     bitword_t words[] = {
         0xffffffff, 0xffffffff, 0xffffffff,
@@ -129,10 +129,10 @@ SHELLFUNC static testresult_t do_clearbits(void) {
     TEST_EXPECT(words[0] == 0x00000001);
     TEST_EXPECT(words[1] == 0x00000000);
     TEST_EXPECT(words[2] == 0xfffffffe);
-    return TEST_OK;
+    return true;
 }
 
-SHELLFUNC static testresult_t do_findsetbits(void) {
+SHELLFUNC static bool do_findsetbits(void) {
     struct bitmap bmp;
     bitword_t words[] = {
         0xe0ddf00d, // 11100000110111011111000000001101
@@ -150,7 +150,7 @@ SHELLFUNC static testresult_t do_findsetbits(void) {
     TEST_EXPECT(bitmap_findsetbits(&bmp, 45, 65) == -1);
     TEST_EXPECT(bitmap_findsetbits(&bmp, 0x7fffff, 6) == -1);
     TEST_EXPECT(bitmap_findsetbits(&bmp, 31, 0x7fffff) == -1);
-    return TEST_OK;
+    return true;
 }
 
 SHELLRODATA static struct test const TESTS[] = {

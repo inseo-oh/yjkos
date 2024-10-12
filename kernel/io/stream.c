@@ -120,7 +120,7 @@ FAILABLE_EPILOGUE_END
 static uint8_t const FMTFLAG_ALTERNATEFORM    = 1 << 0;
 static uint8_t const FMTFLAG_MINWIDTH_PRESENT = 1 << 1;
 
-typedef enum {
+enum lenmod {
     LENMOD_INT,
     LENMOD_CHAR,
     LENMOD_SHORT,
@@ -129,13 +129,13 @@ typedef enum {
     LENMOD_INTMAX,
     LENMOD_SIZE,
     LENMOD_PTRDIFF,
-} lenmod_t;
+};
 
 FAILABLE_FUNCTION stream_vprintf(struct stream *self, char const *fmt, va_list ap) {
 FAILABLE_PROLOGUE
     uint8_t flags;
     char padchar;
-    lenmod_t lenmod;
+    enum lenmod lenmod;
     uint32_t minwidth;
     size_t measureresult;
 

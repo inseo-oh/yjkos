@@ -3,17 +3,17 @@
 #include <kernel/lib/smatcher.h>
 #include <string.h>
 
-SHELLFUNC static testresult_t do_slice(void) {
+SHELLFUNC static bool do_slice(void) {
     struct smatcher smatcher, newsmatcher;
     smatcher_init(&smatcher, "hello world people");
     smatcher_slice(&newsmatcher, &smatcher, 6, 10);
     TEST_EXPECT(smatcher_consumestringifmatch(&newsmatcher, "world")  == true);
     TEST_EXPECT(newsmatcher.currentindex == 5);
 
-    return TEST_OK;
+    return true;
 }
 
-SHELLFUNC static testresult_t do_consumestringifmatch(void) {
+SHELLFUNC static bool do_consumestringifmatch(void) {
     struct smatcher smatcher;
     smatcher_init_with_len(&smatcher, "hello world people", 11);
     TEST_EXPECT(smatcher_consumestringifmatch(&smatcher, "hello1") == false);
@@ -26,10 +26,10 @@ SHELLFUNC static testresult_t do_consumestringifmatch(void) {
     TEST_EXPECT(smatcher.currentindex == 11);
     TEST_EXPECT(smatcher_consumestringifmatch(&smatcher, " people") == false);
 
-    return TEST_OK;
+    return true;
 }
 
-SHELLFUNC static testresult_t do_consumewordifmatch(void) {
+SHELLFUNC static bool do_consumewordifmatch(void) {
     struct smatcher smatcher;
     smatcher_init_with_len(&smatcher, "hello worldpeopleguy", 17);
     TEST_EXPECT(smatcher_consumewordifmatch(&smatcher, "world")  == false);
@@ -40,10 +40,10 @@ SHELLFUNC static testresult_t do_consumewordifmatch(void) {
     TEST_EXPECT(smatcher_consumewordifmatch(&smatcher, " worldpeople") == true);
     TEST_EXPECT(smatcher.currentindex == 17);
 
-    return TEST_OK;
+    return true;
 }
 
-SHELLFUNC static testresult_t do_skipwhitespaces(void) {
+SHELLFUNC static bool do_skipwhitespaces(void) {
     struct smatcher smatcher;
     smatcher_init_with_len(&smatcher, "hello    worldpeople", 14);
     TEST_EXPECT(smatcher_consumestringifmatch(&smatcher, "hello")  == true);
@@ -53,10 +53,10 @@ SHELLFUNC static testresult_t do_skipwhitespaces(void) {
     TEST_EXPECT(smatcher.currentindex == 14);
     TEST_EXPECT(smatcher_consumestringifmatch(&smatcher, "people")  == false);
 
-    return TEST_OK;
+    return true;
 }
 
-SHELLFUNC static testresult_t do_consumeword(void) {
+SHELLFUNC static bool do_consumeword(void) {
     char const *str;
     size_t len;
     struct smatcher smatcher;
@@ -69,7 +69,7 @@ SHELLFUNC static testresult_t do_consumeword(void) {
     TEST_EXPECT(strncmp(str, "worldpeople", len) == 0);
     TEST_EXPECT(smatcher_consumeword(&str, &len, &smatcher) == false);
 
-    return TEST_OK;
+    return true;
 }
 
 SHELLRODATA static struct test const TESTS[] = {

@@ -20,8 +20,7 @@ SHELLFUNC static bool runtests(struct testgroup const *group) {
     tty_printf("running test group '%s' (%zu tests)\n", group->name, group->testslen);
     for (size_t i = 0; i < group->testslen; i++) {
         tty_printf("[test %u / %u] %s\n", i + 1, group->testslen, group->tests[i].name);
-        testresult_t res = group->tests[i].fn();
-        if (res != TEST_OK) {
+        if (!group->tests[i].fn()) {
             failcount++;
         } else {
             okcount++;

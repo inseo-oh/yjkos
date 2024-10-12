@@ -15,10 +15,10 @@ struct bst {
     struct bst_node *root;
 };
 
-typedef enum {
+enum bst_dir {
     BST_DIR_LEFT,
     BST_DIR_RIGHT,
-} bst_dir_t;
+};
 
 // This is not necessary if it's static variable(which is initialized by zero).
 void bst_init(struct bst *self);
@@ -31,8 +31,8 @@ struct bst_node *bst_minof(struct bst_node *subtreeroot);
 struct bst_node *bst_maxof(struct bst_node *subtreeroot);
 struct bst_node *bst_successor(struct bst_node *node);
 struct bst_node *bst_predecessor(struct bst_node *node);
-bst_dir_t bst_dirinparent(struct bst_node *node);
-void bst_rotate(struct bst *self, struct bst_node *subtreeroot, bst_dir_t dir);
+enum bst_dir bst_dirinparent(struct bst_node *node);
+void bst_rotate(struct bst *self, struct bst_node *subtreeroot, enum bst_dir dir);
 void bst_recalculateheight(struct bst_node *subtreeroot);
 void bst_recalculatebf_tree(struct bst *self);
 void bst_recalculatebf(struct bst_node *subtreeroot);

@@ -3,15 +3,15 @@
 #include <kernel/mem/heap.h>
 #include <stddef.h>
 
-SHELLFUNC static testresult_t do_randalloc(void) {
+SHELLFUNC static bool do_randalloc(void) {
     TEST_EXPECT(heap_run_random_test());
-    return TEST_OK;
+    return true;
 }
 
-SHELLFUNC static testresult_t do_badalloc(void) {
+SHELLFUNC static bool do_badalloc(void) {
     TEST_EXPECT(heap_alloc(0, 0) == NULL);
     TEST_EXPECT(heap_alloc(~0, 0) == NULL);
-    return TEST_OK;
+    return true;
 }
 
 SHELLRODATA static struct test const TESTS[] = {

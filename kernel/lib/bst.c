@@ -119,7 +119,7 @@ void bst_insertnode_unbalenced(struct bst *self, struct bst_node *node, intmax_t
         return;
     }
     struct bst_node *insertparent;
-    bst_dir_t childindex;
+    enum bst_dir childindex;
     while(current != NULL) {
         insertparent = current;
         if (node->key < current->key) {
@@ -279,7 +279,7 @@ struct bst_node *bst_maxof(struct bst_node *subtreeroot) {
     return result;
 }
 
-bst_dir_t bst_dirinparent(struct bst_node *node) {
+enum bst_dir bst_dirinparent(struct bst_node *node) {
     struct bst_node *parent = node->parent;
     if (parent == NULL) {
         panic("bst: attempted to child index on a node without parent");
@@ -325,9 +325,9 @@ struct bst_node *bst_predecessor(struct bst_node *node) {
     return bst_maxof(left_subtree);
 }
 
-void bst_rotate(struct bst *self, struct bst_node *subtreeroot, bst_dir_t dir) {
+void bst_rotate(struct bst *self, struct bst_node *subtreeroot, enum bst_dir dir) {
     checktree(self, true, 0);
-    bst_dir_t oppositedir = 1 - dir;
+    enum bst_dir oppositedir = 1 - dir;
     /*
      * Tree rotation example(Left rotation):
      *     [P]

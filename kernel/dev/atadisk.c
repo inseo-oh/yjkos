@@ -213,7 +213,7 @@ FAILABLE_PROLOGUE
                 dmarunning = true;
                 while (dmarunning) {
                     TRY(waitirq(disk));
-                    ata_dmastatus_t dmastatus = disk->ops->dma_checktransfer(disk);
+                    enum ata_dmastatus dmastatus = disk->ops->dma_checktransfer(disk);
                     switch (dmastatus) {
                         case ATA_DMASTATUS_BUSY:
                             continue;
@@ -334,7 +334,7 @@ FAILABLE_PROLOGUE
                 dmarunning = true;
                 while (dmarunning) {
                     TRY(waitirq(disk));
-                    ata_dmastatus_t dmastatus = disk->ops->dma_checktransfer(disk);
+                    enum ata_dmastatus dmastatus = disk->ops->dma_checktransfer(disk);
                     switch (dmastatus) {
                         case ATA_DMASTATUS_BUSY:
                             continue;

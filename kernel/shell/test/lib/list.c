@@ -3,7 +3,7 @@
 #include <kernel/lib/list.h>
 #include <string.h>
 
-SHELLFUNC static testresult_t do_insertfront(void) {
+SHELLFUNC static bool do_insertfront(void) {
     struct list lst;
     struct list_node nodes[3];
 
@@ -35,10 +35,10 @@ SHELLFUNC static testresult_t do_insertfront(void) {
     TEST_EXPECT(nodes[0].prev == &nodes[1]);
     TEST_EXPECT(nodes[0].next == NULL);
 
-    return TEST_OK;
+    return true;
 }
 
-SHELLFUNC static testresult_t do_insertback(void) {
+SHELLFUNC static bool do_insertback(void) {
     struct list lst;
     struct list_node nodes[3];
 
@@ -69,10 +69,10 @@ SHELLFUNC static testresult_t do_insertback(void) {
     TEST_EXPECT(nodes[2].prev == &nodes[1]);
     TEST_EXPECT(nodes[2].next == NULL);
 
-    return TEST_OK;
+    return true;
 }
 
-SHELLFUNC static testresult_t do_insertafter(void) {
+SHELLFUNC static bool do_insertafter(void) {
     struct list lst;
     struct list_node nodes[5];
 
@@ -101,10 +101,10 @@ SHELLFUNC static testresult_t do_insertafter(void) {
     TEST_EXPECT(nodes[4].prev == &nodes[2]);
     TEST_EXPECT(nodes[4].next == NULL);
 
-    return TEST_OK;
+    return true;
 }
 
-SHELLFUNC static testresult_t do_insertbefore(void) {
+SHELLFUNC static bool do_insertbefore(void) {
     struct list lst;
     struct list_node nodes[5];
 
@@ -133,10 +133,10 @@ SHELLFUNC static testresult_t do_insertbefore(void) {
     TEST_EXPECT(nodes[0].prev == &nodes[4]);
     TEST_EXPECT(nodes[0].next == &nodes[3]);
 
-    return TEST_OK;
+    return true;
 }
 
-SHELLFUNC static testresult_t do_removefront(void) {
+SHELLFUNC static bool do_removefront(void) {
     struct list lst;
     struct list_node nodes[3];
     struct list_node *removednode;
@@ -171,10 +171,10 @@ SHELLFUNC static testresult_t do_removefront(void) {
 
     removednode = list_removefront(&lst);
     TEST_EXPECT(removednode == NULL);
-    return TEST_OK;
+    return true;
 }
 
-SHELLFUNC static testresult_t do_removeback(void) {
+SHELLFUNC static bool do_removeback(void) {
     struct list lst;
     struct list_node nodes[3];
     struct list_node *removednode;
@@ -209,10 +209,10 @@ SHELLFUNC static testresult_t do_removeback(void) {
 
     removednode = list_removeback(&lst);
     TEST_EXPECT(removednode == NULL);
-    return TEST_OK;
+    return true;
 }
 
-SHELLFUNC static testresult_t do_removenode(void) {
+SHELLFUNC static bool do_removenode(void) {
     struct list lst;
     struct list_node nodes[3];
 
@@ -241,7 +241,7 @@ SHELLFUNC static testresult_t do_removenode(void) {
     TEST_EXPECT(lst.front == NULL);
     TEST_EXPECT(lst.back == NULL);
 
-    return TEST_OK;
+    return true;
 }
 
 SHELLRODATA static struct test const TESTS[] = {

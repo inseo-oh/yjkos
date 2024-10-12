@@ -64,7 +64,7 @@ struct disk {
     struct bus *bus;
 };
 
-typedef enum {
+enum ioreg {
     IOREG_DATA,
     IOREG_ERROR          = 1, // read
     IOREG_FEATURES       = 1, // write
@@ -75,7 +75,7 @@ typedef enum {
     IOREG_DRIVE_AND_HEAD = 6,
     IOREG_STATUS         = 7, // read
     IOREG_COMMAND        = 7, // write
-} ioreg_t;
+};
 
 static uint8_t const DRIVE_AND_HEAD_FLAG_DRV = 1 << 4;
 static uint8_t const DRIVE_AND_HEAD_FLAG_LBA = 1 << 6;
@@ -84,37 +84,37 @@ static uint8_t const DRVICE_CONTROL_FLAG_NIEN = 1 << 1;
 static uint8_t const DRVICE_CONTROL_FLAG_SRST = 1 << 2;
 static uint8_t const DRVICE_CONTROL_FLAG_HOB  = 1 << 7;
 
-static void ioout8(struct bus *self, ioreg_t reg, uint8_t data) {
+static void ioout8(struct bus *self, enum ioreg reg, uint8_t data) {
     archx86_out8(self->iobase + reg, data);
 }
-static void ioout16(struct bus *self, ioreg_t reg, uint16_t data) {
+static void ioout16(struct bus *self, enum ioreg reg, uint16_t data) {
     archx86_out16(self->iobase + reg, data);
 }
-static uint8_t ioin8(struct bus *self, ioreg_t reg) {
+static uint8_t ioin8(struct bus *self, enum ioreg reg) {
     return archx86_in8(self->iobase + reg);
 }
-static uint16_t ioin16(struct bus *self, ioreg_t reg) {
+static uint16_t ioin16(struct bus *self, enum ioreg reg) {
     return archx86_in16(self->iobase + reg);
 }
-static void ioin16rep(struct bus *self, ioreg_t reg, void *buf, size_t len) {
+static void ioin16rep(struct bus *self, enum ioreg reg, void *buf, size_t len) {
     archx86_in16rep(self->iobase + reg, buf, len);
 }
 
-typedef enum {
+enum ctrlreg {
     CTRLREG_ALTERNATESTATUS = 0, // read
     CTRLREG_DEVICECONTROL   = 0, // write
-} ctrlreg_t;
+};
 
-static void ctrlout8(struct bus *self, ctrlreg_t reg, uint8_t data) {
+static void ctrlout8(struct bus *self, enum ctrlreg reg, uint8_t data) {
     archx86_out8(self->ctrlbase + reg, data);
 }
-static void ctrlout16(struct bus *self, ioreg_t reg, uint16_t data) {
+static void ctrlout16(struct bus *self, enum ioreg reg, uint16_t data) {
     archx86_out16(self->ctrlbase + reg, data);
 }
-static uint8_t ctrlin8(struct bus *self, ctrlreg_t reg) {
+static uint8_t ctrlin8(struct bus *self, enum ctrlreg reg) {
     return archx86_in8(self->ctrlbase + reg);
 }
-static uint16_t ctrlin16(struct bus *self, ctrlreg_t reg) {
+static uint16_t ctrlin16(struct bus *self, enum ctrlreg reg) {
     return archx86_in16(self->ctrlbase + reg);
 }
 
@@ -217,7 +217,7 @@ static uint32_t atadisk_op_getlbaoutput(struct atadisk *self) {
     return (lbatop4bit << 24) | (lbahi << 16) | (lbamid << 8) | lbalo;
 }
 
-static void atadisk_op_issuecmd(struct atadisk *self, atacmd_t cmd) {
+static void atadisk_op_issuecmd(struct atadisk *self, enum ata_cmd cmd) {
     struct disk *disk = self->data;
     ioout8(disk->bus, IOREG_COMMAND, cmd);
 }
@@ -241,25 +241,25 @@ static void atadisk_op_writedata(struct atadisk *self, struct ata_databuf *buffe
     }
 }
 
-typedef enum {
+enum busmasterreg {
     BUSMASTERREG_CMD  = 0,
     BUSMASTERREG_STATUS   = 2,
     BUSMASTERREG_PRDTADDR = 4,
-} busmasterreg_t; 
+}; 
 
-static void busmasterout8(struct bus *self, busmasterreg_t reg, uint8_t data) {
+static void busmasterout8(struct bus *self, enum busmasterreg reg, uint8_t data) {
     assert(self->busmasterenabled);
     archx86_out8(self->busmastrerbase + reg, data);
 }
-static void busmasterout32(struct bus *self, busmasterreg_t reg, uint32_t data) {
+static void busmasterout32(struct bus *self, enum busmasterreg reg, uint32_t data) {
     assert(self->busmasterenabled);
     archx86_out32(self->busmastrerbase + reg, data);
 }
-static uint8_t busmasterin8(struct bus *self, busmasterreg_t reg) {
+static uint8_t busmasterin8(struct bus *self, enum busmasterreg reg) {
     assert(self->busmasterenabled);
     return archx86_in8(self->busmastrerbase + reg);
 }
-static uint32_t busmasterin32(struct bus *self, busmasterreg_t reg) {
+static uint32_t busmasterin32(struct bus *self, enum busmasterreg reg) {
     assert(self->busmasterenabled);
     return archx86_in32(self->busmastrerbase + reg);
 }
@@ -375,7 +375,7 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-static ata_dmastatus_t atadisk_op_dma_checktransfer(struct atadisk *self) {
+static enum ata_dmastatus atadisk_op_dma_checktransfer(struct atadisk *self) {
     struct disk *disk = self->data;
     struct bus *bus = disk->bus;
     uint8_t bmstatus = busmasterin8(bus, BUSMASTERREG_STATUS); // We have to read the status after IRQ.

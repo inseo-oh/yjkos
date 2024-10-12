@@ -17,7 +17,7 @@ SHELLFUNC static struct bst_node *assertnonnullnode(struct bst_node *node, char 
 #define ASSERT_NONNULL_BSTNODE(_x)  assertnonnullnode(_x, #_x, __func__, __FILE__, __LINE__)
 
 
-SHELLFUNC static testresult_t do_insertnode_unbalenced(void) {
+SHELLFUNC static bool do_insertnode_unbalenced(void) {
     struct bst bst;
     bst_init(&bst);
 
@@ -120,7 +120,7 @@ SHELLFUNC static testresult_t do_insertnode_unbalenced(void) {
     TEST_EXPECT(nodes[4].children[BST_DIR_LEFT] == NULL);
     TEST_EXPECT(nodes[4].children[BST_DIR_RIGHT] == NULL);
 
-    return TEST_OK;
+    return true;
 }
 
 // NOTE: There is no separate "Remove & Balencing" test, because
@@ -128,7 +128,7 @@ SHELLFUNC static testresult_t do_insertnode_unbalenced(void) {
 //       2) Balencing works the same when removing, and we test all four AVL balencing
 //          cases in this one test.
 
-SHELLFUNC static testresult_t do_balencing(void) {
+SHELLFUNC static bool do_balencing(void) {
     struct bst bst;
     struct bst_node nodes[12];
 
@@ -407,7 +407,7 @@ SHELLFUNC static testresult_t do_balencing(void) {
     TEST_EXPECT(node1290->children[BST_DIR_RIGHT] == node1300);
     TEST_EXPECT(node1290->bf == -1);
 
-    return TEST_OK;
+    return true;
 }
 
 struct testtree {
@@ -464,7 +464,7 @@ SHELLFUNC static void inittesttree(struct testtree *out) {
     bst_recalculatebf_tree(&out->bst);
 }
 
-SHELLFUNC static testresult_t do_removenode_unbalenced(void) {
+SHELLFUNC static bool do_removenode_unbalenced(void) {
     struct testtree tree;
     /*
      * Remove a terminal node
@@ -524,10 +524,10 @@ SHELLFUNC static testresult_t do_removenode_unbalenced(void) {
     TEST_EXPECT(node69->parent == node50);
     TEST_EXPECT(node69->children[BST_DIR_LEFT] == NULL);
     TEST_EXPECT(node69->children[BST_DIR_RIGHT] == NULL);
-    return TEST_OK;
+    return true;
 }
 
-SHELLFUNC static testresult_t do_findnode(void) {
+SHELLFUNC static bool do_findnode(void) {
     struct testtree tree;
     inittesttree(&tree);
 
@@ -537,20 +537,20 @@ SHELLFUNC static testresult_t do_findnode(void) {
     TEST_EXPECT(ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 50))->key == 50);
     TEST_EXPECT(bst_findnode(&tree.bst, 100) == NULL);
 
-    return TEST_OK;
+    return true;
 }
 
-SHELLFUNC static testresult_t do_minmaxof(void) {
+SHELLFUNC static bool do_minmaxof(void) {
     struct testtree tree;
     inittesttree(&tree);
 
     TEST_EXPECT(ASSERT_NONNULL_BSTNODE(bst_minof_tree(&tree.bst))->key == 12);
     TEST_EXPECT(ASSERT_NONNULL_BSTNODE(bst_maxof_tree(&tree.bst))->key == 75);
 
-    return TEST_OK;
+    return true;
 }
 
-SHELLFUNC static testresult_t do_dirinparent(void) {
+SHELLFUNC static bool do_dirinparent(void) {
     struct testtree tree;
     inittesttree(&tree);
 
@@ -559,10 +559,10 @@ SHELLFUNC static testresult_t do_dirinparent(void) {
     TEST_EXPECT(bst_dirinparent(ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 12))) == BST_DIR_LEFT);
     TEST_EXPECT(bst_dirinparent(ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 37))) == BST_DIR_RIGHT);
 
-    return TEST_OK;
+    return true;
 }
 
-SHELLFUNC static testresult_t do_successor(void) {
+SHELLFUNC static bool do_successor(void) {
     struct testtree tree;
     inittesttree(&tree);
 
@@ -583,10 +583,10 @@ SHELLFUNC static testresult_t do_successor(void) {
     node = bst_successor(node);
     TEST_EXPECT(node == NULL);
 
-    return TEST_OK;
+    return true;
 }
 
-SHELLFUNC static testresult_t do_predecessor(void) {
+SHELLFUNC static bool do_predecessor(void) {
     struct testtree tree;
     inittesttree(&tree);
 
@@ -605,10 +605,10 @@ SHELLFUNC static testresult_t do_predecessor(void) {
     node = bst_predecessor(node);
     TEST_EXPECT(node == NULL);
 
-    return TEST_OK;
+    return true;
 }
 
-SHELLFUNC static testresult_t do_rotate(void) {
+SHELLFUNC static bool do_rotate(void) {
     struct testtree tree;
     inittesttree(&tree);
 
@@ -663,10 +663,10 @@ SHELLFUNC static testresult_t do_rotate(void) {
     TEST_EXPECT(newsubtreeroot->children[BST_DIR_LEFT] == subtreeroot);
     TEST_EXPECT(newsubtreeroot->children[BST_DIR_RIGHT] == NULL);
 
-    return TEST_OK;
+    return true;
 }
 
-SHELLFUNC static testresult_t do_height(void) {
+SHELLFUNC static bool do_height(void) {
     struct testtree tree;
     inittesttree(&tree);
 
@@ -674,7 +674,7 @@ SHELLFUNC static testresult_t do_height(void) {
     TEST_EXPECT(ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 75))->height == 2);
     TEST_EXPECT(ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 50))->height == 3);
 
-    return TEST_OK;
+    return true;
 }
 
 SHELLRODATA static struct test const TESTS[] = {
