@@ -377,14 +377,14 @@ FAILABLE_EPILOGUE_BEGIN
 FAILABLE_EPILOGUE_END
 }
 
-FAILABLE_FUNCTION stream_waitchar(char *char_out, struct stream *self, ticktime_type timeout) {
+FAILABLE_FUNCTION stream_waitchar(char *char_out, struct stream *self, ticktime timeout) {
 FAILABLE_PROLOGUE
     size_t size = 0;
     if (timeout != 0) {
         assert(arch_interrupts_areenabled());
     }
 
-    ticktime_type starttime = g_ticktime;
+    ticktime starttime = g_ticktime;
     while (size < 1) {
         if ((timeout != 0) && (timeout <= (g_ticktime - starttime))) {
             THROW(ERR_EOF);

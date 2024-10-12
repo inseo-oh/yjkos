@@ -177,7 +177,7 @@ SHELLFUNC static int deof(void* handle) {
 }
 
 SHELLFUNC static void dgettime(int* sec, int* usec) {
-    ticktime_type currenttime = g_ticktime;
+    ticktime currenttime = g_ticktime;
     *sec = currenttime / 1000;
     *usec = (currenttime % 1000) * 1000;
 }
@@ -192,7 +192,7 @@ SHELLFUNC static int program_main(int argc, char *argv[]) {
     doom_set_gettime(dgettime);
     doom_set_file_io(dopen, dclose, dread, dwrite, dseek, dtell, deof);
     doom_init(argc, argv, 0);
-    ticktime_type starttime = g_ticktime;
+    ticktime starttime = g_ticktime;
     while (1) {
         if (g_ticktime - starttime >= MIDIPERIOD) {
             starttime = g_ticktime;

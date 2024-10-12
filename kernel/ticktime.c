@@ -1,4 +1,4 @@
 #include <kernel/ticktime.h>
 #include <stdint.h>
 
-_Atomic ticktime_type g_ticktime;
+_Atomic ticktime g_ticktime;

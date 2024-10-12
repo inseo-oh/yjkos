@@ -1,6 +1,6 @@
 #pragma once
 #include <stdint.h>
 
-typedef uint64_t ticktime_type;
+typedef uint64_t ticktime;
 
-extern _Atomic ticktime_type g_ticktime;
+extern _Atomic ticktime g_ticktime;

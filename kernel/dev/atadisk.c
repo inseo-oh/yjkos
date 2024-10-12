@@ -18,8 +18,8 @@ FAILABLE_PROLOGUE
     enum {
         STATUS_POLL_PERIOD = 10,
     };
-    ticktime_type starttime = g_ticktime;
-    ticktime_type lastchecktime = 0;
+    ticktime starttime = g_ticktime;
+    ticktime lastchecktime = 0;
     bool ok = false;
     while ((g_ticktime - starttime) < TIMEOUT) {
         if (STATUS_POLL_PERIOD <= (lastchecktime - g_ticktime)) {
@@ -47,7 +47,7 @@ FAILABLE_PROLOGUE
     enum {
         STATUS_POLL_PERIOD = 10,
     };
-    ticktime_type starttime = g_ticktime;
+    ticktime starttime = g_ticktime;
     bool ok = false;
     while ((g_ticktime - starttime) < TIMEOUT) {
         uint8_t diskstatus = disk->ops->readstatus(disk);
@@ -80,7 +80,7 @@ FAILABLE_EPILOGUE_END
 
 static FAILABLE_FUNCTION waitdrqset(struct atadisk *disk) {
 FAILABLE_PROLOGUE
-    ticktime_type starttime = g_ticktime;
+    ticktime starttime = g_ticktime;
     bool ok = false;
     while ((g_ticktime - starttime) < TIMEOUT) {
         uint8_t diskstatus = disk->ops->readstatus(disk);
@@ -125,7 +125,7 @@ FAILABLE_PROLOGUE
     TRY(waitbusyclear_irq(disk));
 
     // Wait for DRQ. waitdrqset() isn't used, because we also check LBA outputs while waiting.
-    ticktime_type starttime = g_ticktime;
+    ticktime starttime = g_ticktime;
     bool ok = false;
     while ((g_ticktime - starttime) < TIMEOUT) {
         uint32_t lba = disk->ops->getlbaoutput(disk);

@@ -20,7 +20,7 @@ FAILABLE_FUNCTION ps2port_stream_op_read(size_t *size_out, struct stream *self, 
 FAILABLE_PROLOGUE
     struct ps2port *port = self->data;
     size_t writtensize = 0;
-    ticktime_type starttime = g_ticktime;
+    ticktime starttime = g_ticktime;
     while(writtensize == 0) {
         if (PS2_TIMEOUT <= (g_ticktime - starttime)) {
             THROW(ERR_IO);
