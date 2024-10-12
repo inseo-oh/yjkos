@@ -66,7 +66,7 @@ $(OBJDIR)/shell/kdoom/program_kdoom.o: shell/kdoom/program_kdoom.c
 	@$(CC) -o $@ -c -MMD $< $(CFLAGS) -fno-sanitize=all -Wno-pedantic
 
 $(OBJDIR)/$(FONTOBJ): $(FONTDIR)/$(FONTNAME)
-	$(info [Target Font]    $@)
+	$(info [Target Font O]  $@)
 	@cd $(FONTDIR) && \
 		$(OBJCOPY) -O elf32-i386 -B i386 -I binary $(FONTNAME) $(CURDIR)/$@
 

@@ -86,7 +86,7 @@ all: $(PSF) $(PCF)
 
 DESTDIR =
 prefix  = /usr/local
-psfdir  = /home/yjk/src/osdev4/out/x86/kernelfont
+psfdir  = $(prefix)/share/consolefonts
 x11dir  = $(prefix)/share/fonts/terminus
 otbdir  = $(prefix)/share/fonts/terminus
 

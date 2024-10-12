@@ -11,11 +11,15 @@ prepare:
 	@mkdir -p $(BOOTROOT) $(BOOTROOT)/boot $(BOOTROOT)/boot/grub
 	@cp support/res/grub.cfg $(BOOTROOT)/boot/grub/
 
+# NOTE: We reconfigure the terminus-font after building, to prevent accidentally commiting with
+#       someone's home folder path left in Makefile.
 kernelfont: prepare
+	$(info [Target Font]     $(FONT))
 	@cd support/thirdparty/terminus-font-4.49.1 && ./configure --psfdir=$(CURDIR)/$(FONTDIR)
 	@$(MAKE) -C support/thirdparty/terminus-font-4.49.1 psf
 	@$(MAKE) -C support/thirdparty/terminus-font-4.49.1 install-psf
-	gunzip -c $(FONTDIR)/$(FONT).gz > $(FONTDIR)/kernelfont.psf
+	@cd support/thirdparty/terminus-font-4.49.1 && ./configure
+	@gunzip -c $(FONTDIR)/$(FONT).gz > $(FONTDIR)/kernelfont.psf
 
 kernel: prepare kernelfont
 	@$(MAKE) -C kernel ARCH=$(ARCH) KDOOM=$(KDOOM)
