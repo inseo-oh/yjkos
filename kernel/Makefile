@@ -32,7 +32,7 @@ OBJDIRS  = $(sort $(dir $(OBJS)))
 
 CFLAGS  = -Wall -Wextra -Werror -pedantic -I$(PROJECTDIR)/include -I$(PROJECTDIR)/include/kernel/lib/libc
 CFLAGS += -ffreestanding -fstack-protector-all
-CFLAGS += -Wno-error=unused-function -Wno-error=unused-label -Wno-error=unused-const-variable -g 
+CFLAGS += -Wno-error=unused-function -Wno-error=unused-const-variable -g 
 CFLAGS += -fsanitize=undefined
 CFLAGS += -DYJKERNEL_SOURCE
 CFLAGS += -flto=auto -O3
