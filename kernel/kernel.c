@@ -1,6 +1,5 @@
 #include "fs/fsinit.h"
 #include "shell/shell.h"
-#include <assert.h>
 #include <kernel/arch/tsc.h>
 #include <kernel/dev/pci.h>
 #include <kernel/dev/ps2.h>
