@@ -3,7 +3,7 @@ OUTDIR    = out/$(ARCH)
 BOOTROOT  = $(OUTDIR)/bootroot
 ISO_NAME  = $(OUTDIR)/YJKOS_$(ARCH).iso
 FONTDIR   = $(OUTDIR)/kernelfont
-FONT      = ter-112n.psf
+FONT      = ter-114n.psf
 
 all: iso
 
