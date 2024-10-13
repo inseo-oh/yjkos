@@ -13,7 +13,6 @@
 #include <kernel/mem/pmm.h>
 #include <kernel/mem/vmm.h>
 #include <kernel/raster/fb.h>
-#include <kernel/status.h>
 #include <kernel/ticktime.h>
 #include <stdalign.h>
 #include <stdbool.h>

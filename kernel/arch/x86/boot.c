@@ -19,7 +19,6 @@
 #include <kernel/mem/heap.h>
 #include <kernel/mem/pmm.h>
 #include <kernel/panic.h>
-#include <kernel/status.h>
 #include <kernel/ticktime.h>
 #include <kernel/trapmanager.h>
 #include <kernel/types.h>
@@ -42,36 +41,40 @@ static bool const CONFIG_SERIAL_DEBUG = true;
 static struct archx86_serial s_serial0;
 static bool s_serial0ready = false;
 
-NORETURN void archx86_kernelinit(uint32_t mbmagic, physptr mbinfoaddr) {
-    status_t status;
+static void initserial(void) {
+    int ret = archx86_serial_init(
+        &s_serial0, 0x3f8, 115200, 4);
+    if (ret < 0) {
+        tty_printf(
+            "failed to initialize serial0 (error %d)\n", ret);
+        return;
+    }
+    ret = archx86_serial_config(&s_serial0, 115200);
+    if (ret < 0) {
+        tty_printf("failed to configure serial0 (error %d)\n", ret);
+        return;
+    }
+    s_serial0.cr_to_crlf = true;
+    tty_setdebugconsole(&s_serial0.stream);
+    tty_printf("serial0 is ready\n");
+    s_serial0ready = true;
+}
 
+NORETURN void archx86_kernelinit(uint32_t mbmagic, physptr mbinfoaddr) {
     if (CONFIG_EARLY_VGATTY) {
         archx86_vgatty_init_earlydebug();
     }
     if (CONFIG_SERIAL_DEBUG) {
-        status = archx86_serial_init(&s_serial0, 0x3f8, 115200, 4);
-        if (status != OK) {
-            tty_printf("failed to initialize serial0 (error %d)\n", status);
-        } else {
-            status = archx86_serial_config(&s_serial0, 115200);
-            if (status != OK) {
-                tty_printf("failed to configure serial0 (error %d)\n", status);
-            }
-            s_serial0.cr_to_crlf = true;
-            tty_setdebugconsole(&s_serial0.stream);
-            tty_printf("serial0 is ready\n");
-            s_serial0ready = true;
-        }
+        initserial();
     }
-
-
 
     archx86_mmu_init();
     archx86_mmu_writeprotect_kerneltext();
     // CR0.WP should've been enabled during early boot process, but if it isn't, the
     // CPU probably doesn't support the feature.
     if (!(archx86_readcr0() & (1 << 16))) {
-        tty_printf("warning: CR0.WP dowsn't seem to work. write-protect will not work in ring-0 Mode.\n");
+        tty_printf(
+            "warning: CR0.WP dowsn't seem to work. write-protect will not work in ring-0 Mode.\n");
     }
 
     archx86_gdt_init();

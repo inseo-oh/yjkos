@@ -3,15 +3,17 @@
 #include "ps2ctrl.h"
 #include <assert.h>
 #include <kernel/dev/ps2.h>
+#include <kernel/lib/diagnostics.h>
 #include <kernel/io/iodev.h>
 #include <kernel/io/stream.h>
 #include <kernel/io/tty.h>
 #include <kernel/mem/heap.h>
-#include <kernel/status.h>
 #include <kernel/ticktime.h>
 #include <kernel/trapmanager.h>
+#include <errno.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <sys/types.h>
 
 //------------------------------- Configuration -------------------------------
 
@@ -45,7 +47,7 @@ enum {
 // PS/2 controller configuration
 static uint8_t const CONFIG_FLAG_PORT0_INT     = 1 << 0;
 static uint8_t const CONFIG_FLAG_PORT1_INT     = 1 << 1;
-static uint8_t const CONFIG_FLAG_SYS           = 1 << 2; // Cleared on reset, set to 1 after POST.
+static uint8_t const CONFIG_FLAG_SYS           = 1 << 2; 
 static uint8_t const CONFIG_FLAG_PORT0_CLK_OFF = 1 << 4;
 static uint8_t const CONFIG_FLAG_PORT1_CLK_OFF = 1 << 5;
 static uint8_t const CONFIG_FLAG_PORT0_TRANS   = 1 << 6;
@@ -54,7 +56,7 @@ static uint8_t const CONFIG_FLAG_PORT0_TRANS   = 1 << 6;
 static uint8_t const STATUS_FLAG_OUTBUF_FULL = 1 << 0;
 static uint8_t const STATUS_FLAG_INBUF_FULL  = 1 << 1;
 static uint8_t const STATUS_FLAG_SYS         = 1 << 2;
-static uint8_t const STATUS_FLAG_CMD_DATA    = 1 << 3; // Did written byte go to device(0) or controller(1)
+static uint8_t const STATUS_FLAG_CMD_DATA    = 1 << 3;
 static uint8_t const STATUS_TIMEOUT_ERR      = 1 << 6;
 static uint8_t const STATUS_PARITY_ERR       = 1 << 7;
 
@@ -65,8 +67,7 @@ struct portcontext {
     struct archx86_pic_irqhandler irqhandler;
 };
 
-static FAILABLE_FUNCTION waitforrecv(void) {
-FAILABLE_PROLOGUE
+static WARN_UNUSED_RESULT int waitforrecv(void) {
     ticktime oldtime = g_ticktime;
     bool timeout = true;
     while ((g_ticktime - oldtime) < PS2_TIMEOUT) {
@@ -78,14 +79,12 @@ FAILABLE_PROLOGUE
     }
     if (timeout) {
         tty_printf("ps2: receive wait timeout\n");
-        THROW(ERR_IO);
+        return -EIO;
     }
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return 0;
 }
 
-static FAILABLE_FUNCTION waitforsend(void) {
-FAILABLE_PROLOGUE
+static WARN_UNUSED_RESULT int waitforsend(void) {
     ticktime oldtime = g_ticktime;
     bool timeout = true;
     while ((g_ticktime - oldtime) < PS2_TIMEOUT) {
@@ -97,64 +96,69 @@ FAILABLE_PROLOGUE
     }
     if (timeout) {
         tty_printf("ps2: send wait timeout\n");
-        THROW(ERR_IO);
+        return -EIO;
     }
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return 0;
 }
 
-static FAILABLE_FUNCTION recvfromctrl(uint8_t *out) {
-FAILABLE_PROLOGUE
+static int recvfromctrl(uint8_t *out) {
     if (CONFIG_COMM_DEBUG) {
         tty_printf("ps2: receive data from controller\n");
     }
-    TRY(waitforrecv());
+    int ret = waitforrecv();
+    if (ret < 0) {
+        return ret;
+    }
     *out = archx86_in8(DATA_PORT);
     if (CONFIG_COMM_DEBUG) {
         tty_printf("ps2: recevied data from controller: %#x\n", *out);
     }
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return 0;
 }
 
-static FAILABLE_FUNCTION sendtoctrl(uint8_t cmd) {
-FAILABLE_PROLOGUE
+static int sendtoctrl(uint8_t cmd) {
     if (CONFIG_COMM_DEBUG) {
         tty_printf("ps2: send command %#x to controller\n", cmd);
     }
-    TRY(waitforsend());
+    int ret = waitforsend();
+    if (ret < 0) {
+        return ret;
+    }
     archx86_out8(CMD_PORT, cmd);
-    TRY(waitforsend());
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return 0;
 }
 
-static FAILABLE_FUNCTION senddatatoctrl(uint8_t data) {
-FAILABLE_PROLOGUE
+static int senddatatoctrl(uint8_t data) {
     if (CONFIG_COMM_DEBUG) {
         tty_printf("ps2: send data %#x to controller\n", data);
     }
-    TRY(waitforsend());
+    int ret = waitforsend();
+    if (ret < 0) {
+        return ret;
+    }
     archx86_out8(DATA_PORT, data);
-    TRY(waitforsend());
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return 0;
 }
 
-static FAILABLE_FUNCTION stream_op_write(struct stream *self, void *data, size_t size) {
-FAILABLE_PROLOGUE
+static ssize_t stream_op_write(struct stream *self, void *data, size_t size) {
+    assert(size < STREAM_MAX_TRANSFER_SIZE);
     struct portcontext *port = self->data;
 
     for (size_t idx = 0; idx < size; idx++) {
         uint8_t c = ((uint8_t *)data)[idx];
         assert(port->portidx < 2);
         if (port->portidx == 1) {
-            TRY(sendtoctrl(CMD_WRITEPORT1));
+            int ret = sendtoctrl(CMD_WRITEPORT1);
+            if (ret < 0) {
+                return ret;
+            }
         }
-        TRY(senddatatoctrl(c));
+        int ret = senddatatoctrl(c);
+        if (ret < 0) {
+            return ret;
+        }
     }
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return size;
 }
 
 static void irqhandler(int irqnum, void *data) {
@@ -172,11 +176,11 @@ static struct stream_ops const OPS = {
     .write = stream_op_write,
 };
 
-static void discoveredport(size_t portindex) {
+static WARN_UNUSED_RESULT int discoveredport(size_t portindex) {
     assert(portindex < 2);
+    int result = 0;
     struct portcontext *port = heap_alloc(sizeof(*port), HEAP_FLAG_ZEROMEMORY);
     if (port == NULL) {
-        tty_printf("ps2: not enough memory to register port %u\n", portindex);
         goto fail;
     }
     port->portidx = portindex;
@@ -188,22 +192,23 @@ static void discoveredport(size_t portindex) {
     }
     archx86_pic_registerhandler(&port->irqhandler, irq, irqhandler, port);
     archx86_pic_unmaskirq(irq);
-    status_t status = ps2port_register(&port->ps2port, &OPS, port);
-    if (status != OK) {
-        tty_printf("ps2: failed to register port %u (error %d)\n", portindex, status);
+    result = ps2port_register(&port->ps2port, &OPS, port);
+    if (result < 0) {
         goto fail;
     }
-    // We can't undo ps2port_register as of writing this code, so no further failable action can happen.
-    iodev_printf(&port->ps2port.device, "registered ps/2 port %u(irq %u)\n", portindex, irq);
-    return;
+    /* 
+     * We can't undo ps2port_register as of writing this code, so no further
+     * errors are allowed.
+     */
+    goto out;
 fail:
-    if (port != NULL) {
-        heap_free(port);
-    }
+    heap_free(port);
+out:
+    return result;
 }
 
-static FAILABLE_FUNCTION doinit(void) {
-FAILABLE_PROLOGUE
+void archx86_ps2ctrl_init(void) {
+    int result;
     bool singleport = false;
     // https://wiki.osdev.org/%228042%22_PS/2_Controller#Initialising_the_PS/2_Controller
 
@@ -212,8 +217,14 @@ FAILABLE_PROLOGUE
     archx86_pic_maskirq(IRQ_PORT1);
 
     // Disable PS/2 devices
-    TRY(sendtoctrl(CMD_DISABLEPORT0));
-    TRY(sendtoctrl(CMD_DISABLEPORT1));
+    result = sendtoctrl(CMD_DISABLEPORT0);
+    if (result < 0) {
+        goto fail;
+    }
+    result = sendtoctrl(CMD_DISABLEPORT1);
+    if (result < 0) {
+        goto fail;
+    }
 
     // Empty the output buffer
     while(archx86_in8(STATUS_PORT) & STATUS_FLAG_OUTBUF_FULL) {
@@ -221,106 +232,200 @@ FAILABLE_PROLOGUE
     }
 
     // Reconfigure controller (Only configure port 0)
-    TRY(sendtoctrl(CMD_READCTRLCONFIG));
+    result = sendtoctrl(CMD_READCTRLCONFIG);
+    if (result < 0) {
+        goto fail;
+    }
     uint8_t ctrlconfig;
-    TRY(recvfromctrl(&ctrlconfig));
+    result = recvfromctrl(&ctrlconfig);
+    if (result < 0) {
+        goto fail;
+    }
     ctrlconfig &= ~(CONFIG_FLAG_PORT0_INT | CONFIG_FLAG_PORT0_TRANS | CONFIG_FLAG_PORT0_CLK_OFF);
-    TRY(sendtoctrl(CMD_WRITECTRLCONFIG));
-    TRY(senddatatoctrl(ctrlconfig));
-
-    // Run self-test
-    TRY(sendtoctrl(CMD_TESTCTRL));
-    uint8_t response;
-    TRY(recvfromctrl(&response));
-    if (response != 0x55) {
-        tty_printf("ps2: controller self test failed(response: %#x)\n", response);
-        THROW(ERR_IO);
+    result = sendtoctrl(CMD_WRITECTRLCONFIG);
+    if (result < 0) {
+        goto fail;
+    }
+    result = senddatatoctrl(ctrlconfig);
+    if (result < 0) {
+        goto fail;
     }
 
-    // Self-test may have resetted the controller, so we reconfigure Port 0 again. 
-    TRY(sendtoctrl(CMD_READCTRLCONFIG));
-    TRY(recvfromctrl(&ctrlconfig));
-    ctrlconfig &= ~(CONFIG_FLAG_PORT0_INT | CONFIG_FLAG_PORT0_TRANS | CONFIG_FLAG_PORT0_CLK_OFF);
-    TRY(sendtoctrl(CMD_WRITECTRLCONFIG));
-    TRY(senddatatoctrl(ctrlconfig));
+    // Run self-test
+    result = sendtoctrl(CMD_TESTCTRL);
+    if (result < 0) {
+        goto fail;
+    }
+    uint8_t response;
+    result = recvfromctrl(&response);
+    if (result < 0) {
+        goto fail;
+    }
+    if (response != 0x55) {
+        tty_printf(
+            "ps2: controller self test failed(response: %#x)\n",
+            response);
+        result = -EIO;
+        goto fail;
+    }
+
+    /*
+     * Self-test may have resetted the controller, so we reconfigure
+     * Port 0 again. 
+     */
+    result = sendtoctrl(CMD_READCTRLCONFIG);
+    if (result < 0) {
+        goto fail;
+    }
+    result = recvfromctrl(&ctrlconfig);
+    if (result < 0) {
+        goto fail;
+    }
+    ctrlconfig &= ~(
+        CONFIG_FLAG_PORT0_INT | CONFIG_FLAG_PORT0_TRANS |
+        CONFIG_FLAG_PORT0_CLK_OFF);
+    result = sendtoctrl(CMD_WRITECTRLCONFIG);
+    if (result < 0) {
+        goto fail;
+    }
+    result = senddatatoctrl(ctrlconfig);
+    if (result < 0) {
+        goto fail;
+    }
 
     // Check if it's dual-port controller.
-    TRY(sendtoctrl(CMD_ENABLEPORT1));
-    TRY(sendtoctrl(CMD_READCTRLCONFIG));
-    TRY(recvfromctrl(&ctrlconfig));
+    result = sendtoctrl(CMD_ENABLEPORT1);
+    if (result < 0) {
+        goto fail;
+    }
+    result = sendtoctrl(CMD_READCTRLCONFIG);
+    if (result < 0) {
+        goto fail;
+    }
+    result = recvfromctrl(&ctrlconfig);
+    if (result < 0) {
+        goto fail;
+    }
     if (ctrlconfig & CONFIG_FLAG_PORT1_CLK_OFF) {
         singleport = true;
     } else {
         // If it is, configure second port as well.
-        TRY(sendtoctrl(CMD_DISABLEPORT1));
-        TRY(sendtoctrl(CMD_READCTRLCONFIG));
-        TRY(recvfromctrl(&ctrlconfig));
+        result = sendtoctrl(CMD_DISABLEPORT1);
+        if (result < 0) {
+            goto fail;
+        }
+        result = sendtoctrl(CMD_READCTRLCONFIG);
+        if (result < 0) {
+            goto fail;
+        }
+        result = recvfromctrl(&ctrlconfig);
+        if (result < 0) {
+            goto fail;
+        }
         ctrlconfig &= ~(CONFIG_FLAG_PORT1_INT | CONFIG_FLAG_PORT1_CLK_OFF);
-        TRY(sendtoctrl(CMD_WRITECTRLCONFIG));
-        TRY(senddatatoctrl(ctrlconfig));
+        result = sendtoctrl(CMD_WRITECTRLCONFIG);
+        if (result < 0) {
+            goto fail;
+        }
+        result = senddatatoctrl(ctrlconfig);
+        if (result < 0) {
+            goto fail;
+        }
     }
-    tty_printf("ps2: detected as %s-port controller\n", singleport ? "single" : "dual");
+    tty_printf(
+        "ps2: detected as %s-port controller\n",
+        singleport ? "single" : "dual");
 
     // Test each port
-    bool port0OK, port1OK;
-    TRY(sendtoctrl(CMD_TESTPORT0));
-    TRY(recvfromctrl(&response));
+    bool port0ok, port1ok;
+    result = sendtoctrl(CMD_TESTPORT0);
+    if (result < 0) {
+        goto fail;
+    }
+    result = recvfromctrl(&response);
+    if (result < 0) {
+        goto fail;
+    }
     if (response != 0x00) {
-        tty_printf("ps2: port 0 self test failed(response: %#x)\n", response);
-        port0OK = false;
+        tty_printf(
+            "ps2: port 0 self test failed(response: %#x)\n", response);
+        port0ok = false;
     } else {
-        port0OK = true;
+        port0ok = true;
     }
     if (!singleport) {
-        TRY(sendtoctrl(CMD_TESTPORT1));
-        TRY(recvfromctrl(&response));
+        result = sendtoctrl(CMD_TESTPORT1);
+        if (result < 0) {
+            goto fail;
+        }
+        result = recvfromctrl(&response);
+        if (result < 0) {
+            goto fail;
+        }
         if (response != 0x00) {
-            tty_printf("ps2: port 1 self test failed(response: %#x)\n", response);
-            port1OK = false;
+            tty_printf(
+                "ps2: port 1 self test failed(response: %#x)\n",
+                response);
+            port1ok = false;
         } else {
-            port1OK = true;
+            port1ok = true;
         }
     } else {
-        port1OK = false;
+        port1ok = false;
     }
-    if (!port0OK && !port1OK) {
-        tty_printf("ps2: ***** No working PS/2 ports found *****\n");
-        THROW(ERR_IO);
+    if (!port0ok && !port1ok) {
+        result = -EIO;
+        goto fail;
     }
 
     // Enable interrupts
-    TRY(sendtoctrl(CMD_READCTRLCONFIG));
-    TRY(recvfromctrl(&ctrlconfig));
-    if (port0OK) {
+    result = sendtoctrl(CMD_READCTRLCONFIG);
+    if (result < 0) {
+        goto fail;
+    }
+    result = recvfromctrl(&ctrlconfig);
+    if (result < 0) {
+        goto fail;
+    }
+    if (port0ok) {
         ctrlconfig |= CONFIG_FLAG_PORT0_INT;
     }
-    if (port1OK) {
+    if (port1ok) {
         ctrlconfig |= CONFIG_FLAG_PORT1_INT;
     }
-    TRY(sendtoctrl(CMD_WRITECTRLCONFIG));
-    TRY(senddatatoctrl(ctrlconfig));
+    result = sendtoctrl(CMD_WRITECTRLCONFIG);
+    if (result < 0) {
+        goto fail;
+    }
+    result = senddatatoctrl(ctrlconfig);
+    if (result < 0) {
+        goto fail;
+    }
 
     // Register port
-    if (port0OK) {
-        TRY(sendtoctrl(CMD_ENABLEPORT0));
-        discoveredport(0);
+    if (port0ok) {
+        result = sendtoctrl(CMD_ENABLEPORT0);
+        if (result < 0) {
+            goto fail;
+        }
+        int ret = discoveredport(0);
+        if (ret < 0) {
+            tty_printf("ps2: failed to register port 0\n");
+        }
     }
-    if (port1OK) {
-        TRY(sendtoctrl(CMD_ENABLEPORT1));
-        discoveredport(1);
-    }
-
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
-}
-
-void archx86_ps2ctrl_init(void) {
-    status_t status = doinit();
-    if (status != OK) {
-        tty_printf("ps2: error %d occured. aborting controller initialization\n", status);
-        archx86_pic_maskirq(IRQ_PORT0);
-        archx86_pic_maskirq(IRQ_PORT1);
-        return;
+    if (port1ok) {
+        result = sendtoctrl(CMD_ENABLEPORT1);
+        if (result < 0) {
+            goto fail;
+        }
+        int ret = discoveredport(1);
+        if (ret < 0) {
+            tty_printf("ps2: failed to register port 1\n");
+        }
     }
     return;
+fail:
+    tty_printf(
+        "ps2: error %d occured. aborting controller initialization\n",
+        result);
 }

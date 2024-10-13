@@ -82,6 +82,4 @@ void archx86_writeprotect_afterearlyinit(void);
 void archx86_mmu_init(void);
 void archx86_mmu_setupstackbottomtrap(void);
 
-bool archx86_mmu_emulate(struct archx86_mmu_emulateresult *result_out, uintptr_t virtaddr, bool iswrite, bool isfromuser);
-
 #endif

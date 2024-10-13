@@ -3,7 +3,6 @@
 #include <kernel/io/tty.h>
 #include <kernel/lib/miscmath.h>
 #include <kernel/lib/pstring.h>
-#include <kernel/status.h>
 #include <kernel/types.h>
 #include <stdbool.h>
 #include <stddef.h>

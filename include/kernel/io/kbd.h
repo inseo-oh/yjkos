@@ -1,7 +1,7 @@
 #pragma once 
 #include <kernel/io/iodev.h>
+#include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
-#include <kernel/status.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -151,7 +151,7 @@ struct kbd_keyevent {
 
 struct kbddev;
 struct kbddev_ops {
-    FAILABLE_FUNCTION (*updateleds)(struct kbddev *self, bool scroll, bool caps, bool num);
+    WARN_UNUSED_RESULT int (*updateleds)(struct kbddev *self, bool scroll, bool caps, bool num);
 };
 struct kbddev {
     struct list_node node;
@@ -163,5 +163,6 @@ struct kbddev {
 bool kbd_pullevent(struct kbd_keyevent *out);
 void kbd_keypressed(enum kbd_key key);
 void kbd_keyreleased(enum kbd_key key);
-FAILABLE_FUNCTION kbd_register(struct kbddev *dev_out, struct kbddev_ops const *ops, void *data);
+WARN_UNUSED_RESULT int kbd_register(
+    struct kbddev *dev_out, struct kbddev_ops const *ops, void *data);
 

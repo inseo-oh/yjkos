@@ -1,14 +1,31 @@
 #pragma once
+#include <sys/types.h>
+#include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
-#include <kernel/status.h>
 #include <kernel/ticktime.h>
 #include <stddef.h>
 #include <stdarg.h>
 
+enum {
+    STREAM_MAX_TRANSFER_SIZE = 0x7fffffff,
+    STREAM_EOF = 0x100,
+};
+
 struct stream;
 struct stream_ops {
-    FAILABLE_FUNCTION (*write)(struct stream *self, void *buf, size_t size);
-    FAILABLE_FUNCTION (*read)(size_t *size_out, struct stream *self, void *buf, size_t size);
+    /*
+     * Returns written length, or IOERROR_~ values on failure.
+     */
+    WARN_UNUSED_RESULT ssize_t (*write)(
+        struct stream *self, void *buf, size_t size);
+    /*
+     * Returns written length, or IOERROR_~ values on failure.
+     */
+    WARN_UNUSED_RESULT ssize_t (*read)(
+        struct stream *self, void *buf, size_t size);
+
+    /* This is optional operation */
+    void (*flush)(struct stream *self);
 };
 
 struct stream {
@@ -17,11 +34,23 @@ struct stream {
     void *data;
 };
 
-FAILABLE_FUNCTION stream_putchar(struct stream *self, char c);
-FAILABLE_FUNCTION stream_putstr(struct stream *self, char const *s);
-FAILABLE_FUNCTION stream_vprintf(struct stream *self, char const *fmt, va_list ap);
-FAILABLE_FUNCTION stream_printf(struct stream *self, char const *fmt, ...);
-// Set timeout to 0 for no timeout(wait infinitely)
-FAILABLE_FUNCTION stream_waitchar(char *char_out, struct stream *self, ticktime timeout);
+WARN_UNUSED_RESULT int stream_putchar(
+    struct stream *self, char c);
+WARN_UNUSED_RESULT ssize_t stream_putstr(
+    struct stream *self, char const *s);
+WARN_UNUSED_RESULT ssize_t stream_vprintf(
+    struct stream *self, char const *fmt, va_list ap);
+WARN_UNUSED_RESULT ssize_t stream_printf(
+    struct stream *self, char const *fmt, ...);
+/*
+ * Set timeout to 0 for no timeout(wait infinitely).
+ *
+ * Returns STREAM_EOF on timeout.
+ */
+WARN_UNUSED_RESULT int stream_waitchar(struct stream *self, ticktime timeout);
+/*
+ * Returns STREAM_EOF on EOF.
+ */
+WARN_UNUSED_RESULT int stream_getchar(struct stream *self);
 
-
+void stream_flush(struct stream *self);

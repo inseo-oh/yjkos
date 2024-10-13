@@ -8,12 +8,12 @@
 #include <kernel/dev/atadisk.h>
 #include <kernel/dev/pci.h>
 #include <kernel/io/tty.h>
+#include <kernel/lib/diagnostics.h>
 #include <kernel/lib/miscmath.h>
 #include <kernel/lib/pstring.h>
 #include <kernel/mem/heap.h>
 #include <kernel/mem/pmm.h>
 #include <kernel/mem/vmm.h>
-#include <kernel/status.h>
 #include <kernel/trapmanager.h>
 #include <kernel/types.h>
 #include <stdalign.h>
@@ -23,6 +23,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 static uint16_t const PRD_FLAG_LAST_ENTRY_IN_PRDT = 1 << 15;
 
@@ -150,8 +151,7 @@ static void resetbus(struct bus *self) {
     ctrlout8(self, CTRLREG_DEVICECONTROL, regvalue);
 }
 
-static FAILABLE_FUNCTION selectdrive(struct bus *self, int8_t drive) {
-FAILABLE_PROLOGUE
+static void selectdrive(struct bus *self, int8_t drive) {
     assert((0 == drive) || (1 == drive));
     uint8_t regvalue = ioin8(self, IOREG_DRIVE_AND_HEAD);
     if (drive == 0) {
@@ -167,17 +167,15 @@ FAILABLE_PROLOGUE
         }
         self->lastselecteddrive = drive;
     }
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
 }
 
 static void atadisk_op_softreset(struct atadisk *self) {
     struct disk *disk = self->data;
     resetbus(disk->bus);
 }
-static FAILABLE_FUNCTION atadisk_op_selectdisk(struct atadisk *self) {
+static void atadisk_op_selectdisk(struct atadisk *self) {
     struct disk *disk = self->data;
-    return selectdrive(disk->bus, disk->driveid);
+    selectdrive(disk->bus, disk->driveid);
 }
 static uint8_t atadisk_op_readstatus(struct atadisk *self) {
     struct disk *disk = self->data;
@@ -320,8 +318,9 @@ static void atadisk_op_unlock(struct atadisk *self) {
     atomic_store_explicit(&bus->buslockflag, desired, memory_order_release);
 }
 
-static FAILABLE_FUNCTION atadisk_op_dma_inittransfter(struct atadisk *self, void *buffer, size_t len, bool isread) {
-FAILABLE_PROLOGUE
+static WARN_UNUSED_RESULT int atadisk_op_dma_inittransfter(
+    struct atadisk *self, void *buffer, size_t len, bool isread)
+{
     struct disk *disk = self->data;
     struct bus *bus = disk->bus;
     assert(bus->busmasterenabled);
@@ -347,12 +346,16 @@ FAILABLE_PROLOGUE
             bus->prdt[i].flags = 0;
         }
         if (!isread) {
-            pmemcpy_out(bus->prdt[i].bufferphysbase, &((uint8_t *)buffer)[i * MAX_TRANSFTER_SIZE_PER_PRD], currentsize, true);
+            pmemcpy_out(
+                bus->prdt[i].bufferphysbase,
+                &((uint8_t *)buffer)[i * MAX_TRANSFTER_SIZE_PER_PRD],
+                currentsize, true);
         }
         remainingsize -= currentsize;
     }
     // Setup busmaster registers
-    busmasterout32(bus, BUSMASTERREG_PRDTADDR, bus->prdtphysbase); // PRDT address
+    busmasterout32(
+        bus, BUSMASTERREG_PRDTADDR, bus->prdtphysbase);
     uint8_t cmdvalue = 0;
     if (isread) {
         cmdvalue |= BUSMASTER_CMDFLAG_READ;
@@ -361,27 +364,30 @@ FAILABLE_PROLOGUE
     }
     busmasterout8(bus, BUSMASTERREG_CMD, cmdvalue);
     busmasterout8(bus, BUSMASTERREG_STATUS, 0x06);
-
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return 0;
 }
 
-static FAILABLE_FUNCTION atadisk_op_dma_begintransfer(struct atadisk *self) {
-FAILABLE_PROLOGUE
+static WARN_UNUSED_RESULT int atadisk_op_dma_begintransfer(
+    struct atadisk *self) {
     struct disk *disk = self->data;
     struct bus *bus = disk->bus;
-    busmasterout8(bus, BUSMASTERREG_CMD, busmasterin8(bus, BUSMASTERREG_CMD) | BUSMASTER_CMDFLAG_START);
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    uint8_t bmreg = busmasterin8(bus, BUSMASTERREG_CMD);
+    bmreg |= BUSMASTER_CMDFLAG_START;
+    busmasterout8(bus, BUSMASTERREG_CMD, bmreg);
+    return 0;
 }
 
 static enum ata_dmastatus atadisk_op_dma_checktransfer(struct atadisk *self) {
     struct disk *disk = self->data;
     struct bus *bus = disk->bus;
-    uint8_t bmstatus = busmasterin8(bus, BUSMASTERREG_STATUS); // We have to read the status after IRQ.
+     // We have to read the status after IRQ.
+    uint8_t bmstatus = busmasterin8(bus, BUSMASTERREG_STATUS);
     if (bmstatus & (1 << 1)) {
         uint16_t pcistatus = pci_readstatusreg(bus->pcipath);
-        driveprintf(bus, disk->driveid, "DMA error occured. busmaster status %02x, PCI status %04x\n", bmstatus, pcistatus);
+        driveprintf(
+            bus, disk->driveid,
+            "DMA error occured. busmaster status %02x, PCI status %04x\n",
+            bmstatus, pcistatus);
         pci_writestatusreg(bus->pcipath, PCI_STATUSFLAG_MASTER_DATA_PARITY_ERROR | PCI_STATUSFLAG_RECEIVED_TARGET_ABORT | PCI_STATUSFLAG_RECEIVED_MASTER_ABORT);
         if (pcistatus & PCI_STATUSFLAG_MASTER_DATA_PARITY_ERROR) {
             return ATA_DMASTATUS_FAIL_UDMA_CRC;
@@ -453,11 +459,16 @@ static void irqhandler(int irqnum,  void *data) {
     archx86_pic_sendeoi(irqnum);
 }
 
-static FAILABLE_FUNCTION initcontroller(struct shared *shared, uint16_t iobase, uint16_t ctrlbase, uint16_t busmastrerbase, pcipath pcipath, bool busmasterenabled, uint8_t irq, size_t channalindex) {
-FAILABLE_PROLOGUE
+static int initcontroller(
+    struct shared *shared, uint16_t iobase, uint16_t ctrlbase,
+    uint16_t busmastrerbase, pcipath pcipath, bool busmasterenabled,
+    uint8_t irq, size_t channalindex)
+{
+    int result = 0;
     struct bus *bus = heap_alloc(sizeof(*bus), HEAP_FLAG_ZEROMEMORY);
     if (bus == NULL) {
-        THROW(ERR_NOMEM);
+        result = -ENOMEM;
+        goto fail;
     }
     bus->shared = shared;
     bus->pcipath = pcipath;
@@ -477,16 +488,20 @@ FAILABLE_PROLOGUE
         bool physallocok = false;
         struct vmobject *prdtvmobject = NULL;
         size_t allocatedprdtcount = 0;
-        status_t status = pmm_alloc(&bus->prdtphysbase, &prdtpagecount);
-        if (status != OK) {
-            busprintf(bus, "failed to allocate pages for busmaster PRDT(error %d)\n", status);
-            goto nobusmaster;
+        bus->prdtphysbase = pmm_alloc( &prdtpagecount);
+        if (bus->prdtphysbase == PHYSICALPTR_NULL) {
+            goto fail_oom;
         }
         physallocok = true;
-        status = vmm_map(&prdtvmobject, vmm_get_kernel_addressspace(), bus->prdtphysbase, prdtpagecount * ARCH_PAGESIZE, MAP_PROT_READ | MAP_PROT_WRITE | MAP_PROT_NOCACHE);
-        if (status != OK) {
-            busprintf(bus, "failed to map pages for busmaster PRDT(error %d)\n", status);
-            goto nobusmaster;
+        prdtvmobject = vmm_map(
+            vmm_get_kernel_addressspace(),
+            bus->prdtphysbase,
+            prdtpagecount * ARCH_PAGESIZE,
+            MAP_PROT_READ | MAP_PROT_WRITE | MAP_PROT_NOCACHE
+        );
+        if (prdtvmobject == NULL) {
+            busprintf(bus, "not enough memory for busmaster PRDT\n");
+            goto fail_oom;
         }
         bus->prdt = (void *)prdtvmobject->startaddress;
         memset(bus->prdt, 0, prdtsize);
@@ -496,19 +511,28 @@ FAILABLE_PROLOGUE
             if (MAX_TRANSFTER_SIZE_PER_PRD < currentsize) {
                 currentsize = MAX_TRANSFTER_SIZE_PER_PRD;
             }
-            // NOTE: We setup PRD's len and flags when we initialize DMA transfer.
+            /*
+             * NOTE: We setup PRD's len and flags when we initialize DMA
+             * transfer
+             */
             size_t currentpagecount = sizetoblocks(currentsize, ARCH_PAGESIZE);
-            TRY(pmm_alloc(&bus->prdt[i].bufferphysbase, &currentpagecount));
+            bus->prdt[i].bufferphysbase = pmm_alloc(&currentpagecount);
+            if (bus->prdt[i].bufferphysbase == PHYSICALPTR_NULL) {
+                goto fail_oom;
+            }
             pagecounts[i] = currentpagecount;
             pmemset(bus->prdt[i].bufferphysbase, 0x00, currentsize, true);
             allocatedprdtcount++;
             remainingsize -= currentsize;
         }
         goto cont;
-    nobusmaster:
-        busprintf(bus, "an error occured while initializing busmaster DMA. falling back to PIO-only.\n");
+    fail_oom:
+        busprintf(
+            bus,
+            "not enough memory for busmaster PRDT. falling back to PIO-only.\n");
         for (size_t i = 0; i < allocatedprdtcount; i++) {
-            pmm_free(bus->prdt[i].bufferphysbase, pagecounts[i]);
+            pmm_free(
+                bus->prdt[i].bufferphysbase, pagecounts[i]);
         }
         if (prdtvmobject != NULL) {
             vmm_free(prdtvmobject);
@@ -523,8 +547,10 @@ cont:
 
     uint8_t busstatus = readstatus(bus);
     if ((busstatus & 0x7f) == 0x7f) {
-        busprintf(bus, "seems to be floating(got status byte %#x)\n", busstatus);
-        THROW(ERR_IO);
+        busprintf(bus,
+            "seems to be floating(got status byte %#x)\n", busstatus);
+        result = -EIO;
+        goto fail;
     }
     // Prepare to receive IRQs
     archx86_pic_registerhandler(&bus->irqhandler, irq, irqhandler, bus);
@@ -541,23 +567,22 @@ cont:
     }
     busprintf(bus, "probing the bus\n");
     for (int8_t drive = 0; drive < 2; drive++) {
-        status_t status = selectdrive(bus, drive);
-        if (status != OK) {
-            driveprintf(bus, drive, "cannot select\n");
-            continue;
-        }
+        selectdrive(bus, drive);
         struct disk *disk = heap_alloc(sizeof(*disk), HEAP_FLAG_ZEROMEMORY);
         if (disk == NULL) {
             continue;
         }
         disk->bus = bus;
         disk->driveid = drive;
-        status = atadisk_register(&disk->atadisk, &OPS, disk);
-        if (status != OK) {
-            if (status == ERR_NODEV) {
-                driveprintf(bus, drive, "nothing there or non-accessible\n");
+        int ret = atadisk_register(
+            &disk->atadisk, &OPS, disk);
+        if (ret < 0) {
+            if (ret == -ENODEV) {
+                driveprintf(bus, drive,
+                    "nothing there or non-accessible\n");
             } else {
-                driveprintf(bus, drive, "failed to initialize disk (error %d)\n", status);
+                driveprintf(
+                    bus, drive, "failed to initialize disk (error %d)\n", ret);
             }
             heap_free(disk);
             continue;
@@ -565,18 +590,24 @@ cont:
         driveprintf(bus, drive, "disk registered\n");
     }
     busprintf(bus, "bus probing complete\n");
-
-FAILABLE_EPILOGUE_BEGIN
-    if (DID_FAIL) {
-        heap_free(bus);
-    }
-FAILABLE_EPILOGUE_END
+    goto out;
+fail:
+    heap_free(bus);
+out:
+    return result;
 }
 
-static void pciprobecallback(pcipath path, uint16_t venid, uint16_t devid, uint8_t baseclass, uint8_t subclass, void *data) {
+static void pciprobecallback(
+    pcipath path, uint16_t venid, uint16_t devid, uint8_t baseclass,
+    uint8_t subclass, void *data)
+{
     enum {
-        // Each channel can be either in native or compatibility mode(~_NATIVE flag set means it's in native mode),
-        // and ~_SWITCHABLE flag means whether it is possible to switch between two modes.
+        /*
+         * Each channel can be either in native or compatibility mode(~_NATIVE
+         * flag set means it's in native mode), and ~_SWITCHABLE flag means
+         * whether it is possible to switch between
+         * two modes.
+         */
         PROGIF_FLAG_CHANNEL0_MODE_NATIVE     = 1 << 0,
         PROGIF_FLAG_CHANNEL0_MODE_SWITCHABLE = 1 << 1,
         PROGIF_FLAG_CHANNEL1_MODE_NATIVE     = 1 << 2,
@@ -601,7 +632,6 @@ static void pciprobecallback(pcipath path, uint16_t venid, uint16_t devid, uint8
     bool channel0enabled = true;
     bool channel1enabled = true;
     bool busmasterenabled = true;
-    status_t status;
 
     uint16_t pcicmd = pci_readcmdreg(path);
     pcicmd |= PCI_CMDFLAG_IO_SPACE | PCI_CMDFLAG_MEMORY_SPACE | PCI_CMDFLAG_BUS_MASTER;
@@ -628,12 +658,12 @@ static void pciprobecallback(pcipath path, uint16_t venid, uint16_t devid, uint8
     if (progif & PROGIF_FLAG_CHANNEL0_MODE_NATIVE) {
         channel0irq = pci_readinterruptline(path);
         // Channel 0 is in native mode
-        status = pci_readiobar(&channel0iobase, path, 0);
-        if (status != OK) {
+        int ret = pci_readiobar(&channel0iobase, path, 0);
+        if (ret < 0) {
             goto channel0barfail;
         }
-        status = pci_readiobar(&channel0ctrlbase, path, 1);
-        if (status != OK) {
+        ret = pci_readiobar(&channel0ctrlbase, path, 1);
+        if (ret < 0) {
             goto channel0barfail;
         }
         // Only the port at offset 2 is the real control port.
@@ -647,12 +677,12 @@ channel1:
     if (progif & PROGIF_FLAG_CHANNEL1_MODE_NATIVE) {
         channel1irq = pci_readinterruptline(path);
         // Channel 1 is in native mode
-        status = pci_readiobar(&channel1iobase, path, 2);
-        if (status != OK) {
+        int ret = pci_readiobar(&channel1iobase, path, 2);
+        if (ret < 0) {
             goto channel1barfail;
         }
-        status = pci_readiobar(&channel1ctrlbase, path, 3);
-        if (status != OK) {
+        ret = pci_readiobar(&channel1ctrlbase, path, 3);
+        if (ret < 0) {
             goto channel1barfail;
         }
         // Only the port at offset 2 is the real control port.
@@ -664,8 +694,8 @@ channel1barfail:
     pci_printf(path, "idebus: could not read one of BARs for channel 1\n");
 busmaster:
     if (progif & PROGIF_FLAG_BUSMASTER_SUPPORTED) {
-        status = pci_readiobar(&busmasteriobase, path, 4);
-        if (status != OK) {
+        int ret = pci_readiobar(&busmasteriobase, path, 4);
+        if (ret < 0) {
             goto busmasterbarfail;
         }
     } else {
@@ -677,10 +707,16 @@ busmasterbarfail:
     pci_printf(path, "idebus: could not read one of BARs for bus mastering\n");
 doinit:
     if (channel0enabled) {
-        pci_printf(path, "idebus: [channel0] I/O base %#x, control base %#x, IRQ %d\n", channel0iobase, channel0ctrlbase, channel0irq);
+        pci_printf(
+            path,
+            "idebus: [channel0] I/O base %#x, control base %#x, IRQ %d\n",
+            channel0iobase, channel0ctrlbase, channel0irq);
     }
     if (channel1enabled) {
-        pci_printf(path, "idebus: [channel1] I/O base %#x, control base %#x, IRQ %d\n", channel1iobase, channel1ctrlbase, channel1irq);
+        pci_printf(
+            path,
+            "idebus: [channel1] I/O base %#x, control base %#x, IRQ %d\n",
+            channel1iobase, channel1ctrlbase, channel1irq);
     }
     if (busmasterenabled) {
         pci_printf(path, "idebus: [busmaster] base %#x\n", busmasteriobase);
@@ -692,17 +728,30 @@ doinit:
     }
     shared->dmalockflag = false;
     // If Simplex Only is set, we need DMA lock to prevent both channels using DMA at the same time.
-    shared->dmalockneeded = archx86_in8(busmasteriobase + BUSMASTERREG_STATUS) & (1 << 7);
+    uint8_t bmstatus = archx86_in8(busmasteriobase + BUSMASTERREG_STATUS);
+    shared->dmalockneeded = bmstatus & (1 << 7);
     if (channel0enabled) {
-        status = initcontroller(shared, channel0iobase, channel0ctrlbase, busmasteriobase, path, busmasterenabled, channel0irq, 0);
-        if (status != OK) {
-            pci_printf(path, "idebus: [channel0] failed to initialize (error %d)\n", status);
+        int ret = initcontroller(
+            shared, channel0iobase, channel0ctrlbase,
+            busmasteriobase, path, busmasterenabled,
+            channel0irq, 0);
+        if (ret < 0) {
+            pci_printf(
+                path,
+                "idebus: [channel0] failed to initialize (error %d)\n",
+                ret);
         }
     }
     if (channel1enabled) {
-        status = initcontroller(shared, channel1iobase, channel1ctrlbase, busmasteriobase + 8, path, busmasterenabled, channel1irq, 1);
-        if (status != OK) {
-            pci_printf(path, "idebus: [channel1] failed to initialize (error %d)\n", status);
+         int ret = initcontroller(
+            shared, channel1iobase, channel1ctrlbase,
+            busmasteriobase + 8, path,
+            busmasterenabled, channel1irq, 1);
+        if (ret < 0) {
+            pci_printf(
+                path,
+                "idebus: [channel1] failed to initialize (error %d)\n",
+                ret);
         }
     }
 }

@@ -4,10 +4,10 @@
 #include <kernel/io/tty.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/mem/vmm.h>
-#include <kernel/status.h>
 #include <kernel/types.h>
 #include <stdint.h>
 #include <string.h>
+#include <sys/types.h>
 
 struct chr {
     char chr;
@@ -36,7 +36,10 @@ static void advanceline(void) {
     while (s_totalrows <= s_currentrow) {
         for (size_t src_line = 1; src_line < s_totalrows; src_line++) {
             size_t dest_line = src_line - 1;
-            memcpy(&s_chars[dest_line * s_totalcolumns], &s_chars[src_line * s_totalcolumns],  s_totalcolumns * sizeof(*s_chars));
+            memcpy(
+                &s_chars[dest_line * s_totalcolumns],
+                &s_chars[src_line * s_totalcolumns],
+                s_totalcolumns * sizeof(*s_chars));
         }
         s_currentrow--;
         if (s_currentrow < s_totalrows) {
@@ -62,21 +65,22 @@ static void writechar(char chr) {
 }
 
 
-static FAILABLE_FUNCTION stream_op_write(struct stream *self, void *data, size_t size) {
-FAILABLE_PROLOGUE
+static WARN_UNUSED_RESULT ssize_t stream_op_write(
+    struct stream *self, void *data, size_t size) {
     (void)self;
+    assert(size <= STREAM_MAX_TRANSFER_SIZE);
 
     for (size_t idx = 0; idx < size; idx++) {
         uint8_t c = ((uint8_t *)data)[idx];
         writechar(c);
     }
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return size;
 }
 
-static FAILABLE_FUNCTION stream_op_read(size_t *size_out, struct stream *self, void *buf, size_t size) {
-FAILABLE_PROLOGUE
+static WARN_UNUSED_RESULT ssize_t stream_op_read(
+    struct stream *self, void *buf, size_t size) {
     (void)self;
+    assert(size <= STREAM_MAX_TRANSFER_SIZE);
     
     size_t read_len = 0;
     for (size_t idx = 0; idx < size; idx++) {
@@ -94,9 +98,7 @@ FAILABLE_PROLOGUE
         *((uint8_t *)buf) = event.chr;
         read_len++;
     }
-    *size_out = read_len;
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return read_len;
 }
 
 static struct stream_ops const OPS = {
@@ -114,7 +116,9 @@ void archx86_vgatty_init_earlydebug(void) {
     tty_setdebugconsole(&s_stream);
 }
 
-void archx86_vgatty_init(physptr baseaddr, size_t columns, size_t rows, size_t bytesperrow) {
+void archx86_vgatty_init(
+    physptr baseaddr, size_t columns, size_t rows, size_t bytesperrow
+) {
     s_stream.data = NULL;
     s_stream.ops = &OPS;
     s_totalcolumns = columns;

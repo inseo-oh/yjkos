@@ -3,9 +3,9 @@
 #include <kernel/io/iodev.h>
 #include <kernel/io/kbd.h>
 #include <kernel/io/tty.h>
+#include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
 #include <kernel/lib/queue.h>
-#include <kernel/status.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <string.h>
@@ -174,9 +174,11 @@ static void updateleds(void) {
     for (struct list_node *devnode = s_keyboardlist.front; devnode != NULL; devnode = devnode->next) {
         struct kbddev *device = devnode->data;
         assert(device);
-        status_t status = device->ops->updateleds(device, scroll, caps, num);
-        if (status != OK) {
-            iodev_printf(&device->iodev, "failed to set LED state (error %d)\n", status);
+        int ret = device->ops->updateleds(device, scroll, caps, num);
+        if (ret < 0) {
+            iodev_printf(
+                &device->iodev,
+                "failed to set LED state (error %d)\n", ret);
         }
     }
 }
@@ -202,10 +204,11 @@ static struct queue *eventqueue(void) {
 
 static void enqueueevent(struct kbd_keyevent const *event) {
     bool previnterrupts = arch_interrupts_disable();
-    status_t status = QUEUE_ENQUEUE(eventqueue(), event);
+    int ret = QUEUE_ENQUEUE(eventqueue(), event);
     interrupts_restore(previnterrupts);
-    if (status != OK) {
-        tty_printf("kbd: failed to enqueue key event (error %d)\n", status);
+    if (ret < 0) {
+        tty_printf(
+            "kbd: failed to enqueue key event (error %d)\n", ret);
     }
 }
 
@@ -340,15 +343,21 @@ void kbd_keyreleased(enum kbd_key key) {
     }
 }
 
-FAILABLE_FUNCTION kbd_register(struct kbddev *dev_out, struct kbddev_ops const *ops, void *data) {
-FAILABLE_PROLOGUE
+WARN_UNUSED_RESULT int kbd_register(
+    struct kbddev *dev_out, struct kbddev_ops const *ops, void *data)
+{
+    int result = 0;
     bool previnterrupts = arch_interrupts_disable();
     memset(dev_out, 0, sizeof(*dev_out));
     dev_out->data = data;
     dev_out->ops = ops;
-    TRY(iodev_register(&dev_out->iodev, IODEV_TYPE_KEYBOARD, dev_out));
-FAILABLE_EPILOGUE_BEGIN
+    result = iodev_register(
+        &dev_out->iodev, IODEV_TYPE_KEYBOARD, dev_out);
+    if (result < 0) {
+        goto out;
+    }
+out:
     interrupts_restore(previnterrupts);
-FAILABLE_EPILOGUE_END
+    return result;
 }
 

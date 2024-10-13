@@ -9,12 +9,12 @@
 #include <kernel/mem/heap.h>
 #include <kernel/panic.h>
 #include <kernel/raster/fb.h>
-#include <kernel/status.h>
 #include <kernel/ticktime.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
 
 // It's 90s code time - I mean, time for many diagnostic overrides!
 #pragma GCC diagnostic push
@@ -104,9 +104,11 @@ SHELLFUNC static void* dopen(const char* filename, const char* mode) {
         return NULL;
     }
     struct fd *fd;
-    status_t status = vfs_openfile(&fd, filename, 0);
-    if (status != OK) {
-        tty_printf("[kdoom] failed to open file %s (error %d)\n", filename, status);
+    int ret = vfs_openfile(&fd, filename, 0);
+    if (ret < 0) {
+        tty_printf(
+            "[kdoom] failed to open file %s (error %d)\n",
+            filename, ret);
         return NULL;
     }
     tty_printf("[kdoom] opened file %s (fd %p)\n", filename, fd);
@@ -123,13 +125,13 @@ SHELLFUNC static void dclose(void* handle) {
 
 SHELLFUNC static int dread(void* handle, void *buf, int count) {
     size_t len = count;
-    status_t status = vfs_readfile(handle, buf, &len);
-    if (status != OK) {
+    ssize_t ret = vfs_readfile(handle, buf, len);
+    if (ret < 0) {
         tty_printf("[kdoom] failed to read file %p\n", handle);
         // idk if returning -1 is correct behavior
         return -1;
     }
-    return len;
+    return ret;
 }
 
 SHELLFUNC static int dwrite(void* handle, const void *buf, int count) {
@@ -155,8 +157,8 @@ SHELLFUNC static int dseek(void* handle, int offset, doom_seek_t origin) {
         default:
             panic("kdoom: unknown origin value");
     }
-    status_t status = vfs_seekfile(handle, offset, whence);
-    if (status != OK) {
+    int ret = vfs_seekfile(handle, offset, whence);
+    if (ret < 0) {
         tty_printf("[kdoom] failed to seek file %p\n", handle);
         // idk if returning -1 is correct behavior
         return -1;

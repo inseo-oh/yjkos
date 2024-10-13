@@ -1,14 +1,13 @@
 #pragma once
-#include "ioport.h"
 #include "pic.h"
+#include <kernel/lib/diagnostics.h>
 #include <kernel/io/stream.h>
-#include <kernel/status.h>
 #include <stdbool.h>
 #include <stdint.h>
 
 struct archx86_serial {
     struct stream stream;
-    uint32_t masterclock;
+    int32_t masterclock;
     uint16_t baseaddr;
     struct archx86_pic_irqhandler irqhandler;
     uint8_t irq;
@@ -21,6 +20,9 @@ struct archx86_serial {
     bool useirq : 1;
 };
 
-FAILABLE_FUNCTION archx86_serial_init(struct archx86_serial *out, uint16_t baseaddr, uint32_t masterclock, uint8_t irq);
-FAILABLE_FUNCTION archx86_serial_config(struct archx86_serial *self, uint32_t baudrate);
+WARN_UNUSED_RESULT int archx86_serial_init(
+    struct archx86_serial *out, uint16_t baseaddr, int32_t masterclock,
+    uint8_t irq);
+WARN_UNUSED_RESULT int archx86_serial_config(
+    struct archx86_serial *self, uint32_t baudrate);
 void archx86_serial_useirq(struct archx86_serial *self);

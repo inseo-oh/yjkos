@@ -1,11 +1,11 @@
 #include "shell.h"
 #include <assert.h>
 #include <kernel/io/tty.h>
+#include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
 #include <kernel/lib/smatcher.h>
 #include <kernel/mem/heap.h>
 #include <kernel/panic.h>
-#include <kernel/status.h>
 #include <limits.h>
 #include <stdint.h>
 #include <string.h>
@@ -40,8 +40,9 @@ union shellcmd {
 
 SHELLBSS static struct list s_programs;
 
-SHELLFUNC static FAILABLE_FUNCTION parsecmd(union shellcmd *out, struct smatcher *cmdstr) {
-FAILABLE_PROLOGUE
+// Returns shell exit code (See SHELL_EXITCODE_~)
+SHELLFUNC WARN_UNUSED_RESULT static int parsecmd(union shellcmd *out, struct smatcher *cmdstr) {
+    int result = SHELL_EXITCODE_OK;
     size_t oldcurrentindex = cmdstr->currentindex;
     char **argv = NULL;
     int argc = 0;
@@ -51,29 +52,33 @@ FAILABLE_PROLOGUE
     } else {
         while(1) {
             smatcher_skipwhitespaces(cmdstr);
-            if (cmdstr->currentindex == cmdstr->len || (smatcher_consumestringifmatch(cmdstr, ";"))) {
+            if (
+                (cmdstr->currentindex == cmdstr->len) ||
+                (smatcher_consumestringifmatch(cmdstr, ";"))
+            ) {
                 break;
             }
             char const *str;
             size_t len;
-            bool matchok = smatcher_consumeword(&str, &len, cmdstr);
+            bool matchok = smatcher_consumeword(
+                &str, &len, cmdstr);
             (void)matchok;
             assert(matchok);
             if (argc == INT_MAX) {
-                THROW(ERR_NOMEM);
+                goto fail_alloc;
             }
             size_t newargc = argc + 1;
             if ((SIZE_MAX / sizeof(void *)) < (size_t)argc) {
-                THROW(ERR_NOMEM);
+                goto fail_alloc;
             }
             size_t newargvsize = newargc * sizeof(void *);
             argv = heap_realloc(argv, newargvsize, 0);
             if (argv == NULL) {
-                THROW(ERR_NOMEM);
+                goto fail_alloc;
             }
             argv[newargc - 1] = heap_alloc(len + 1, 0);
             if (argv[newargc - 1] == NULL) {
-                THROW(ERR_NOMEM);
+                goto fail_alloc;
             }
             memcpy(argv[newargc - 1], str, len);
             argv[newargc - 1][len] = '\0';
@@ -83,15 +88,17 @@ FAILABLE_PROLOGUE
         out->runprogram.argc = argc;
         out->runprogram.argv = argv;
     }
-FAILABLE_EPILOGUE_BEGIN
-    if (DID_FAIL) {
+    goto out;
+fail_alloc:
+    if (argv != NULL) {
         for (int i = 0; i < argc; i++) {
             heap_free(argv[i]);
         }
         heap_free(argv);
-        cmdstr->currentindex = oldcurrentindex;
     }
-FAILABLE_EPILOGUE_END
+    cmdstr->currentindex = oldcurrentindex;
+out:
+    return result;
 }
 
 SHELLFUNC static void cmd_destroy(union shellcmd *cmd) {
@@ -153,29 +160,30 @@ SHELLFUNC static void registerprogram(struct shell_program *program) {
     list_insertback(&s_programs, &program->node, program);
 }
 
-SHELLFUNC FAILABLE_FUNCTION shell_execcmd(char const *str) {
-FAILABLE_PROLOGUE
+SHELLFUNC int shell_execcmd(char const *str) {
+    int ret;
     union shellcmd cmd;
     struct smatcher linematcher;
     smatcher_init(&linematcher, str);
-    TRY(parsecmd(&cmd, &linematcher));
+    ret = parsecmd(&cmd, &linematcher); 
+    if (ret < 0) {
+        return ret;
+    }
     if (cmd.kind != CMDKIND_EMPTY) {
         if (CONFIG_DUMPCMD) {
             cmd_dump(&cmd);
         }
         int e = cmd_exec(&cmd);
-        if (e != 0) {
-            THROW(ERR_SUBCMDDIED);
-        }
         cmd_destroy(&cmd);
+        if (e != 0) {
+            return e;
+        }
     }
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return 0;
 }
 
 SHELLFUNC void shell_repl(void) {
     char cmdline[SHELL_MAX_CMDLINE_LEN + 1];
-    status_t status;
 
     while(1) {
         size_t cursorpos = 0;
@@ -202,9 +210,9 @@ SHELLFUNC void shell_repl(void) {
             }
         }
 
-        status = shell_execcmd(cmdline);
-        if (status != OK) {
-            tty_printf("command error %d\n", status);
+        int ret = shell_execcmd(cmdline);
+        if (ret != 0) {
+            tty_printf("command error %d\n", ret);
         }
     }
 }

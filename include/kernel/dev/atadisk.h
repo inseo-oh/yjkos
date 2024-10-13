@@ -1,6 +1,6 @@
 #pragma once
+#include <kernel/lib/diagnostics.h>
 #include <kernel/io/disk.h>
-#include <kernel/status.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -46,7 +46,7 @@ struct atadisk_ops {
     void (*lock)(struct atadisk *self);
     void (*unlock)(struct atadisk *self);
     uint8_t (*readstatus)(struct atadisk *self);
-    FAILABLE_FUNCTION (*selectdisk)(struct atadisk *self);
+    void (*selectdisk)(struct atadisk *self);
     void (*setfeaturesparam)(struct atadisk *self, uint16_t data);
     void (*setcountparam)(struct atadisk *self, uint16_t data);
     void (*setlbaparam)(struct atadisk *self, uint32_t data);
@@ -69,8 +69,8 @@ struct atadisk_ops {
     // 6. [DMA] Deinitialize DMA transfer
     // (Step 5 and 6 are separate, so that DMA can be deinitialized safely if something fails between
     // Step 1 and Step 3)
-    FAILABLE_FUNCTION (*dma_inittransfer)(struct atadisk *self, void *buffer, size_t len, bool isread);
-    FAILABLE_FUNCTION (*dma_begintransfer)(struct atadisk *self);
+    WARN_UNUSED_RESULT int (*dma_inittransfer)(struct atadisk *self, void *buffer, size_t len, bool isread);
+    WARN_UNUSED_RESULT int (*dma_begintransfer)(struct atadisk *self);
     enum ata_dmastatus (*dma_checktransfer)(struct atadisk *self);
     void (*dma_endtransfer)(struct atadisk *self, bool wasSuccess);
     void (*dma_deinittransfer)(struct atadisk *self);
@@ -81,4 +81,5 @@ struct atadisk {
     void *data;
 };
 
-FAILABLE_FUNCTION atadisk_register(struct atadisk *disk_out, struct atadisk_ops const *ops, void *data);
+WARN_UNUSED_RESULT int atadisk_register(
+    struct atadisk *disk_out, struct atadisk_ops const *ops, void *data);

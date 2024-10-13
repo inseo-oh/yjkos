@@ -9,7 +9,6 @@
 #include <kernel/mem/pmm.h>
 #include <kernel/mem/vmm.h>
 #include <kernel/panic.h>
-#include <kernel/status.h>
 #include <kernel/types.h>
 #include <stdalign.h>
 #include <stdbool.h>
@@ -564,12 +563,15 @@ void heap_expand(void) {
     if (MAXEXPANDSIZE < heapsize) {
         heapsize = MAXEXPANDSIZE;
     }
-    status_t status = vmm_alloc(&object, vmm_get_kernel_addressspace(), heapsize, MAP_PROT_READ | MAP_PROT_WRITE);
-    if (status != OK) {
-        tty_printf("could not expand heap (error %d)\n", status);
+    object = vmm_alloc(
+        vmm_get_kernel_addressspace(), heapsize,
+        MAP_PROT_READ | MAP_PROT_WRITE);
+    if (object == NULL) {
+        tty_printf("not enough memory to expand heap\n");
         goto out;
     }
-    addmem((void *)object->startaddress, object->endaddress - object->startaddress + 1);
+    addmem((void *)object->startaddress,
+        object->endaddress - object->startaddress + 1);
 out:
     interrupts_restore(previnterrupts);
 }

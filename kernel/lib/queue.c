@@ -1,6 +1,6 @@
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/queue.h>
-#include <kernel/status.h>
+#include <errno.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -19,21 +19,21 @@ bool queue_isempty(struct queue const *self) {
     return ((self->enqueueindex == self->dequeueindex) && (!self->lastwasenqueue));
 }
 
-FAILABLE_FUNCTION queue_enqueue_impl(struct queue *self, void const *data, size_t itemsize) {
-FAILABLE_PROLOGUE
+WARN_UNUSED_RESULT int queue_enqueue_impl(
+    struct queue *self, void const *data, size_t itemsize) {
     assert(itemsize == self->itemsize);
     if (queue_isfull(self)) {
-        THROW(ERR_NOMEM);
+        return -ENOMEM;
     }
     size_t enqueueindex = (self->enqueueindex + 1) % self->cap;
     memcpy((void *)(((uintptr_t)self->buf) + (self->enqueueindex * itemsize)), data, itemsize);
     self->enqueueindex = enqueueindex;
     self->lastwasenqueue = true;
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return 0;
 }
 
-WARN_UNUSED_RESULT bool queue_dequeue_impl(void *out_buf, struct queue *self, size_t itemsize) {
+WARN_UNUSED_RESULT bool queue_dequeue_impl(
+    void *out_buf, struct queue *self, size_t itemsize) {
     assert(itemsize == self->itemsize);
     if (queue_isempty(self)) {
         return false;

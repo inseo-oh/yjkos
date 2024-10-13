@@ -9,7 +9,6 @@
 #include <kernel/mem/heap.h>
 #include <kernel/mem/pmm.h>
 #include <kernel/panic.h>
-#include <kernel/status.h>
 #include <kernel/types.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -120,21 +119,22 @@ static size_t blocksize_to_pagepoollevel(struct pagepool const *pool, size_t siz
 }
 
 
-static FAILABLE_FUNCTION allocfrompool(physptr *addr_out, struct pagepool *pool, size_t *pagecount_inout) {
-FAILABLE_PROLOGUE
-    if (*pagecount_inout == 0) {
-        THROW(ERR_NOMEM);
-    }
+/*
+ * Returns NULL on allocation failure
+ */
+static physptr allocfrompool(struct pagepool *pool, size_t *pagecount_inout) {
+    assert(*pagecount_inout != 0);
+    physptr result = PHYSICALPTR_NULL;
     // Adjust page size to nearest 2^n
     size_t blocksize = 1;
     while (blocksize < *pagecount_inout) {
         if ((SIZE_MAX / 2) < blocksize) {
-            THROW(ERR_NOMEM);
+            goto fail_oom;
         }
         blocksize *= 2;
     }
     if (pool->pagecount < blocksize) {
-        THROW(ERR_NOMEM);
+        goto fail_oom;
     }
     *pagecount_inout = blocksize;
     size_t wantedlevel = blocksize_to_pagepoollevel(pool, blocksize);
@@ -150,7 +150,7 @@ FAILABLE_PROLOGUE
             break;
         }
         if (foundlevel == 0) {
-            THROW(ERR_NOMEM);
+            goto fail_oom;
         }
         foundlevel--;
     }
@@ -168,10 +168,12 @@ FAILABLE_PROLOGUE
     // Mark resulting block as unavailable
     long bitindex = bitindex_for_pagepoolblock(wantedlevel, currentblockindex);
     bitmap_clearbit(&pool->bitmap,bitindex);
-
-    *addr_out = pool->baseaddr + (blocksize * currentblockindex * ARCH_PAGESIZE);
-FAILABLE_EPILOGUE_BEGIN 
-FAILABLE_EPILOGUE_END 
+    result = pool->baseaddr + (blocksize * currentblockindex * ARCH_PAGESIZE);
+    goto out;
+fail_oom:
+    result = PHYSICALPTR_NULL;
+out:
+    return result;
 }
 
 static void freefrompool(struct pagepool *pool, physptr ptr, size_t pagecount) {
@@ -243,9 +245,9 @@ static bool testpagepool(struct pagepool *pool) {
         physptr expectedptr = pool->baseaddr;
         for (size_t i = 0; i < currentalloccount; i++, expectedptr += currentallocsize) {
             size_t resultpagecount = currentpagecount;
-            physptr allocptr;
-            status_t status = allocfrompool(&allocptr, pool, &resultpagecount);
-            if (status != OK) {
+            physptr allocptr = allocfrompool(
+                pool, &resultpagecount);
+            if (allocptr == PHYSICALPTR_NULL) {
                 tty_printf("could not allocate pages(allocation %zu, page count %zu)\n", i, currentpagecount);
                 goto testfail;
             }
@@ -343,28 +345,20 @@ void pmm_register(physptr base, size_t pagecount) {
     }
 }
 
-FAILABLE_FUNCTION pmm_alloc(physptr *ptr_out, size_t *pagecount_inout) {
-FAILABLE_PROLOGUE
+physptr pmm_alloc(size_t *pagecount_inout) {
+    assert(*pagecount_inout != 0);
     bool previnterrupts = arch_interrupts_disable();
-    if (*pagecount_inout == 0) {
-        THROW(ERR_NOMEM);
-    }
-    bool ok = false;
+    physptr result = PHYSICALPTR_NULL;
     for (struct pagepool *pool = s_firstpool; pool != NULL; pool = pool->nextpool) {
         size_t newpagecount = *pagecount_inout;
-        status_t status = allocfrompool(ptr_out, pool, &newpagecount);
-        if (status == OK) {
+        result = allocfrompool(pool, &newpagecount);
+        if (result != PHYSICALPTR_NULL) {
             *pagecount_inout = newpagecount;
-            ok = true;
             break;
         }
     }
-    if (!ok) {
-        THROW(ERR_NOMEM);
-    }
-FAILABLE_EPILOGUE_BEGIN
     interrupts_restore(previnterrupts);
-FAILABLE_EPILOGUE_END
+    return result;
 }
 
 void pmm_free(physptr ptr, size_t pagecount) {
@@ -423,8 +417,8 @@ bool pmm_pagepool_test_random(void) {
     for (size_t i = 0; i < RAND_TEST_ALLOC_COUNT; i++) {
         while(1) {
             allocsizes[i] = rand() % maxpagecount;
-            status_t status = pmm_alloc(&allocptrs[i], &allocsizes[i]);
-            if (status == OK) {
+            allocptrs[i] = pmm_alloc(&allocsizes[i]);
+            if (allocptrs[i] != PHYSICALPTR_NULL) {
                 break;
             }
         }

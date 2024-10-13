@@ -3,6 +3,7 @@
 #include <stddef.h>
 
 typedef unsigned int     uint;
+typedef unsigned long    ulong;
 typedef uintptr_t        physptr;
 #define PHYSICALPTR_NULL ((physptr)0)
 

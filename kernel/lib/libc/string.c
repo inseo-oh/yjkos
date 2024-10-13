@@ -1,5 +1,4 @@
 #include <kernel/mem/heap.h>
-#include <kernel/status.h>
 #include <stddef.h>
 #include <string.h>
 #ifndef YJKERNEL_SOURCE
@@ -114,24 +113,12 @@ char *strdup(char const *s) {
     return mem;
 oom:
 #ifndef YJKERNEL_SOURCE
-    // We don't have global errno in kernel, so errno setup can only be done in userspace libc.
+    /*
+     * We don't have global errno in kernel, so errno setup can only be done in 
+     * userspace libc.
+     */
+    // 
     assert(!"TODO: Set errno value");
 #endif
     return NULL;
 }
-
-#ifdef YJKERNEL_SOURCE
-#include <kernel/status.h>
-
-FAILABLE_FUNCTION kstrdup(char **out, char const *s) {
-FAILABLE_PROLOGUE
-    char *result = strdup(s);
-    if (result == NULL) {
-        THROW(ERR_NOMEM);
-    }
-    *out = result;
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
-}
-
-#endif

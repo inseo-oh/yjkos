@@ -1,10 +1,10 @@
 #include <kernel/arch/interrupts.h>
 #include <kernel/io/iodev.h>
 #include <kernel/io/tty.h>
+#include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
 #include <kernel/mem/heap.h>
 #include <kernel/panic.h>
-#include <kernel/status.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <string.h>
@@ -16,7 +16,7 @@ struct iodevtype {
     _Atomic size_t nextid;
 };
 
-static struct list s_devtypes; // Contains iodevtype_t nodes.
+static struct list s_devtypes; // Contains iodevtype nodes.
 
 static struct iodevtype *getiodevtypefor(char const *devtype) {
     for (struct list_node *typenode = s_devtypes.front; typenode != NULL; typenode = typenode->next) {
@@ -28,8 +28,10 @@ static struct iodevtype *getiodevtypefor(char const *devtype) {
     return NULL;
 }
 
-FAILABLE_FUNCTION iodev_register(struct iodev *dev_out, char const *devtype, void *data) {
-FAILABLE_PROLOGUE
+WARN_UNUSED_RESULT bool iodev_register(
+    struct iodev *dev_out, char const *devtype, void *data)
+{
+    bool result = true;
     bool previnterrupts = arch_interrupts_disable();
     // Look for existing iodevtype_t
     dev_out->devtype = devtype;
@@ -37,9 +39,10 @@ FAILABLE_PROLOGUE
     struct iodevtype *desttype = getiodevtypefor(devtype);
     // If there's no such type, create a new type.
     if (desttype == NULL) {
-        struct iodevtype *type = heap_alloc(sizeof(*type), HEAP_FLAG_ZEROMEMORY);
+        struct iodevtype *type = heap_alloc(
+            sizeof(*type), HEAP_FLAG_ZEROMEMORY);
         if (type == NULL) {
-            THROW(ERR_NOMEM);
+            goto fail_oom;
         }
         type->name = devtype;
         desttype = type;
@@ -50,11 +53,14 @@ FAILABLE_PROLOGUE
         // nextid overflowed
         panic("iodev: TODO: Handle nextid integer overflow");
     }
-    list_insertback(&desttype->devices, &dev_out->node, dev_out);
-
-FAILABLE_EPILOGUE_BEGIN
+    list_insertback(
+        &desttype->devices, &dev_out->node, dev_out);
+    goto out;
+fail_oom:
+    result = false;
+out:
     interrupts_restore(previnterrupts);
-FAILABLE_EPILOGUE_END
+    return result;
 }
 
 void iodev_printf(struct iodev *device, char const *fmt, ...) {

@@ -1,7 +1,7 @@
 #include "psf.h"
 #include <kernel/mem/heap.h>
-#include <kernel/status.h>
 #include <kernel/io/tty.h>
+#include <kernel/lib/diagnostics.h>
 #include <kernel/lib/miscmath.h>
 #include <kernel/panic.h>
 #include <stddef.h>
@@ -17,59 +17,72 @@ static uint32_t s_fontheight;
 static size_t s_bytesperglyph;
 static size_t s_glyphcount;
 
-// https://scripts.sil.org/cms/scripts/page.php?id=iws-appendixa&site_id=nrsi
-static FAILABLE_FUNCTION utf8_getbyteslen(size_t *out, uint8_t leadingbyte) {
-FAILABLE_PROLOGUE
-    size_t bytelen;
+/*
+ * Returns -1 if if input is invalid.
+ */
+WARN_UNUSED_RESULT int utf8_getbyteslen(uint8_t leadingbyte) {
+    // https://scripts.sil.org/cms/scripts/page.php?id=iws-appendixa&site_id=nrsi
     if (leadingbyte < 128) {
-        bytelen = 1;
+        return 1;
     } else if ((leadingbyte & 0xe0) == 0xc0) {
-        bytelen = 2;
+        return 2;
     } else if ((leadingbyte & 0xf0) == 0xe0) {
-        bytelen = 3;
+        return 3;
     } else if ((leadingbyte & 0xf8) == 0xf0) {
-        bytelen = 4;
+        return 4;
     } else {
-        THROW(ERR_INVAL);
+        return -1;
     }
-    *out = bytelen;
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
 } 
 
-// WARNING: Be sure to get how much bytes are needed before calling this function,
-//          and make sure this function will not cause index out-of-bounds error.
-// https://scripts.sil.org/cms/scripts/page.php?id=iws-appendixa&site_id=nrsi
-static FAILABLE_FUNCTION utf8_tocodepoint(uint32_t *out, uint8_t *buf) {
-FAILABLE_PROLOGUE
+/*
+ * WARNING: Be sure to get how much bytes are needed before calling this
+ *          function, and make sure this function will not cause index
+ *          out-of-bounds error.
+ *
+ * Returns -1 if input is invalid.
+ */
+static int32_t utf8_tocodepoint(uint8_t *buf) {
+    // https://scripts.sil.org/cms/scripts/page.php?id=iws-appendixa&site_id=nrsi
+    int32_t result;
     if (buf[0] < 128) {
-        *out = buf[0];
+        result = buf[0];
     } else if ((buf[0] & 0xe0) == 0xc0) {
         if ((buf[1] & 0xc0) != 0x80) {
-            THROW(ERR_INVAL);
+            goto badcode;
         }
-        *out = ((uint32_t)(buf[0] & 0x1f) << 6) |
-               (uint32_t)(buf[1] & 0x3f);
+        result = ((uint32_t)(buf[0] & 0x1f) << 6) |
+                 (uint32_t)(buf[1] & 0x3f);
     } else if ((buf[0] & 0xf0) == 0xe0) {
-        if (((buf[1] & 0xc0) != 0x80) || ((buf[2] & 0xc0) != 0x80)) {
-            THROW(ERR_INVAL);
+        if (
+            ((buf[1] & 0xc0) != 0x80) ||
+            ((buf[2] & 0xc0) != 0x80)
+        ) {
+            goto badcode;
         }
-        *out = ((uint32_t)(buf[0] & 0x0f) << 12) |
-               ((uint32_t)(buf[1] & 0x3f) << 6) |
-               (uint32_t)(buf[2] & 0x3f);
+        result = ((uint32_t)(buf[0] & 0x0f) << 12) |
+                 ((uint32_t)(buf[1] & 0x3f) << 6) |
+                 (uint32_t)(buf[2] & 0x3f);
     } else if ((buf[0] & 0xf8) == 0xf0) {
-        if (((buf[1] & 0xc0) != 0x80) || ((buf[2] & 0xc0) != 0x80) || ((buf[3] & 0xc0) != 0x80)) {
-            THROW(ERR_INVAL);
+        if (
+            ((buf[1] & 0xc0) != 0x80) ||
+            ((buf[2] & 0xc0) != 0x80) ||
+            ((buf[3] & 0xc0) != 0x80)
+        ) {
+            goto badcode;
         }
-        *out = ((uint32_t)(buf[0] & 0x07) << 18) |
-               ((uint32_t)(buf[1] & 0x3f) << 12) |
-               ((uint32_t)(buf[2] & 0x3f) << 6) |
-               (uint32_t)(buf[3] & 0x3f);
+        result = ((uint32_t)(buf[0] & 0x07) << 18) |
+                 ((uint32_t)(buf[1] & 0x3f) << 12) |
+                 ((uint32_t)(buf[2] & 0x3f) << 6) |
+                 (uint32_t)(buf[3] & 0x3f);
     } else {
-        THROW(ERR_INVAL);
+        goto badcode;
     }
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    goto out;
+badcode:
+    result = -1;
+out:
+    return result;
 }
 
 void psf_init(void) {
@@ -122,32 +135,29 @@ void psf_init(void) {
             glyph++;
             continue;
         } 
-        size_t byteslen;
-        status_t status = utf8_getbyteslen(&byteslen, b);
-        uint32_t unicode;
-        if (status != OK) {
-            tty_printf("psf: utf8_getbyteslen %02x\n", b);
-            goto unicodebad;
+        int byteslen = utf8_getbyteslen(b);
+        int32_t unicode;
+        if (byteslen < 0) {
+            goto badcode;
         }
         // Make sure we don't get EOL or EOF.
-        for (size_t i = 1; i < byteslen; i++) {
+        for (int i = 1; i < byteslen; i++) {
             if (_binary_kernelfont_psf_end <= &nextchr[i]) {
                 tty_printf("psf: &_binary_kernelfont_psf_end <= &nextchr[i]\n");
-                goto unicodebad;
+                goto badcode;
             }
             if (nextchr[i] == 0xff) {
                 tty_printf("psf: nextchr[i] == 0xff\n");
-                goto unicodebad;
+                goto badcode;
             }
         }
-        status = utf8_tocodepoint(&unicode, nextchr);
-        if (status != OK) {
-            tty_printf("psf: utf8_tocodepoint\n");
-            goto unicodebad;
+        unicode = utf8_tocodepoint(nextchr);
+        if (unicode < 0) {
+            goto badcode;
         }
         nextchr += byteslen;
         goto unicodedone;
-    unicodebad:
+    badcode:
         tty_printf("psf: unicode table entry #%zu - illegal utf-8 sequence\n", glyph);
         unicode = b;
         nextchr++;

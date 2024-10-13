@@ -4,10 +4,10 @@
 #include <kernel/io/vt100tty.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/mem/vmm.h>
-#include <kernel/status.h>
 #include <kernel/types.h>
 #include <stdint.h>
 #include <string.h>
+#include <sys/types.h>
 
 static struct stream s_stream;
 
@@ -48,22 +48,22 @@ static void writechar(char chr) {
     s_currentcolumn++;
 }
 
-static FAILABLE_FUNCTION stream_op_write(struct stream *self, void *data, size_t size) {
-FAILABLE_PROLOGUE
+static WARN_UNUSED_RESULT ssize_t stream_op_write(
+    struct stream *self, void *data, size_t size) {
     (void)self;
+    assert(size <= STREAM_MAX_TRANSFER_SIZE);
 
     for (size_t idx = 0; idx < size; idx++) {
         uint8_t c = ((uint8_t *)data)[idx];
         writechar(c);
     }
-    updatescreen(s_screenlines);
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return size;
 }
 
-static FAILABLE_FUNCTION stream_op_read(size_t *size_out, struct stream *self, void *buf, size_t size) {
-FAILABLE_PROLOGUE
+static WARN_UNUSED_RESULT ssize_t stream_op_read(
+    struct stream *self, void *buf, size_t size) {
     (void)self;
+    assert(size <= STREAM_MAX_TRANSFER_SIZE);
     
     size_t read_len = 0;
     for (size_t idx = 0; idx < size; idx++) {
@@ -81,14 +81,18 @@ FAILABLE_PROLOGUE
         *((uint8_t *)buf) = event.chr;
         read_len++;
     }
-    *size_out = read_len;
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return read_len;
+}
+
+static void stream_op_flush(struct stream *self) {
+    (void)self;
+    updatescreen(s_screenlines);
 }
 
 static struct stream_ops const OPS = {
     .write = stream_op_write,
     .read = stream_op_read,
+    .flush = stream_op_flush,
 };
 
 void vt100tty_init(struct vt100tty_screenline *screenlines, size_t columns, size_t rows, void (*updatescreen_op)(struct vt100tty_screenline *s_screenlines)) {

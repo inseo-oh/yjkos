@@ -1,8 +1,8 @@
 #pragma once
 #include <kernel/types.h>
 #include <kernel/lib/bst.h> 
+#include <kernel/lib/diagnostics.h> 
 #include <kernel/lib/list.h> 
-#include <kernel/status.h> 
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -29,17 +29,39 @@ struct vmobject {
 
 static physptr const VMM_PHYSADDR_NOMAP = ~0;
 
-FAILABLE_FUNCTION vmm_init_addressspace(struct addressspace *out, uintptr_t startaddress, uintptr_t endaddress, bool is_user);
+/*
+ * Returns NULL on allocation failure
+ */
+WARN_UNUSED_RESULT bool vmm_init_addressspace(struct addressspace *out, uintptr_t startaddress, uintptr_t endaddress, bool is_user);
 void vmm_deinit_addressspace(struct addressspace *self);
 
 // XXX: Instead of accepting addressspace, figure out addressspace itself.
 
-FAILABLE_FUNCTION vmm_alloc_object(struct vmobject **out, struct addressspace *self, physptr physicalbase, size_t size, uint8_t mapflags);
-FAILABLE_FUNCTION vmm_alloc_object_at(struct vmobject **out, struct addressspace *self, uintptr_t virtualbase, physptr physicalbase, size_t size, uint8_t mapflags);
-FAILABLE_FUNCTION vmm_alloc(struct vmobject **out, struct addressspace *self, size_t size, uint8_t mapflags);
-FAILABLE_FUNCTION vmm_alloc_at(struct vmobject **out, struct addressspace *self, uintptr_t virtualbase, size_t size, uint8_t mapflags);
-FAILABLE_FUNCTION vmm_map(struct vmobject **out, struct addressspace *self, uintptr_t physicalbase, size_t size, uint8_t mapflags);
-FAILABLE_FUNCTION vmm_map_at(struct vmobject **out, struct addressspace *self, uintptr_t virtualbase, uintptr_t physicalbase, size_t size, uint8_t mapflags);
+WARN_UNUSED_RESULT struct vmobject *vmm_alloc_object(
+    struct addressspace *self, physptr physicalbase, size_t size,
+    uint8_t mapflags
+);
+WARN_UNUSED_RESULT struct vmobject *vmm_alloc_object_at(struct addressspace *self, uintptr_t virtualbase, physptr physicalbase, size_t size, uint8_t mapflags);
+WARN_UNUSED_RESULT struct vmobject *vmm_alloc(struct addressspace *self, size_t size, uint8_t mapflags);
+WARN_UNUSED_RESULT struct vmobject *vmm_alloc_at(struct addressspace *self, uintptr_t virtualbase, size_t size, uint8_t mapflags);
+WARN_UNUSED_RESULT struct vmobject *vmm_map(struct addressspace *self, uintptr_t physicalbase, size_t size, uint8_t mapflags);
+WARN_UNUSED_RESULT struct vmobject *vmm_map_at(struct addressspace *self, uintptr_t virtualbase, uintptr_t physicalbase, size_t size, uint8_t mapflags);
+/*
+ * "Easy" version of vmm_map/vmm_alloc_object. If it succeeds, it returns
+ * pointer to mapped memory (Not vmobject!). If it fails, it just panics.
+ * Allocated memory will be R+W permission.
+ * The purpose of this function is to simplify mapping hardware prepherals:
+ * ```
+ * char *vmem = vmm_ezmap(0xb80000, 4000); // So easy :D
+ * ```
+ *
+ * In addition to being easy wrapper for vmm_map, it also supports mapping
+ * addresses that are not at page boundary: The actual mapping will be done at
+ * page boundary, but then it adds appropriate offset and returns that pointer.
+ *
+ * `vmm_ezmap` has one caveat: There's no support for remap/unmapping. This is
+ * because the underlying vmobject is not returned for simplicity. 
+ */
 void *vmm_ezmap(physptr base, size_t size);
 void vmm_free(struct vmobject *object);
 struct addressspace *vmm_get_kernel_addressspace(void);

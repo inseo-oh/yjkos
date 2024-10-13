@@ -16,9 +16,11 @@ struct fd;
  * should go to individual process once we have those implemented. 
  */
 struct fd_ops {
-    ssize_t (*read)(struct fd *self, void *buf, size_t len);
-    ssize_t (*write)(struct fd *self, void const *buf, size_t len);
-    ssize_t (*seek)(struct fd *self, off_t offset, int whence);
+    WARN_UNUSED_RESULT ssize_t (*read)(struct fd *self, void *buf, size_t len);
+    WARN_UNUSED_RESULT ssize_t (*write)(
+        struct fd *self, void const *buf, size_t len);
+    WARN_UNUSED_RESULT int (*seek)(
+        struct fd *self, off_t offset, int whence);
     void (*close)(struct fd *self);
 };
 
@@ -31,19 +33,21 @@ struct fd {
 };
 
 WARN_UNUSED_RESULT int vfs_registerfile(
-    struct fd *out, struct fd_ops const *ops, struct vfs_fscontext *fscontext, 
+    struct fd *out, struct fd_ops const *ops, struct vfs_fscontext *fscontext,
     void *data);
 void vfs_unregisterfile(struct fd *self);
 
 ////////////////////////////////////////////////////////////////////////////////
 
 struct vfs_fstype_ops {
-    // When mounting disk, you just give VFS system some memory to store its own info, but
-    // it has to be cleared to zero, and set `data` to filesystem driver's private data.
+    /*
+     * When mounting disk, you just give VFS system some memory to store its
+     * own info. It has to be cleared to zero, and set `data` to filesystem
+     * driver's private data.
+     */
     WARN_UNUSED_RESULT int (*mount)(
         struct vfs_fscontext **out, struct ldisk *disk);
-    WARN_UNUSED_RESULT int (*umount)(
-        struct vfs_fscontext *self);
+    WARN_UNUSED_RESULT int (*umount)(struct vfs_fscontext *self);
     WARN_UNUSED_RESULT int (*open)(
         struct fd **out, struct vfs_fscontext *self, char const *path,
         int flags);
@@ -73,8 +77,7 @@ void vfs_mountroot(void);
 WARN_UNUSED_RESULT int vfs_openfile(
     struct fd **out, char const *path, int flags);
 void vfs_closefile(struct fd *fd);
-WARN_UNUSED_RESULT ssize_t vfs_readfile(
-    struct fd *fd, void *buf, size_t len);
-WARN_UNUSED_RESULT int vfs_writefile(
-    struct fd *fd, void const *buf, size_t *len_inout);
+WARN_UNUSED_RESULT ssize_t vfs_readfile(struct fd *fd, void *buf, size_t len);
+WARN_UNUSED_RESULT ssize_t vfs_writefile(
+    struct fd *fd, void const *buf, size_t len);
 WARN_UNUSED_RESULT int vfs_seekfile(struct fd *fd, off_t offset, int whence);

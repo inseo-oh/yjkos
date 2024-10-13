@@ -1,13 +1,15 @@
 #pragma once
 #include <kernel/types.h>
-#include <kernel/status.h>
 #include <stdalign.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
 
 void pmm_register(physptr base, size_t pagecount);
-FAILABLE_FUNCTION pmm_alloc(physptr *ptr_out, size_t *pagecount_inout);
+/*
+ * Returns NULL on failure
+ */
+physptr pmm_alloc(size_t *pagecount_inout);
 void pmm_free(physptr ptr, size_t pagecount);
 size_t pmm_get_totalmem(void);
 

@@ -1,9 +1,10 @@
 #include <kernel/dev/atadisk.h>
+#include <kernel/lib/diagnostics.h>
 #include <kernel/io/disk.h>
 #include <kernel/io/iodev.h>
 #include <kernel/io/tty.h>
-#include <kernel/status.h>
 #include <kernel/ticktime.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <string.h>
@@ -13,11 +14,11 @@ enum {
     MAX_RETRIES = 3,
 };
 
-static FAILABLE_FUNCTION waitirq(struct atadisk *disk) {
-FAILABLE_PROLOGUE
+static WARN_UNUSED_RESULT int waitirq(struct atadisk *disk) {
     enum {
         STATUS_POLL_PERIOD = 10,
     };
+    int ret = 0;
     ticktime starttime = g_ticktime;
     ticktime lastchecktime = 0;
     bool ok = false;
@@ -25,7 +26,8 @@ FAILABLE_PROLOGUE
         if (STATUS_POLL_PERIOD <= (lastchecktime - g_ticktime)) {
             uint8_t diskstatus = disk->ops->readstatus(disk);
             if (diskstatus & (ATA_STATUSFLAG_ERR | ATA_STATUSFLAG_DF)) {
-                THROW(ERR_IO);
+                ret = -EIO;
+                goto fail;
             }
             lastchecktime = g_ticktime;
         }
@@ -36,17 +38,20 @@ FAILABLE_PROLOGUE
         }
     }
     if (!ok) {
-        THROW(ERR_IO);
+        ret = -EIO;
+        goto fail;
     }
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    goto out;
+fail:
+out:
+    return ret;
 }
 
-static FAILABLE_FUNCTION waitbusyclear(struct atadisk *disk) {
-FAILABLE_PROLOGUE
+static WARN_UNUSED_RESULT int waitbusyclear(struct atadisk *disk) {
     enum {
         STATUS_POLL_PERIOD = 10,
     };
+    int ret = 0;
     ticktime starttime = g_ticktime;
     bool ok = false;
     while ((g_ticktime - starttime) < TIMEOUT) {
@@ -56,36 +61,46 @@ FAILABLE_PROLOGUE
             break;
         }
         if (diskstatus & (ATA_STATUSFLAG_ERR | ATA_STATUSFLAG_DF)) {
-                THROW(ERR_IO);
-            }
+            ret = -EIO;
+            goto fail;
+        }
     }
     if (!ok) {
-        THROW(ERR_IO);
+        ret = -EIO;
+        goto fail;
     }
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    goto out;
+fail:
+out:
+    return ret;
 }
 
-static FAILABLE_FUNCTION waitbusyclear_irq(struct atadisk *disk) {
-FAILABLE_PROLOGUE
+static WARN_UNUSED_RESULT int waitbusyclear_irq(struct atadisk *disk) {
+    int ret = 0;
     while(1) {
-        TRY(waitirq(disk));
+        ret = waitirq(disk);
+        if (ret < 0) {
+            goto fail;
+        }
         if (!(disk->ops->readstatus(disk) & ATA_STATUSFLAG_BSY)) {
             break;
         }
     }
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    goto out;
+fail:
+out:
+    return ret;
 }
 
-static FAILABLE_FUNCTION waitdrqset(struct atadisk *disk) {
-FAILABLE_PROLOGUE
+static WARN_UNUSED_RESULT int waitdrqset(struct atadisk *disk) {
+    int ret = 0;
     ticktime starttime = g_ticktime;
     bool ok = false;
     while ((g_ticktime - starttime) < TIMEOUT) {
         uint8_t diskstatus = disk->ops->readstatus(disk);
         if (diskstatus & (ATA_STATUSFLAG_ERR | ATA_STATUSFLAG_DF)) {
-            THROW(ERR_IO);
+            ret = -EIO;
+            goto fail;
         }
         if (diskstatus & ATA_STATUSFLAG_DRQ) {
             ok = true;
@@ -93,10 +108,13 @@ FAILABLE_PROLOGUE
         }
     }
     if (!ok) {
-        THROW(ERR_IO);
+        ret = -EIO;
+        goto fail;
     }
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    goto out;
+fail:
+out:
+    return ret;
 }
 
 static void extractstring_from_identifydata(char *dest, struct ata_databuf *rawdata, size_t startoffset, size_t endoffset) {
@@ -112,30 +130,41 @@ struct identifyresult {
     char modelnum[41];
 };
 
-static FAILABLE_FUNCTION identifydevice(struct identifyresult *out, struct atadisk *disk) {
-FAILABLE_PROLOGUE
-    TRY(disk->ops->selectdisk(disk));
+static WARN_UNUSED_RESULT int identifydevice(
+    struct identifyresult *out, struct atadisk *disk)
+{
+    int ret = 0;
+    disk->ops->selectdisk(disk);
     disk->ops->setlbaparam(disk, 0);
     disk->ops->issuecmd(disk, ATA_CMD_IDENTIFYDEVICE);
     uint8_t diskstatus = disk->ops->readstatus(disk);
     if (diskstatus == 0) {
         // Disk is not there
-        THROW(ERR_NODEV);
+        ret = -ENODEV;
+        goto fail;
     }
-    TRY(waitbusyclear_irq(disk));
+    ret = waitbusyclear_irq(disk);
+    if (ret < 0) {
+        goto fail;
+    }
 
-    // Wait for DRQ. waitdrqset() isn't used, because we also check LBA outputs while waiting.
+    /*
+     * Wait for DRQ. waitdrqset() isn't used, because we also check LBA outputs
+     * while waiting.
+     */
     ticktime starttime = g_ticktime;
     bool ok = false;
     while ((g_ticktime - starttime) < TIMEOUT) {
         uint32_t lba = disk->ops->getlbaoutput(disk);
         if ((lba & 0xffff00) != 0) {
             // Not an ATA device
-            THROW(ERR_NODEV);
+            ret = -ENODEV;
+            goto fail;
         }
         uint8_t diskstatus = disk->ops->readstatus(disk);
         if (diskstatus & (ATA_STATUSFLAG_ERR | ATA_STATUSFLAG_DF)) {
-            THROW(ERR_IO);
+            ret = -EIO;
+            goto fail;
         }
         if (diskstatus & ATA_STATUSFLAG_DRQ) {
             ok = true;
@@ -143,7 +172,8 @@ FAILABLE_PROLOGUE
         }
     }
     if (!ok) {
-        THROW(ERR_IO);
+        ret = -EIO;
+        goto fail;
     }
     struct ata_databuf buffer;
     disk->ops->readdata(&buffer, disk);
@@ -151,22 +181,28 @@ FAILABLE_PROLOGUE
     extractstring_from_identifydata(out->serial, &buffer, 10, 19);
     extractstring_from_identifydata(out->firmware, &buffer, 23, 26);
     extractstring_from_identifydata(out->modelnum, &buffer, 27, 46);
-
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    goto out;
+fail:
+out:
+    return ret;
 }
 
-static FAILABLE_FUNCTION flushcache(struct atadisk *disk) {
-FAILABLE_PROLOGUE
-    TRY(disk->ops->selectdisk(disk));
+static WARN_UNUSED_RESULT int flushcache(struct atadisk *disk) {
+    int ret = 0;
+    disk->ops->selectdisk(disk);
     disk->ops->issuecmd(disk, ATA_CMD_FLUSHCACHE);
-    TRY(waitbusyclear(disk));
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    ret = waitbusyclear(disk);
+    if (ret < 0) {
+        goto fail;
+    }
+    goto out;
+fail:
+out:
+    return ret;
 }
 
-static FAILABLE_FUNCTION writesectors(struct atadisk *disk, uint32_t lba, size_t sectorcount, void const *buf) {
-FAILABLE_PROLOGUE
+static WARN_UNUSED_RESULT int writesectors(struct atadisk *disk, uint32_t lba, size_t sectorcount, void const *buf) {
+    int ret = 0;
     disk->ops->lock(disk);
     bool candma = disk->ops->dma_beginsession(disk);
     size_t remainingsectorcount = sectorcount;
@@ -174,7 +210,7 @@ FAILABLE_PROLOGUE
     uint8_t const *srcbuf = buf;
 
     while(remainingsectorcount > 0) {
-        for (uint8_t try = 0; try < MAX_RETRIES; try++) {
+        for (int try = 0;; try++) {
             bool iscrcerror = false;
             bool dmainitialized = false;
             bool dmarunning = false;
@@ -182,19 +218,17 @@ FAILABLE_PROLOGUE
             if (ATA_MAX_SECTORS_PER_TRANSFER < remainingsectorcount) {
                 currentsectorcount = ATA_MAX_SECTORS_PER_TRANSFER;
             }
-            // dma_inittransfer can do both write and read to srcbuf, depending on whether it's read or write.
-            // so we have to manually cast to non-const pointer here, even though we are never writing to srcbuf.
-            FAILABLE_STATUS_VAR = disk->ops->dma_inittransfer(disk, (uint8_t *)srcbuf, currentsectorcount * ATA_SECTOR_SIZE, false);
-            if (FAILABLE_STATUS_VAR != OK) {
-                iodev_printf(&disk->physdisk.iodev, "failed to initialize DMA transfer (error %d)\n", FAILABLE_STATUS_VAR);
-                goto tryfailed;
+            if (candma) {
+                ret = disk->ops->dma_inittransfer(disk, (uint8_t *)srcbuf, currentsectorcount * ATA_SECTOR_SIZE, false);
+                if (ret < 0) {
+                    iodev_printf(
+                        &disk->physdisk.iodev,
+                        "failed to initialize DMA transfer\n");
+                    goto tryfailed;
+                }
+                dmainitialized = true;
             }
-            dmainitialized = true;
-            FAILABLE_STATUS_VAR = disk->ops->selectdisk(disk);
-            if (FAILABLE_STATUS_VAR != OK) {
-                iodev_printf(&disk->physdisk.iodev, "failed to select disk (error %d)\n", FAILABLE_STATUS_VAR);
-                goto tryfailed;
-            }
+            disk->ops->selectdisk(disk);
             disk->ops->setfeaturesparam(disk, 0);
             if (currentsectorcount == ATA_MAX_SECTORS_PER_TRANSFER) {
                 disk->ops->setcountparam(disk, 0);
@@ -205,15 +239,19 @@ FAILABLE_PROLOGUE
             if (candma) {
                 // Use DMA
                 disk->ops->issuecmd(disk, ATA_CMD_WRITEDMA);
-                FAILABLE_STATUS_VAR = disk->ops->dma_begintransfer(disk);
-                if (FAILABLE_STATUS_VAR != OK) {
-                    iodev_printf(&disk->physdisk.iodev, "failed to start DMA transfer (error %d)\n", FAILABLE_STATUS_VAR);
+                ret = disk->ops->dma_begintransfer(disk);
+                if (ret < 0) {
+                    iodev_printf(&disk->physdisk.iodev, "failed to start DMA transfer\n");
                     goto tryfailed;
                 }
                 dmarunning = true;
                 while (dmarunning) {
-                    TRY(waitirq(disk));
-                    enum ata_dmastatus dmastatus = disk->ops->dma_checktransfer(disk);
+                    ret = waitirq(disk);
+                    if (ret < 0) {
+                        goto tryfailed;
+                    }
+                    enum ata_dmastatus dmastatus =
+                        disk->ops->dma_checktransfer(disk);
                     switch (dmastatus) {
                         case ATA_DMASTATUS_BUSY:
                             continue;
@@ -221,14 +259,15 @@ FAILABLE_PROLOGUE
                             dmarunning = false;
                             break;
                         case ATA_DMASTATUS_FAIL_UDMA_CRC:
-                            FAILABLE_STATUS_VAR = ERR_IO;
+                            ret = -EIO;
                             iscrcerror = true;
                             goto tryfailed;
                         case ATA_DMASTATUS_FAIL_OTHER_IO:
-                            FAILABLE_STATUS_VAR = ERR_IO;
+                            ret = -EIO;
                             goto tryfailed;
                         case ATA_DMASTATUS_FAIL_NOMEM:
-                            THROW(ERR_NOMEM);
+                            ret = -ENOMEM;
+                            goto tryfailed;
                     }
                 }
                 disk->ops->dma_endtransfer(disk, true);
@@ -239,26 +278,37 @@ FAILABLE_PROLOGUE
                 disk->ops->issuecmd(disk, ATA_CMD_WRITESECTORS);
                 for (size_t sector = 0; sector < currentsectorcount; sector++) {
                     struct ata_databuf buffer;
-                    TRY(waitbusyclear(disk));
-                    TRY(waitdrqset(disk));
+                    ret = waitbusyclear(disk);
+                    if (ret < 0) {
+                        goto tryfailed;
+                    }
+                    ret = waitdrqset(disk);
+                    if (ret < 0) {
+                        goto tryfailed;
+                    }
                     for (size_t i = 0; i < 256; i++) {
                         buffer.data[i] = ((uint16_t)srcbuf[1] << 8) | srcbuf[0];
                         srcbuf += 2;
                     }
                     disk->ops->writedata(disk, &buffer);
-                    TRY(waitbusyclear_irq(disk));
+                    ret = waitbusyclear_irq(disk);
+                    if (ret < 0) {
+                        goto tryfailed;
+                    }
                 }
             }
             remainingsectorcount -= currentsectorcount;
             currentlba += currentsectorcount;
-            FAILABLE_STATUS_VAR = waitbusyclear(disk);
-            if (FAILABLE_STATUS_VAR != OK) {
-                iodev_printf(&disk->physdisk.iodev, "failed to wait for write to finish (error %d)\n", FAILABLE_STATUS_VAR);
+            ret = waitbusyclear(disk);
+            if (ret < 0) {
+                iodev_printf(
+                    &disk->physdisk.iodev,
+                    "failed to wait for write to finish\n");
                 goto tryfailed;
             }
-            FAILABLE_STATUS_VAR = flushcache(disk);
-            if (FAILABLE_STATUS_VAR != OK) {
-                iodev_printf(&disk->physdisk.iodev, "disk flush failed after writing(error %d)\n", FAILABLE_STATUS_VAR);
+            ret = flushcache(disk);
+            if (ret < 0) {
+                iodev_printf(&disk->physdisk.iodev, "disk flush failed after writing\n");
                 goto tryfailed;
             }
 
@@ -270,7 +320,12 @@ FAILABLE_PROLOGUE
             if (dmainitialized) {
                 disk->ops->dma_deinittransfer(disk);
             }
-            iodev_printf(&disk->physdisk.iodev, "I/O error occured (try %u/%u)\n", try + 1, MAX_RETRIES);
+            if (try == MAX_RETRIES) {
+                goto fail;
+            }
+            iodev_printf(
+                &disk->physdisk.iodev,
+                "error %d occured (try %u/%u)\n", ret, try + 1, MAX_RETRIES);
             if (!iscrcerror && candma) {
                 // If we are using DMA, reset the disk to take it out of DMA mode, to be safe.
                 iodev_printf(&disk->physdisk.iodev, "resetting disk\n");
@@ -279,17 +334,20 @@ FAILABLE_PROLOGUE
             continue;
         }
     }
-
-FAILABLE_EPILOGUE_BEGIN
+    goto out;
+fail:
+out:
     if (candma) {
         disk->ops->dma_endsession(disk);
     }
     disk->ops->unlock(disk);
-FAILABLE_EPILOGUE_END
+    return ret;
 }
 
-static FAILABLE_FUNCTION readsectors(struct atadisk *disk, uint32_t lba, size_t sectorcount, void *buf) {
-FAILABLE_PROLOGUE
+static WARN_UNUSED_RESULT int readsectors(
+    struct atadisk *disk, uint32_t lba, size_t sectorcount, void *buf)
+{
+    int ret = 0;
     disk->ops->lock(disk);
     bool candma = disk->ops->dma_beginsession(disk);
     size_t remainingsectorcount = sectorcount;
@@ -297,7 +355,7 @@ FAILABLE_PROLOGUE
     uint8_t *destbuf = buf;
 
     while(remainingsectorcount > 0) {
-        for (uint8_t try = 0; try < MAX_RETRIES; try++) {
+        for (int try = 0;; try++) {
             bool iscrcerror = false;
             bool dmainitialized = false;
             bool dmarunning = false;
@@ -305,17 +363,18 @@ FAILABLE_PROLOGUE
             if (ATA_MAX_SECTORS_PER_TRANSFER < remainingsectorcount) {
                 currentsectorcount = ATA_MAX_SECTORS_PER_TRANSFER;
             }
-            FAILABLE_STATUS_VAR = disk->ops->dma_inittransfer(disk, destbuf, currentsectorcount * ATA_SECTOR_SIZE, true);
-            if (FAILABLE_STATUS_VAR != OK) {
-                iodev_printf(&disk->physdisk.iodev, "failed to initialize DMA transfer (error %d)\n", FAILABLE_STATUS_VAR);
-                goto tryfailed;
+            if (candma) {
+                ret = disk->ops->dma_inittransfer(
+                    disk, destbuf, currentsectorcount * ATA_SECTOR_SIZE, true);
+                if (ret < 0) {
+                    iodev_printf(
+                        &disk->physdisk.iodev,
+                        "failed to initialize DMA transfer\n");
+                    goto tryfailed;
+                }
+                dmainitialized = true;
             }
-            dmainitialized = true;
-            FAILABLE_STATUS_VAR = disk->ops->selectdisk(disk);
-            if (FAILABLE_STATUS_VAR != OK) {
-                iodev_printf(&disk->physdisk.iodev, "failed to select disk (error %d)\n", FAILABLE_STATUS_VAR);
-                goto tryfailed;
-            }
+            disk->ops->selectdisk(disk);
             disk->ops->setfeaturesparam(disk, 0);
             if (currentsectorcount == ATA_MAX_SECTORS_PER_TRANSFER) {
                 disk->ops->setcountparam(disk, 0);
@@ -326,15 +385,21 @@ FAILABLE_PROLOGUE
             if (candma) {
                 // Use DMA
                 disk->ops->issuecmd(disk, ATA_CMD_READDMA);
-                FAILABLE_STATUS_VAR = disk->ops->dma_begintransfer(disk);
-                if (FAILABLE_STATUS_VAR != OK) {
-                    iodev_printf(&disk->physdisk.iodev, "failed to start DMA transfer (error %d)\n", FAILABLE_STATUS_VAR);
+                ret = disk->ops->dma_begintransfer(disk);
+                if (ret < 0) {
+                    iodev_printf(
+                        &disk->physdisk.iodev,
+                        "failed to start DMA transfer\n");
                     goto tryfailed;
                 }
                 dmarunning = true;
                 while (dmarunning) {
-                    TRY(waitirq(disk));
-                    enum ata_dmastatus dmastatus = disk->ops->dma_checktransfer(disk);
+                    ret = waitirq(disk);
+                    if (ret < 0) {
+                        goto tryfailed;
+                    }
+                    enum ata_dmastatus dmastatus =
+                        disk->ops->dma_checktransfer(disk);
                     switch (dmastatus) {
                         case ATA_DMASTATUS_BUSY:
                             continue;
@@ -342,14 +407,15 @@ FAILABLE_PROLOGUE
                             dmarunning = false;
                             break;
                         case ATA_DMASTATUS_FAIL_UDMA_CRC:
-                            FAILABLE_STATUS_VAR = ERR_IO;
+                            ret = -EIO;
                             iscrcerror = true;
                             goto tryfailed;
                         case ATA_DMASTATUS_FAIL_OTHER_IO:
-                            FAILABLE_STATUS_VAR = ERR_IO;
+                            ret = -EIO;
                             goto tryfailed;
                         case ATA_DMASTATUS_FAIL_NOMEM:
-                            THROW(ERR_NOMEM);
+                            ret = -ENOMEM;
+                            goto tryfailed;
                     }
                 }
                 disk->ops->dma_endtransfer(disk, true);
@@ -360,8 +426,14 @@ FAILABLE_PROLOGUE
                 disk->ops->issuecmd(disk, ATA_CMD_READSECTORS);
                 for (size_t sector = 0; sector < currentsectorcount; sector++) {
                     struct ata_databuf buffer;
-                    TRY(waitbusyclear_irq(disk));
-                    TRY(waitdrqset(disk));
+                    ret = waitbusyclear_irq(disk);
+                    if (ret < 0) {
+                        goto tryfailed;
+                    }
+                    ret = waitdrqset(disk);
+                    if (ret < 0) {
+                        goto tryfailed;
+                    }
                     disk->ops->readdata(&buffer, disk);
                     for (size_t i = 0; i < 256; i++) {
                         *(destbuf++) = buffer.data[i];
@@ -379,28 +451,36 @@ FAILABLE_PROLOGUE
             if (dmainitialized) {
                 disk->ops->dma_deinittransfer(disk);
             }
-            iodev_printf(&disk->physdisk.iodev, "I/O error occured (try %u/%u)\n", try + 1, MAX_RETRIES);
+            if (try == MAX_RETRIES) {
+                goto fail;
+            }
+            iodev_printf(
+                &disk->physdisk.iodev,
+                "error %d occured (try %u/%u)\n", ret, try + 1, MAX_RETRIES);
             if (!iscrcerror && candma) {
                 // If we are using DMA, reset the disk to take it out of DMA mode, to be safe.
-                iodev_printf(&disk->physdisk.iodev, "resetting disk\n");
+                iodev_printf(
+                    &disk->physdisk.iodev, "resetting disk\n");
                 disk->ops->softreset(disk);
             }
             continue;
         }
     }
-FAILABLE_EPILOGUE_BEGIN
+    goto out;
+fail:
+out:
     if (candma) {
         disk->ops->dma_endsession(disk);
     }
     disk->ops->unlock(disk);
-FAILABLE_EPILOGUE_END
+    return ret;
 }
 
-static FAILABLE_FUNCTION op_read(struct pdisk *self, void *buf, size_t blockaddr, size_t blockcount) {
+static WARN_UNUSED_RESULT int op_read(struct pdisk *self, void *buf, size_t blockaddr, size_t blockcount) {
     struct atadisk *disk = self->data;
     return readsectors(disk, blockaddr, blockcount, buf);
 }
-static FAILABLE_FUNCTION op_write(struct pdisk *self, void const *buf, size_t blockaddr, size_t blockcount) {
+static WARN_UNUSED_RESULT int op_write(struct pdisk *self, void const *buf, size_t blockaddr, size_t blockcount) {
     struct atadisk *disk = self->data;
     return writesectors(disk, blockaddr, blockcount, buf);
 }
@@ -410,17 +490,33 @@ static struct pdisk_ops const OPS = {
     .write = op_write,
 };
 
-FAILABLE_FUNCTION atadisk_register(struct atadisk *disk_out, struct atadisk_ops const *ops, void *data) {
-FAILABLE_PROLOGUE
+WARN_UNUSED_RESULT int atadisk_register(struct atadisk *disk_out, struct atadisk_ops const *ops, void *data) {
+    int ret = 0;
     memset(disk_out, 0, sizeof(*disk_out));
     disk_out->ops = ops;
     disk_out->data = data;
     struct identifyresult result;
-    TRY(identifydevice(&result, disk_out));
-    TRY(pdisk_register(&disk_out->physdisk, ATA_SECTOR_SIZE, &OPS, disk_out));
-    iodev_printf(&disk_out->physdisk.iodev, "   model: %s\n", result.modelnum);
-    iodev_printf(&disk_out->physdisk.iodev, "firmware: %s\n", result.firmware);
-    iodev_printf(&disk_out->physdisk.iodev, "  serial: %s\n", result.serial);
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    ret = identifydevice(&result, disk_out);
+    if (ret < 0) {
+        goto fail;
+    }
+    ret = pdisk_register(
+        &disk_out->physdisk, ATA_SECTOR_SIZE, &OPS,
+        disk_out);
+    if (ret < 0) {
+        goto fail;
+    }
+    iodev_printf(
+        &disk_out->physdisk.iodev,
+        "   model: %s\n", result.modelnum);
+    iodev_printf(
+        &disk_out->physdisk.iodev,
+        "firmware: %s\n", result.firmware);
+    iodev_printf(
+        &disk_out->physdisk.iodev,
+        "  serial: %s\n", result.serial);
+    goto out;
+fail:
+out:
+    return ret;
 }

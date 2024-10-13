@@ -1,7 +1,8 @@
 #pragma once
+#include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
-#include <kernel/status.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 static char const *const IODEV_TYPE_PHYSICAL_DISK = "pdisk";
 static char const *const IODEV_TYPE_LOGICAL_DISK  = "ldisk";
@@ -15,7 +16,13 @@ struct iodev {
     void *data;
 };
 
-// `devtype` must be static string.
-FAILABLE_FUNCTION iodev_register(struct iodev *dev_out, char const *devtype, void *data);
+/*
+ * `devtype` must be static string.
+ *
+ * Returns false on allocation failure.
+ */
+// 
+WARN_UNUSED_RESULT bool iodev_register(
+    struct iodev *dev_out, char const *devtype, void *data);
 void iodev_printf(struct iodev *device, char const *fmt, ...);
 struct list *iodev_getlist(char const *devtype);

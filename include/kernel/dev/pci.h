@@ -1,5 +1,5 @@
 #pragma once
-#include <kernel/status.h>
+#include <kernel/lib/diagnostics.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -50,11 +50,18 @@ uint8_t pci_readinterruptline(pcipath path);
 uint16_t pci_readcmdreg(pcipath path);
 void pci_writecmdreg(pcipath path, uint16_t value);
 uint16_t pci_readstatusreg(pcipath path);
-// Note that writing 1 to status register bit clears that flag(unless it's R/O flag) 
+/*
+ * Note that writing 1 to status register bit clears that flag
+ * (If it's writable)
+ */
 void pci_writestatusreg(pcipath path, uint16_t value);
 void pci_printf(pcipath path, char const *fmt, ...);
 // NOTE: Prefetchable is not applicable if it's I/O BAR.
-FAILABLE_FUNCTION pci_readbar(uintptr_t *addr_out, bool *isiobar_out, bool *isprefetchable_out, pcipath path, uint8_t bar);
-FAILABLE_FUNCTION pci_readmembar(uintptr_t *addr_out, bool *isprefetchable_out, pcipath path, uint8_t bar);
-FAILABLE_FUNCTION pci_readiobar(uintptr_t *addr_out, pcipath path, uint8_t bar);
+WARN_UNUSED_RESULT int pci_readbar(
+    uintptr_t *addr_out, bool *isiobar_out, bool *isprefetchable_out,
+    pcipath path, uint8_t bar);
+WARN_UNUSED_RESULT int pci_readmembar(
+    uintptr_t *addr_out, bool *isprefetchable_out, pcipath path, uint8_t bar);
+WARN_UNUSED_RESULT int pci_readiobar(
+    uintptr_t *addr_out, pcipath path, uint8_t bar);
 void pci_printbus(void);

@@ -1,8 +1,9 @@
 #pragma once
+#include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
-#include <kernel/status.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 struct thread;
 
@@ -18,10 +19,18 @@ struct sched_queue {
 //       before using any of these!
 //       TODO: Just do that in sched itself :D
 
-FAILABLE_FUNCTION sched_getqueue(struct sched_queue **queue_out, int8_t priority);
+/*
+ * Returns NULL if sched needs to create a new queue and there's not enough
+ * memory.
+ */
+WARN_UNUSED_RESULT struct sched_queue *sched_getqueue(int8_t priority);
 struct sched_queue *sched_picknextqueue(void);
 void sched_printqueues(void);
-FAILABLE_FUNCTION sched_queue(struct thread *thread);
+/*
+ * Returns false if sched needs to create a new queue and there's not enough
+ * memory.
+ */
+WARN_UNUSED_RESULT bool sched_queue(struct thread *thread);
 void sched_schedule(void);
 
 void sched_test(void);

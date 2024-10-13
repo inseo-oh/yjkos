@@ -2,11 +2,12 @@
 #include <kernel/io/stream.h>
 #include <kernel/io/iodev.h>
 #include <kernel/io/kbd.h>
-#include <kernel/status.h>
+#include <kernel/lib/diagnostics.h>
 #include <kernel/lib/queue.h>
 #include <kernel/lib/list.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <sys/types.h>
 
 enum {
     PS2_TIMEOUT = 200,
@@ -22,15 +23,19 @@ enum {
 
 struct ps2port;
 struct ps2port_ops {
-    FAILABLE_FUNCTION (*bytereceived)(struct ps2port *port, uint8_t byte);
+    WARN_UNUSED_RESULT int (*bytereceived)(struct ps2port *port, uint8_t byte);
 };
 struct ps2port {
     struct iodev device;
     struct stream stream;
     struct list_node node;
-    // Bytes received from a PS/2 device goes to either:
-    // - When ops is set(=Device-specific driver is ready), it goes to that bytereceived callback.
-    // - Otherwise it goes into internal queue, which then can be read using `file` field and kernel's file API.
+    /*
+     * Bytes received from a PS/2 device goes to either:
+     * - When ops is set(=Device-specific driver is ready), it goes to the
+     *   bytereceived callback.
+     * - Otherwise it goes into internal queue, which then can be read using
+     *   `stream` field and kernel's stream API.
+     */
     struct ps2port_ops const *ops;
     struct queue recvqueue;
     uint8_t recvqueuebuf[127];
@@ -41,9 +46,11 @@ struct ps2port {
 #define PS2_COMMON_STREAM_CALLBACKS \
     .read = ps2port_stream_op_read
 
-FAILABLE_FUNCTION ps2port_stream_op_read(size_t *size_out, struct stream *self, void *buf, size_t size);
+WARN_UNUSED_RESULT ssize_t ps2port_stream_op_read(
+    struct stream *self, void *buf, size_t size);
 // Note that `device->file`'s read callback must be set to ps2port_op_fileread.
-FAILABLE_FUNCTION ps2port_register(struct ps2port *port_out, struct stream_ops const *ops, void *data);
+WARN_UNUSED_RESULT int ps2port_register(
+    struct ps2port *port_out, struct stream_ops const *ops, void *data);
 void ps2port_receivedbyte(struct ps2port *port, uint8_t byte);
 void ps2_initdevices(void);
 

@@ -1,27 +1,28 @@
 #include <kernel/arch/thread.h>
 #include <kernel/mem/heap.h>
-#include <kernel/status.h>
 #include <kernel/tasks/thread.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
-FAILABLE_FUNCTION thread_create(struct thread **thread_out, size_t minstacksize, uintptr_t entryaddr) {
-FAILABLE_PROLOGUE
+struct thread *thread_create(size_t minstacksize, uintptr_t entryaddr) {
     struct thread *thread = heap_alloc(sizeof(*thread), HEAP_FLAG_ZEROMEMORY);
     if (thread == NULL) {
-        THROW(ERR_NOMEM);
+        return NULL;
     }
-    TRY(arch_thread_create(&thread->arch_thread, minstacksize, entryaddr));
-    *thread_out = thread;
-FAILABLE_EPILOGUE_BEGIN
-    if (DID_FAIL) {
-        if (thread != NULL) {
-            arch_thread_destroy(thread->arch_thread);
-            heap_free(thread);
-        }
+    thread->arch_thread = arch_thread_create(minstacksize, entryaddr);
+    if (thread->arch_thread == NULL) {
+        goto fail_arch_thread;
     }
-FAILABLE_EPILOGUE_END
+    goto out;
+fail_arch_thread:
+    if (thread != NULL) {
+        arch_thread_destroy(thread->arch_thread);
+        heap_free(thread);
+        thread = NULL;
+    }
+out:
+    return thread;
 }
 
 void thread_delete(struct thread *thread) {

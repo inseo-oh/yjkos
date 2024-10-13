@@ -1,18 +1,20 @@
 #include <assert.h>
 #include <kernel/arch/interrupts.h>
 #include <kernel/io/stream.h>
-#include <kernel/status.h>
+#include <kernel/lib/diagnostics.h>
 #include <kernel/ticktime.h>
+#include <kernel/types.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <sys/types.h>
 
-static size_t measuredec_unsigned(uint32_t i) {
+static WARN_UNUSED_RESULT size_t measuredec_unsigned(uint32_t i) {
     size_t len = 0;
-    unsigned long divisor = 1;
+    ulong divisor = 1;
     {
-        unsigned long current = i;
+        ulong current = i;
         while (current / 10) {
             divisor *= 10;
             current /= 10;
@@ -24,7 +26,7 @@ static size_t measuredec_unsigned(uint32_t i) {
     return len;
 }
 
-static size_t measuredec_signed(int64_t i) {
+static WARN_UNUSED_RESULT size_t measuredec_signed(int64_t i) {
     size_t len = 0;
     if (i < 0) {
         len++;
@@ -33,11 +35,12 @@ static size_t measuredec_signed(int64_t i) {
     return len + measuredec_unsigned(i);
 }
 
-static FAILABLE_FUNCTION printdec_unsigned(struct stream *self, uint64_t i) {
-FAILABLE_PROLOGUE
-    unsigned long divisor = 1;
+static WARN_UNUSED_RESULT ssize_t printdec_unsigned(
+    struct stream *self, uint64_t i) {
+    size_t writtencount = 0;
+    ulong divisor = 1;
     {
-        unsigned long current = i;
+        ulong current = i;
         while (current / 10) {
             divisor *= 10;
             current /= 10;
@@ -45,28 +48,39 @@ FAILABLE_PROLOGUE
     }
     for (; divisor; divisor /= 10) {
         int digit = (i / divisor) % 10;
-        TRY(stream_putchar(self, '0' + digit));
+        int result = stream_putchar(self, '0' + digit);
+        if (result < 0) {
+            return result;
+        }
+        writtencount++;
     }
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return writtencount;
 }
 
-static FAILABLE_FUNCTION printdec_signed(struct stream *self, int64_t i) {
-FAILABLE_PROLOGUE
+static WARN_UNUSED_RESULT ssize_t printdec_signed(
+    struct stream *self, int64_t i) {
+    size_t writtencount = 0;
     if (i < 0) {
-        TRY(stream_putchar(self, '-'));
+        int result = stream_putchar(self, '-');
+        if (result < 0) {
+            return result;
+        }
+        writtencount++;
         i = -i;
     }
-    TRY(printdec_unsigned(self, i));
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    ssize_t result = printdec_unsigned(self, i);
+    if (result < 0) {
+        return result;
+    }
+    writtencount += result;
+    return writtencount;
 }
 
-static size_t measurehex(unsigned long i) {
+static size_t measurehex(ulong i) {
     size_t len = 0;
-    unsigned long divisor = 1;
+    ulong divisor = 1;
     {
-        unsigned long current = i;
+        ulong current = i;
         while (current / 16) {
             divisor *= 16;
             current /= 16;
@@ -78,12 +92,14 @@ static size_t measurehex(unsigned long i) {
     return len;
 }
 
-static FAILABLE_FUNCTION printhex(struct stream *self, unsigned long i, bool uppercase) {
-FAILABLE_PROLOGUE
+static WARN_UNUSED_RESULT ssize_t printhex(struct stream *self,
+    ulong i, bool uppercase
+) {
+    size_t writtencount = 0;
     char a = uppercase ? 'A' : 'a';
-    unsigned long divisor = 1;
+    ulong divisor = 1;
     {
-        unsigned long current = i;
+        ulong current = i;
         while (current / 16) {
             divisor *= 16;
             current /= 16;
@@ -91,30 +107,45 @@ FAILABLE_PROLOGUE
     }
     for (; divisor; divisor /= 16) {
         int digit = (i / divisor) % 16;
+        int result;
         if (digit < 10) {
-            TRY(stream_putchar(self, '0' + digit));
+            result = stream_putchar(self, '0' + digit);
         } else {
-            TRY(stream_putchar(self, a + (digit - 10)));
+            result = stream_putchar(self, a + (digit - 10));
         }
+        if (result < 0) {
+            return result;
+        }
+        writtencount++;
     }
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return writtencount;
 }
 
-FAILABLE_FUNCTION stream_putchar(struct stream *self, char c) {
-FAILABLE_PROLOGUE
-    TRY(self->ops->write(self, &c, 1));
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+WARN_UNUSED_RESULT int stream_putchar(struct stream *self, char c) {
+    ssize_t result = self->ops->write(self, &c, 1);
+    if (result < 0) {
+        return result;
+    }
+    assert(result != 0);
+    return result;
 }
 
-FAILABLE_FUNCTION stream_putstr(struct stream *self, char const *s) {
-FAILABLE_PROLOGUE
-    for (char const *nextchar = s; *nextchar != '\0'; nextchar++) {
-        TRY(stream_putchar(self, *nextchar));
+WARN_UNUSED_RESULT ssize_t stream_putstr(struct stream *self, char const *s) {
+    if (!s) {
+        return stream_putstr(self, "<null>");
     }
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    size_t writtencount = 0;
+    for (
+        char const *nextchar = s; *nextchar != '\0';
+        nextchar++, writtencount++
+    ) {
+        int result = stream_putchar(self, *nextchar);
+        if (result < 0) {
+            return result;
+        }
+        writtencount++;
+    }
+    return writtencount;
 }
 
 static uint8_t const FMTFLAG_ALTERNATEFORM    = 1 << 0;
@@ -131,13 +162,16 @@ enum lenmod {
     LENMOD_PTRDIFF,
 };
 
-FAILABLE_FUNCTION stream_vprintf(struct stream *self, char const *fmt, va_list ap) {
-FAILABLE_PROLOGUE
+WARN_UNUSED_RESULT ssize_t stream_vprintf(
+    struct stream *self, char const *fmt, va_list ap
+) {
     uint8_t flags;
     char padchar;
     enum lenmod lenmod;
     uint32_t minwidth;
     size_t measureresult;
+    size_t writtencount = 0;
+    ssize_t ret;
 
 percentorchar:
     if (!fmt[0]) {
@@ -151,7 +185,11 @@ percentorchar:
         padchar = ' ';
         goto fmtflag;
     }
-    TRY(stream_putchar(self, fmt[0]));
+    ret = stream_putchar(self, fmt[0]);
+    if (ret < 0) {
+        return ret;
+    }
+    writtencount++;
     fmt++;
     goto percentorchar;
 fmtflag:
@@ -230,12 +268,20 @@ doformat:
     switch(fmt[0]) {
         case 'c': {
             char c = va_arg(ap, int);
-            TRY(stream_putchar(self, c));
+            ret = stream_putchar(self, c);
+            if (ret < 0) {
+                return ret;
+            }
+            writtencount++;
             break;
         }
         case 's': {
             char const *s = va_arg(ap, char *);
-            TRY(stream_putstr(self, s));
+            ret = stream_putstr(self, s);
+            if (ret < 0) {
+                return ret;
+            }
+            writtencount += ret;
             break;
         }
         case 'd': {
@@ -265,10 +311,18 @@ doformat:
             if (flags & FMTFLAG_MINWIDTH_PRESENT) {
                 measureresult = measuredec_signed(val);
                 for (size_t i = measureresult; i < minwidth; i++) {
-                    TRY(stream_putchar(self, padchar));
+                    ret = stream_putchar(self, padchar);
+                    if (ret < 0) {
+                        return ret;
+                    }
+                    writtencount += ret;
                 }
             }
-            TRY(printdec_signed(self, val));
+            ret = printdec_signed(self, val);
+            if (ret < 0) {
+                return ret;
+            }
+            writtencount += ret;
             break;
         }
         case 'u': {
@@ -277,10 +331,10 @@ doformat:
                 case LENMOD_CHAR:
                 case LENMOD_SHORT:
                 case LENMOD_INT:
-                    val = va_arg(ap, unsigned int);
+                    val = va_arg(ap, uint);
                     break;
                 case LENMOD_LONG:
-                    val = va_arg(ap, unsigned long);
+                    val = va_arg(ap, ulong);
                     break;
                 case LENMOD_LONG_LONG:
                     val = va_arg(ap, unsigned long long);
@@ -298,10 +352,18 @@ doformat:
             if (flags & FMTFLAG_MINWIDTH_PRESENT) {
                 measureresult = measuredec_unsigned(val);
                 for (size_t i = measureresult; i < minwidth; i++) {
-                    TRY(stream_putchar(self, padchar));
+                    ret = stream_putchar(self, padchar);
+                    if (ret < 0) {
+                        return ret;
+                    }
+                    writtencount += ret;
                 }
             }
-            TRY(printdec_unsigned(self, val));
+            ret = printdec_unsigned(self, val);
+            if (ret < 0) {
+                return ret;
+            }
+            writtencount += ret;
             break;
         }
         case 'x':
@@ -312,10 +374,10 @@ doformat:
                 case LENMOD_CHAR:
                 case LENMOD_SHORT:
                 case LENMOD_INT:
-                    val = va_arg(ap, unsigned int);
+                    val = va_arg(ap, uint);
                     break;
                 case LENMOD_LONG:
-                    val = va_arg(ap, unsigned long);
+                    val = va_arg(ap, ulong);
                     break;
                 case LENMOD_LONG_LONG:
                     val = va_arg(ap, unsigned long long);
@@ -339,70 +401,99 @@ doformat:
             }
     
             if (flags & FMTFLAG_ALTERNATEFORM) {
-                TRY(stream_putstr(self, isuppercase ? "0X" : "0x"));
+                ret = stream_putstr(self, isuppercase ? "0X" : "0x");
+                if (ret < 0) {
+                    return ret;
+                }
+                writtencount += ret;
             }
             if (flags & FMTFLAG_MINWIDTH_PRESENT) {
                 for (size_t i = measureresult; i < minwidth; i++) {
-                    TRY(stream_putchar(self, padchar));
+                    ret = stream_putchar(self, padchar);
+                    if (ret < 0) {
+                        return ret;
+                    }
+                    writtencount += ret;
                 }
             }
-            TRY(printhex(self, val, isuppercase));
+            ret = printhex(self, val, isuppercase);
+            if (ret < 0) {
+                return ret;
+            }
+            writtencount += ret;
             break;
         }
         case 'p': {
             void *p = va_arg(ap, void *);
-            TRY(stream_putstr(self, "0x"));
-            TRY(printhex(self, (uintptr_t)p, false));
+            ret = stream_putstr(self, "0x");
+            if (ret < 0) {
+                return ret;
+            }
+            writtencount += ret;
+            ret = printhex(self, (uintptr_t)p, false);
+            if (ret < 0) {
+                return ret;
+            }
+            writtencount += ret;
             break;
         }
         default:
-            TRY(stream_putchar(self, fmt[0]));
+            ret = stream_putchar(self, fmt[0]);
+            if (ret < 0) {
+                return ret;
+            }
+            writtencount += ret;
             break;
     }
     fmt++;
     goto percentorchar;
 end:
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return writtencount;
 }
 
-FAILABLE_FUNCTION stream_printf(struct stream *self, char const *fmt, ...) {
-FAILABLE_PROLOGUE
+ssize_t stream_printf(struct stream *self, char const *fmt, ...) {
     va_list ap;
 
     va_start(ap, fmt);
-    TRY(stream_vprintf(self, fmt, ap));
+    ssize_t result = stream_vprintf(self, fmt, ap);
     va_end(ap);
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return result;
 }
 
-FAILABLE_FUNCTION stream_waitchar(char *char_out, struct stream *self, ticktime timeout) {
-FAILABLE_PROLOGUE
-    size_t size = 0;
+int stream_waitchar(struct stream *self, ticktime timeout) {
+    ssize_t size = 0;
     if (timeout != 0) {
         assert(arch_interrupts_areenabled());
     }
 
     ticktime starttime = g_ticktime;
-    while (size < 1) {
+    uint8_t chr;
+    while (1) {
         if ((timeout != 0) && (timeout <= (g_ticktime - starttime))) {
-            THROW(ERR_EOF);
+            return STREAM_EOF;
         }
-        TRY(self->ops->read(&size, self, char_out, 1));
+        size = self->ops->read(self, &chr, 1);
+        if (size < 0) {
+            return size;
+        } else if (size != 0) {
+            break;
+        }
     }
-
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return chr;
 }
 
-FAILABLE_FUNCTION stream_getchar(char *char_out, struct stream *self) {
-FAILABLE_PROLOGUE
-    size_t size = 0;
+int stream_getchar(struct stream *self) {
+    uint8_t chr;
+    ssize_t size = self->ops->read(self, &chr, 1);
+    if (size == 0) {
+        return STREAM_EOF;
+    }
+    return chr;
+}
 
-    TRY(self->ops->read(&size, self, char_out, 1));
-    THROW(ERR_EOF);
-
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+void stream_flush(struct stream *self) {
+    if (self->ops->flush == NULL) {
+        return;
+    }
+    self->ops->flush(self);
 }

@@ -1,9 +1,9 @@
 #include "shell.h"
 #include <assert.h>
+#include <kernel/io/stream.h>
 #include <kernel/io/tty.h>
 #include <kernel/io/vfs.h>
 #include <kernel/raster/fb.h>
-#include <kernel/status.h>
 
 enum {
     FRAME_SIZE = 640 * 480 * 2
@@ -16,20 +16,19 @@ SHELLFUNC static int program_main(int argc, char *argv[]) {
         return 1;
     }
     struct fd *fd;
-    status_t status = vfs_openfile(&fd, argv[1], 0);
-    if (status != OK) {
+    int ret = vfs_openfile(&fd, argv[1], 0);
+    if (ret < 0) {
         tty_printf("can't open file\n");
         return 1;
     }
     for (size_t i = 0; ; i++) {
-        size_t fsize = FRAME_SIZE;
-        status_t status = vfs_readfile(fd, s_framebuffer, &fsize);
-        if (status == ERR_EOF) {
+        ret = vfs_readfile(fd, s_framebuffer, FRAME_SIZE);
+        if (ret == 0) {
             tty_printf("thanks\n");
             break;
         }
-        assert(fsize == FRAME_SIZE);
-        if (status != OK) {
+        assert(ret == FRAME_SIZE);
+        if (ret < 0) {
             tty_printf("Frame %d Read FAILED\n", i);
             break;
         }

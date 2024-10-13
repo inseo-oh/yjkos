@@ -4,7 +4,6 @@
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/miscmath.h>
 #include <kernel/mem/heap.h>
-#include <kernel/status.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -16,8 +15,7 @@ struct arch_thread {
     uint32_t stack[];
 };
 
-FAILABLE_FUNCTION arch_thread_create(struct arch_thread **thread_out, size_t minstacksize, uintptr_t entryaddr) {
-FAILABLE_PROLOGUE
+WARN_UNUSED_RESULT struct arch_thread *arch_thread_create(size_t minstacksize, uintptr_t entryaddr) {
     enum {
         STACK_IDX_EDI,
         STACK_IDX_ESI,
@@ -37,12 +35,13 @@ FAILABLE_PROLOGUE
     }
     assert((stacksize % sizeof(uint32_t)) == 0);
     tty_printf("creating thread with %uk stack and entry point %#lx\n", stacksize/1024, entryaddr);
+    struct arch_thread *thread = NULL;
     if ((SIZE_MAX - sizeof(struct arch_thread)) < + stacksize) {
-        THROW(ERR_NOMEM);
+        goto out;
     }
-    struct arch_thread *thread = heap_alloc(sizeof(*thread) + stacksize, 0);
+    thread = heap_alloc(sizeof(*thread) + stacksize, 0);
     if (thread == NULL) {
-        THROW(ERR_NOMEM);
+        goto out;
     }
     size_t stack_top = stacksize / sizeof(uint32_t);
     uint32_t *esp = &thread->stack[stack_top - STACK_ITEM_COUNT];
@@ -55,9 +54,8 @@ FAILABLE_PROLOGUE
     esp[STACK_IDX_ESI]    = 0;
     esp[STACK_IDX_EDI]    = 0;
     thread->savedesp = (uintptr_t)esp;
-    *thread_out = thread;
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+out:
+    return thread;
 }
 
 void arch_thread_destroy(struct arch_thread *thread) {

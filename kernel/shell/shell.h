@@ -1,6 +1,6 @@
 #pragma once
 #include <kernel/lib/list.h>
-#include <kernel/status.h>
+#include <stdbool.h>
 
 // Shell is located in its own section, so that it's possible to reclaim
 // memory used by kernel shell in the future.
@@ -16,7 +16,13 @@ struct shell_program {
     struct list_node node;
 };
 
-FAILABLE_FUNCTION shell_execcmd(char const *str) SHELLFUNC;
+static const int SHELL_EXITCODE_OUTOFMEMORY    = -1;
+static const int SHELL_EXITCODE_OK             = 0;
+static const int SHELL_EXITCODE_BUILTINMUISUSE = 2;
+static const int SHELL_EXITCODE_NOTEXECUTABLE  = 126;
+static const int SHELL_EXITCODE_NOCOMMAND      = 127;
+
+int shell_execcmd(char const *str) SHELLFUNC;
 void shell_repl(void) SHELLFUNC;
 void shell_init(void) SHELLFUNC;
 

@@ -2,7 +2,6 @@
 #include <kernel/arch/mmu.h>
 #include <kernel/arch/stacktrace.h>
 #include <kernel/io/tty.h>
-#include <kernel/status.h>
 #include <kernel/types.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -17,9 +16,12 @@ static void stacktrace_with_frame(struct funcstackframe *startingframe) {
     struct funcstackframe *frame = startingframe;
     while (frame != NULL) {
         physptr physaddr;
-        status_t status = arch_mmu_virttophys(&physaddr, (uintptr_t)frame);
-        if (status != OK) {
-            tty_printf("  stack frame at %p is not accessible. STOP.\n", frame);
+        int ret = arch_mmu_virttophys(
+            &physaddr, (uintptr_t)frame);
+        if (ret < 0) {
+            tty_printf(
+                "  stackframe at %p is not accessible(error %d) - STOP.\n",
+                ret, frame);
             break;
         }
         tty_printf("  %#lx\n", frame->eip);

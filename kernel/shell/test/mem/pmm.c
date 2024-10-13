@@ -2,7 +2,6 @@
 #include "../test.h"
 #include <kernel/arch/interrupts.h>
 #include <kernel/mem/pmm.h>
-#include <kernel/status.h>
 #include <kernel/types.h>
 
 SHELLFUNC static bool do_randalloc(void) {
@@ -14,11 +13,8 @@ SHELLFUNC static bool do_randalloc(void) {
 
 SHELLFUNC static bool do_badalloc(void) {
     bool previnterrupts = arch_interrupts_disable();
-    size_t pagecount = 0;
-    physptr addr;
-    TEST_EXPECT(pmm_alloc(&addr, &pagecount) == ERR_NOMEM);
-    pagecount = ~0;
-    TEST_EXPECT(pmm_alloc(&addr, &pagecount) == ERR_NOMEM);
+    size_t pagecount = ~0;
+    TEST_EXPECT(pmm_alloc(&pagecount) == PHYSICALPTR_NULL);
     interrupts_restore(previnterrupts);
     return true;
 }

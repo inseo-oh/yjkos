@@ -2,9 +2,9 @@
 #include <assert.h>
 #include <kernel/arch/interrupts.h>
 #include <kernel/io/tty.h>
+#include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
 #include <kernel/mem/heap.h>
-#include <kernel/status.h>
 #include <kernel/tasks/sched.h>
 #include <kernel/tasks/thread.h>
 #include <stdint.h>
@@ -21,10 +21,9 @@ static struct list s_queues;
 static struct list_node *s_currentqueuenode;
 static struct thread *s_runningthread;
 
-FAILABLE_FUNCTION sched_getqueue(struct sched_queue **queue_out, int8_t priority) {
-FAILABLE_PROLOGUE
+WARN_UNUSED_RESULT struct sched_queue *sched_getqueue(int8_t priority) {
     struct list_node *insertafter = NULL;
-    struct sched_queue *chosenqueue = NULL;
+    struct sched_queue *resultqueue = NULL;
     bool shouldinsertfront = false;
     if (s_queues.front != NULL) {
         struct list_node *queuenode = s_queues.front;
@@ -41,7 +40,7 @@ FAILABLE_PROLOGUE
             struct list_node *nextququenode = queuenode->next;
             // Found the queue
             if (queue->priority == priority) {
-                chosenqueue = queue;
+                resultqueue = queue;
                 break;
             }
             // No more queue
@@ -58,23 +57,18 @@ FAILABLE_PROLOGUE
             }
         }
     }
-    if (chosenqueue != NULL) {
-        *queue_out = chosenqueue;
-    } else {
-        struct sched_queue *queue = heap_alloc(sizeof(*queue), HEAP_FLAG_ZEROMEMORY);
-        if (!queue) {
-            THROW(ERR_NOMEM);
+    if (resultqueue == NULL) {
+        resultqueue = heap_alloc(sizeof(*resultqueue), HEAP_FLAG_ZEROMEMORY);
+        if (resultqueue != NULL) {
+            resultqueue->priority = priority;
+            if (insertafter == NULL) {
+                list_insertfront(&s_queues, &resultqueue->node, resultqueue);
+            } else {
+                list_insertafter(&s_queues, insertafter, &resultqueue->node, resultqueue);
+            }
         }
-        queue->priority = priority;
-        if (insertafter == NULL) {
-            list_insertfront(&s_queues, &queue->node, queue);
-        } else {
-            list_insertafter(&s_queues, insertafter, &queue->node, queue);
-        }
-        *queue_out = queue;
     }
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return resultqueue;
 }
 
 struct sched_queue *sched_picknextqueue(void) {
@@ -129,13 +123,14 @@ void sched_printqueues(void) {
     }
 }
 
-FAILABLE_FUNCTION sched_queue(struct thread *thread) {
-FAILABLE_PROLOGUE
-    struct sched_queue *queue;
-    TRY(sched_getqueue(&queue, thread->priority));
+// Returns false if there's not enough memory.
+WARN_UNUSED_RESULT bool sched_queue(struct thread *thread) {
+    struct sched_queue *queue =sched_getqueue(thread->priority);
+    if (queue == NULL) {
+        return false;
+    }
     list_insertfront(&queue->threads, &thread->sched_queuelistnode, thread);
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return true;
 }
 
 void sched_schedule(void) {
@@ -148,9 +143,9 @@ void sched_schedule(void) {
         return;
     }
     if (s_runningthread != NULL) {
-        status_t status = sched_queue(s_runningthread);
-        if (status != OK) {
-            tty_printf("failed to queue current thread (error %d)\n", status);
+        if (!sched_queue(s_runningthread)) {
+            tty_printf(
+                "sched: not enough memory to queue current thread\n");
         }
     }
     struct thread *nextthread = nextthreadnode->data;
@@ -251,19 +246,19 @@ static void task3(void) {
 void sched_test(void) {
     static size_t const STACK_SIZE = 65536;
     bool disabled = arch_interrupts_disable();
-    status_t status = thread_create(&thread1, STACK_SIZE, (uintptr_t)task1);
-    assert(status == OK);
-    status = thread_create(&thread2, STACK_SIZE, (uintptr_t)task2);
-    assert(status == OK);
-    status = thread_create(&thread3, STACK_SIZE, (uintptr_t)task3);
-    assert(status == OK);
-    status = sched_queue(thread1);
-    assert(status == OK);
+    thread1 = thread_create(STACK_SIZE, (uintptr_t)task1);
+    assert(thread1 != NULL);
+    thread2 = thread_create(STACK_SIZE, (uintptr_t)task2);
+    assert(thread2 != NULL);
+    thread3 = thread_create(STACK_SIZE, (uintptr_t)task3);
+    assert(thread3 != NULL);
+    bool ok = sched_queue(thread1);
+    assert(ok);
     sched_printqueues();
-    status = sched_queue(thread2);
-    assert(status == OK);
-    status = sched_queue(thread3);
-    assert(status == OK);
+    ok = sched_queue(thread2);
+    assert(ok);
+    ok = sched_queue(thread3);
+    assert(ok);
     thread2->priority = -20;
     sched_printqueues();
     if (disabled) {

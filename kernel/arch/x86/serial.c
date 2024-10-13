@@ -3,13 +3,16 @@
 #include "serial.h"
 #include <kernel/arch/interrupts.h>
 #include <kernel/arch/iodelay.h>
+#include <kernel/lib/diagnostics.h>
 #include <kernel/io/stream.h>
 #include <kernel/io/tty.h>
-#include <kernel/status.h>
 #include <kernel/trapmanager.h>
+#include <kernel/types.h>
+#include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <sys/types.h>
 
 enum {
     REG_DATA = 0, // When LCR.DLAB=0
@@ -76,22 +79,15 @@ static uint8_t const  MCR_FLAG_OUT1     = 1 << 2;
 static uint8_t const  MCR_FLAG_OUT2     = 1 << 3;
 static uint8_t const  MCR_FLAG_LOOPBACK = 1 << 4;
 
-static FAILABLE_FUNCTION getdivisor(uint16_t *out, struct archx86_serial *self, uint32_t baudrate) {
-FAILABLE_PROLOGUE
-    bool found = false;
-    for (uint32_t divisor = 1; divisor <= 0xffff; ++divisor) {
+static WARN_UNUSED_RESULT int getdivisor(
+    struct archx86_serial *self, long baudrate)
+{
+    for (int32_t divisor = 1; divisor <= 0xffff; ++divisor) {
         if ((self->masterclock / divisor) == baudrate) {
-            *out = divisor;
-            found = true;
+            return divisor;
         }
     }
-    if (!found) {
-        // TODO: Add error message
-        THROW(ERR_INVAL);
-    }
-
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return -EINVAL;
 }
 
 
@@ -155,24 +151,23 @@ static void waitreadytorecv(struct archx86_serial *self) {
 }
 
 
-static FAILABLE_FUNCTION runloopbacktest(struct archx86_serial *self) {
-FAILABLE_PROLOGUE
-
+static int runloopbacktest(struct archx86_serial *self) {
     uint8_t oldmcr = readreg(self, REG_MCR);
     writereg(self, REG_MCR, oldmcr | MCR_FLAG_LOOPBACK);
     uint8_t new_mcr = readreg(self, REG_MCR);
     if (!(new_mcr & MCR_FLAG_LOOPBACK)) {
-        tty_printf("serial: msr did not change - assuming serial port is broken\n");
-        THROW(ERR_IO);
+        tty_printf(
+            "serial: failed to write to MCR\n");
+        return -EIO;
     }
     uint8_t expected = 0x69;
     writedata(self, expected);
     uint32_t waited_counter = 0;
     while (!(readreg(self, REG_LSR) & LSR_FLAG_DATA_READY)) {
         if (1000000 < waited_counter) {
-            tty_printf("serial: loopback response timeout\n");
-            while(1);
-            THROW(ERR_IO);
+            tty_printf(
+                "serial: loopback response timeout\n");
+            return -EIO;
         }
         arch_iodelay();
         waited_counter += 2;
@@ -180,17 +175,18 @@ FAILABLE_PROLOGUE
     uint8_t got = readdata(self);
     bool test_ok = got == expected;
     if (!test_ok) {
-        tty_printf("serial: loopback test failed: expected %#x, got %#x\n", expected, got);
+        tty_printf(
+            "serial: loopback test failed: expected %#x, got %#x\n",
+            expected, got);
         writereg(self, REG_MCR, oldmcr);
-        THROW(ERR_IO);
+        return -EIO;
     }
-
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return 0;
 }
 
-static FAILABLE_FUNCTION stream_op_write(struct stream *self, void *data, size_t size) {
-FAILABLE_PROLOGUE
+static WARN_UNUSED_RESULT ssize_t stream_op_write(
+    struct stream *self, void *data, size_t size) {
+    assert(size <= STREAM_MAX_TRANSFER_SIZE);
     struct archx86_serial *cport = (struct archx86_serial *)self->data;
 
     for (size_t idx = 0; idx < size; idx++) {
@@ -210,19 +206,18 @@ FAILABLE_PROLOGUE
         waitreadytosend(cport);
         writedata(cport, c);
     }
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return size;
 }
 
-static FAILABLE_FUNCTION stream_op_read(size_t *size_out, struct stream *self, void *buf, size_t size) {
-FAILABLE_PROLOGUE
+static WARN_UNUSED_RESULT ssize_t stream_op_read(
+    struct stream *self, void *buf, size_t size)
+{
+    assert(size <= STREAM_MAX_TRANSFER_SIZE);
     for (size_t idx = 0; idx < size; idx++) {
         waitreadytorecv(self->data);
         ((uint8_t *)buf)[idx] = readdata(self->data);
     }
-    *size_out = size;
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return size;
 }
 
 static struct stream_ops const OPS = {
@@ -248,30 +243,35 @@ static void irqhandler(int irqnum, void *data) {
     archx86_pic_sendeoi(irqnum);
 }
 
-FAILABLE_FUNCTION archx86_serial_init(struct archx86_serial *out, uint16_t baseaddr, uint32_t masterclock, uint8_t irq) {
-FAILABLE_PROLOGUE
+WARN_UNUSED_RESULT int archx86_serial_init(
+    struct archx86_serial *out, uint16_t baseaddr, int32_t masterclock,
+    uint8_t irq)
+{
     memset(out, 0, sizeof(*out));
     out->stream.data = out;
     out->stream.ops = &OPS;
     out->baseaddr = baseaddr;
     out->masterclock = masterclock;
     out->irq = irq;
-    TRY(runloopbacktest(out));
+    int ret = runloopbacktest(out);
+    if (ret < 0) {
+        return ret;
+    }
     writeier(out, 0);
     writereg(out, REG_MCR, MCR_FLAG_DTR | MCR_FLAG_RTS | MCR_FLAG_OUT1 | MCR_FLAG_OUT2);
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return 0;
 }
 
-FAILABLE_FUNCTION archx86_serial_config(struct archx86_serial *self, uint32_t baudrate) {
-FAILABLE_PROLOGUE
-    uint16_t dl_val;
-
-    TRY(getdivisor(&dl_val, self, baudrate));
-    writedl(self, dl_val);
+WARN_UNUSED_RESULT int archx86_serial_config(
+    struct archx86_serial *self, uint32_t baudrate)
+{
+    int ret = getdivisor(self, baudrate);
+    if (ret < 0) {
+        return ret;
+    }
+    writedl(self, ret);
     writereg(self, REG_LCR, LCR_FLAG_WORD_LEN_EIGHT);
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return 0;
 }
 
 void archx86_serial_useirq(struct archx86_serial *self) {
@@ -284,6 +284,5 @@ void archx86_serial_useirq(struct archx86_serial *self) {
     writereg(self, REG_MCR, mcr);
     self->useirq = true;
 }
-
 
 

@@ -1,14 +1,15 @@
+#include "vfs.h"
 #include "fsinit.h"
 #include <assert.h>
 #include <dirent.h>
 #include <kernel/io/disk.h>
 #include <kernel/io/iodev.h>
-#include <kernel/io/vfs.h>
+#include <kernel/io/stream.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/miscmath.h>
 #include <kernel/mem/heap.h>
-#include <kernel/status.h>
 #include <kernel/types.h>
+#include <errno.h>
 #include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -147,45 +148,68 @@ static uint16_t const INODE_TYPE_REGULAR_FILE  = 0x8000;
 static uint16_t const INODE_TYPE_SYMBOLIC_LINK = 0xa000;
 static uint16_t const INODE_TYPE_UNIX_SOCKET   = 0xc000;
 
+
 // `out` must be able to hold `blkcount * self->blocksize` bytes.
-static FAILABLE_FUNCTION readblocks(struct fscontext *self, void *buf, uint32_t blockaddr, blkcnt_t blkcount) {
-FAILABLE_PROLOGUE
-    // TODO: support cases where self->blocksize < self->disk->physdisk->blocksize
+static WARN_UNUSED_RESULT int readblocks(
+    struct fscontext *self, void *buf, uint32_t blockaddr, blkcnt_t blkcount)
+{
+    int ret = 0;
+    /*
+     * TODO: support cases where self->blocksize < 
+     *          self->disk->physdisk->blocksize
+     */
     assert((self->blocksize % self->disk->physdisk->blocksize) == 0);
-    diskblkptr diskblockaddr = blockaddr * (self->blocksize / self->disk->physdisk->blocksize);
-    blkcnt_t diskblkcount = blkcount * (self->blocksize / self->disk->physdisk->blocksize);
-    TRY(ldisk_read_exact(self->disk, buf, diskblockaddr, diskblkcount));
-    
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    diskblkptr diskblockaddr =
+        blockaddr * (self->blocksize / self->disk->physdisk->blocksize);
+    blkcnt_t diskblkcount =
+        blkcount * (self->blocksize / self->disk->physdisk->blocksize);
+    ret = (ldisk_read_exact(
+        self->disk, buf, diskblockaddr,
+        diskblkcount));
+    if (ret < 0) {
+        goto fail;
+    }
+    goto out;
+fail:
+out:
+    return ret;
 }
 
-static FAILABLE_FUNCTION allocblockbuf(uint8_t **out, struct fscontext *self, blkcnt_t count, uint8_t flags) {
-FAILABLE_PROLOGUE
+// Returns NULL when there's not enough memory.
+static WARN_UNUSED_RESULT uint8_t *allocblockbuf(struct fscontext *self,
+    blkcnt_t count, uint8_t flags)
+{
     uint8_t *buf = heap_calloc(count, self->blocksize, flags);
     if (buf == NULL) {
-        THROW(ERR_NOMEM);
+        return NULL;
     }
-    *out = buf;
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return buf;
 }
 
-static FAILABLE_FUNCTION readblocks_alloc(uint8_t **out, struct fscontext *self, uint32_t blockaddr, blkcnt_t blkcount) {
-FAILABLE_PROLOGUE
-    uint8_t *buf = NULL;
-    TRY(allocblockbuf(&buf, self, blkcount, 0));
-    TRY(readblocks(self, buf, blockaddr, blkcount));
-    *out = buf;
-FAILABLE_EPILOGUE_BEGIN
-    if (DID_FAIL) {
-        heap_free(buf);
+static WARN_UNUSED_RESULT int readblocks_alloc(uint8_t **out, struct fscontext *self, uint32_t blockaddr, blkcnt_t blkcount) {
+    int ret;
+    uint8_t *buf = allocblockbuf(self, blkcount, 0);
+    if (buf == NULL) {
+        ret = -ENOMEM;
+        goto fail;
     }
-FAILABLE_EPILOGUE_END
+    ret = readblocks(self, buf, blockaddr, blkcount);
+    if (ret < 0) {
+        goto fail;
+    }
+    *out = buf;
+    goto out;
+fail:
+    heap_free(buf);
+out:
+    return ret;
 }
 
-static FAILABLE_FUNCTION readblockgroupdescriptor(struct blkgroupdescriptor *out, struct fscontext *self, uint32_t blockgroup) {
-FAILABLE_PROLOGUE
+static WARN_UNUSED_RESULT int readblockgroupdescriptor(
+    struct blkgroupdescriptor *out,
+    struct fscontext *self, uint32_t blockgroup)
+{
+    int ret;
     enum {
         DESCRIPTOR_SIZE = 32
     };
@@ -197,7 +221,10 @@ FAILABLE_PROLOGUE
     blockoffset += self->blkgroupdescriptorblk;
 
     uint8_t *buf = NULL;
-    TRY(readblocks_alloc(&buf, self, blockoffset, 1));
+    ret = readblocks_alloc(&buf, self, blockoffset, 1);
+    if (ret < 0) {
+        goto fail;
+    }
     uint8_t *data = &buf[byteoffsetinblk];
     out->blkusagebitmap    = uint32leat(&data[0x00]);
     out->inodeusagebitmap  = uint32leat(&data[0x04]);
@@ -205,42 +232,63 @@ FAILABLE_PROLOGUE
     out->unallocatedblocks = uint16leat(&data[0x0c]);
     out->unallocatedinodes = uint16leat(&data[0x0e]);
     out->directories       = uint16leat(&data[0x10]);
-FAILABLE_EPILOGUE_BEGIN
+    goto out;
+fail:
+out:
     heap_free(buf);
-FAILABLE_EPILOGUE_END
+    return ret;
 }
 
 static uint32_t blockgroup_of_inode(struct fscontext *self, ino_t inodeaddr) {
     return (inodeaddr - 1) / self->inodesinblkgroup;
 }
 
-static FAILABLE_FUNCTION locateinode(uint32_t *blk_out, off_t *off_out, struct fscontext *self, ino_t inodeaddr) {
-FAILABLE_PROLOGUE
+static WARN_UNUSED_RESULT int locateinode(
+    uint32_t *blk_out, off_t *off_out, struct fscontext *self, ino_t inodeaddr)
+{
+    int ret = 0;
     struct blkgroupdescriptor blkgroup;
-    TRY(readblockgroupdescriptor(&blkgroup, self, blockgroup_of_inode(self, inodeaddr)));
+    ret = readblockgroupdescriptor(
+        &blkgroup, self, blockgroup_of_inode(self, inodeaddr));
+    if (ret < 0) {
+        goto fail;
+    }
     off_t index = (inodeaddr - 1) % self->inodesinblkgroup;
     assert(index < (SIZE_MAX / self->inodesize));
-    *blk_out = blkgroup.inodetable + ((index * self->inodesize) / self->blocksize);
+    *blk_out = blkgroup.inodetable +
+        ((index * self->inodesize) / self->blocksize);
     *off_out = (index * self->inodesize) % self->blocksize;
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    goto out;
+fail:
+out:
+    return ret;
 }
 
-static FAILABLE_FUNCTION nextinodeblock(struct inocontext *self) {
-FAILABLE_PROLOGUE
+enum {
+    FS_EOF =-32768
+};
+
+// Returns FS_EOF on EOF.
+static WARN_UNUSED_RESULT int nextinodeblock(struct inocontext *self) {
+    int ret = 0;
     enum {
-        DIRECT_BLOCK_POINTER_COUNT = sizeof(self->directblkptrs) / sizeof(*self->directblkptrs)
+        DIRECT_BLOCK_POINTER_COUNT =
+            sizeof(self->directblkptrs) / sizeof(*self->directblkptrs)
     };
     uint32_t resultaddr;
     if (self->nextdirectptrindex < DIRECT_BLOCK_POINTER_COUNT) {
-        // We can use direct blk pointer
+        // We can use direct block pointer
         resultaddr = self->directblkptrs[self->nextdirectptrindex];
         if (resultaddr == 0) {
-            THROW(ERR_EOF);
+            ret = FS_EOF;
+            goto fail;
         }
         self->nextdirectptrindex++;
     } else {
-        if ((self->singlyindirectbuf.buf == NULL) || (self->fs->blocksize <= self->singlyindirectbuf.offset_in_buf)) {
+        if (
+            (self->singlyindirectbuf.buf == NULL) ||
+            (self->fs->blocksize <= self->singlyindirectbuf.offset_in_buf))
+        {
             // We need to move to the next singly indirect table.
             uint32_t tableaddr;
             if (!self->singlyindirectused) {
@@ -264,17 +312,24 @@ FAILABLE_PROLOGUE
                                 // We are using triply indirect table for the first time
                                 tableaddr = self->triplyindirecttable;
                             } else {
-                                iodev_printf(&self->fs->disk->iodev, "File is too large\n");
-                                THROW(ERR_EOF);
+                                iodev_printf(
+                                    &self->fs->disk->iodev,
+                                    "File is too large\n");
+                                ret = FS_EOF;
+                                goto fail;
                             }
                             if (tableaddr == 0) {
                                 heap_free(self->triplyindirectbuf.buf);
                                 self->triplyindirectbuf.buf = NULL;
                                 self->triplyindirectbuf.offset_in_buf = 0;
-                                THROW(ERR_EOF);
+                                ret = FS_EOF;
+                                goto fail;
                             }
                             uint8_t *newtable = NULL;
-                            TRY(readblocks_alloc(&newtable, self->fs, tableaddr, 1));
+                            ret = readblocks_alloc(&newtable, self->fs, tableaddr, 1);
+                            if (ret < 0) {
+                                goto fail;
+                            }
                             heap_free(self->triplyindirectbuf.buf);
                             self->triplyindirectbuf.buf = newtable;
                             self->triplyindirectbuf.offset_in_buf = 0;
@@ -288,10 +343,14 @@ FAILABLE_PROLOGUE
                         heap_free(self->doublyindirectbuf.buf);
                         self->doublyindirectbuf.buf = NULL;
                         self->doublyindirectbuf.offset_in_buf = 0;
-                        THROW(ERR_EOF);
+                        ret = FS_EOF;
+                        goto fail;
                     }
                     uint8_t *newtable = NULL;
-                    TRY(readblocks_alloc(&newtable, self->fs, tableaddr, 1));
+                    ret = readblocks_alloc(&newtable, self->fs, tableaddr, 1);
+                    if (ret < 0) {
+                        goto fail;
+                    }
                     heap_free(self->doublyindirectbuf.buf);
                     self->doublyindirectbuf.buf = newtable;
                     self->doublyindirectbuf.offset_in_buf = 0;
@@ -304,26 +363,33 @@ FAILABLE_PROLOGUE
                 heap_free(self->singlyindirectbuf.buf);
                 self->singlyindirectbuf.buf = NULL;
                 self->singlyindirectbuf.offset_in_buf = 0;
-                THROW(ERR_EOF);
+                ret = FS_EOF;
+                goto fail;
             }
             uint8_t *newtable = NULL;
-            TRY(readblocks_alloc(&newtable, self->fs, tableaddr, 1));
+            ret = readblocks_alloc(&newtable, self->fs, tableaddr, 1);
+            if (ret < 0) {
+                goto fail;
+            }
             heap_free(self->singlyindirectbuf.buf);
             self->singlyindirectbuf.buf = newtable;
             self->singlyindirectbuf.offset_in_buf = 0;
         }
         self->singlyindirectused = true;
-        resultaddr = uint32leat(&self->singlyindirectbuf.buf[self->singlyindirectbuf.offset_in_buf]);
+        resultaddr = uint32leat(
+            &self->singlyindirectbuf.buf[
+                self->singlyindirectbuf.offset_in_buf]);
         if (resultaddr == 0) {
-            THROW(ERR_EOF);
+            goto fail;
         }
         self->singlyindirectbuf.offset_in_buf += sizeof(uint32_t);
     }
     self->currentblockaddr = resultaddr;
-
     self->cnt++;
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    goto out;
+fail:
+out:
+    return ret;
 }
 
 static void rewindinode(struct inocontext *self) {
@@ -332,9 +398,12 @@ static void rewindinode(struct inocontext *self) {
     heap_free(self->doublyindirectbuf.buf);
     heap_free(self->triplyindirectbuf.buf);
     memset(&self->blockbuf, 0, sizeof(self->blockbuf));
-    memset(&self->singlyindirectbuf, 0, sizeof(self->singlyindirectbuf));
-    memset(&self->doublyindirectbuf, 0, sizeof(self->doublyindirectbuf));
-    memset(&self->triplyindirectbuf, 0, sizeof(self->triplyindirectbuf));
+    memset(
+        &self->singlyindirectbuf, 0, sizeof(self->singlyindirectbuf));
+    memset(
+        &self->doublyindirectbuf, 0, sizeof(self->doublyindirectbuf));
+    memset(
+        &self->triplyindirectbuf, 0, sizeof(self->triplyindirectbuf));
     self->currentblockaddr = 0;
     self->nextdirectptrindex = 0;
     self->singlyindirectused = false;
@@ -342,31 +411,41 @@ static void rewindinode(struct inocontext *self) {
     self->triplyindirectused = false;
     self->cnt = 0;
     // Move to the very first block
-    {
-        status_t status = nextinodeblock(self);
-        // Above should only access the first direct block pointer, which cannot fail.
-        assert(status == OK);
-        (void)status;
-    }
+    int ret = nextinodeblock(self);
+    /*
+     * Above should only access the first direct block pointer, which cannot
+     * fail.
+     */
+    MUST_SUCCEED(ret);
 }
 
-static FAILABLE_FUNCTION skipreadinode(struct inocontext *self, size_t len) {
-FAILABLE_PROLOGUE
-    size_t remaininglen = len;
+// Returns FS_EOF on EOF
+static WARN_UNUSED_RESULT int skipreadinode(struct inocontext *self, size_t len) {
+    assert(len <= STREAM_MAX_TRANSFER_SIZE);
+    int ret = 0;
+    ssize_t remaininglen = len;
 
     while(remaininglen != 0) {
         if (self->fs->blocksize <= self->blockbuf.offset_in_buf) {
             // We've ran out of current block, so we need to move to the next block
-            TRY(nextinodeblock(self));
+            ret = nextinodeblock(self);
+            if (ret < 0) {
+                goto fail;
+            }
             // Invalidate old buffer
             heap_free(self->blockbuf.buf);
             self->blockbuf.buf = NULL;
             self->blockbuf.offset_in_buf = 0;
         }
-        if ((self->blockbuf.offset_in_buf == 0) && (self->fs->blocksize <= remaininglen)) {
+        if ((self->blockbuf.offset_in_buf == 0) &&
+            (self->fs->blocksize <= remaininglen))
+        {
             blkcnt_t blkcount = remaininglen / self->fs->blocksize;
             for (blkcnt_t i = 0; i < blkcount; i++) {
-                TRY(nextinodeblock(self));
+                ret = nextinodeblock(self);
+                if (ret < 0) {
+                    goto fail;
+                }
             }
             size_t skiplen = self->fs->blocksize * blkcount;
             remaininglen -= skiplen;
@@ -380,7 +459,11 @@ FAILABLE_PROLOGUE
 
         if (self->blockbuf.buf == NULL) {
             uint8_t *newbuf = NULL;
-            TRY(readblocks_alloc(&newbuf, self->fs, self->currentblockaddr, 1));
+            ret = readblocks_alloc(
+                &newbuf, self->fs, self->currentblockaddr, 1);
+            if (ret < 0) {
+                goto fail;
+            }
             self->blockbuf.buf = newbuf;
         }
         blkcnt_t maxlen = self->fs->blocksize - self->blockbuf.offset_in_buf;
@@ -392,12 +475,16 @@ FAILABLE_PROLOGUE
         self->blockbuf.offset_in_buf += skiplen;
         remaininglen -= skiplen;
     }
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    goto out;
+fail:
+out:
+    return ret;
 }
 
-static FAILABLE_FUNCTION seekinode(struct inocontext *self, off_t offset, int whence) {
-FAILABLE_PROLOGUE
+static WARN_UNUSED_RESULT int seekinode(
+    struct inocontext *self, off_t offset, int whence)
+{
+    int ret = 0;
     switch(whence) {
         case SEEK_SET: {
             rewindinode(self);
@@ -410,7 +497,12 @@ FAILABLE_PROLOGUE
                     skiplen = remaining;
                 }
                 assert(skiplen != 0);
-                TRY(skipreadinode(self, skiplen));
+                ret = skipreadinode(self, skiplen);
+                if (ret == FS_EOF) {
+                    assert(!"TODO");
+                } else if (ret < 0) {
+                    goto fail;
+                }
                 remaining -= skiplen;
             }
             break;
@@ -420,36 +512,60 @@ FAILABLE_PROLOGUE
             assert(!"TODO");
             break;
         default:
-            THROW(ERR_INVAL);
+            ret = -EINVAL;
+            goto fail;
     }
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    goto out;
+fail:
+out:
+    return ret;
 }
 
-static FAILABLE_FUNCTION readinode(struct inocontext *self, void *buf, size_t len) {
-FAILABLE_PROLOGUE
-    size_t remaininglen = len;
+// Returns EOF on 
+static WARN_UNUSED_RESULT int readinode(
+    struct inocontext *self, void *buf, size_t len)
+{
+    assert(len <= STREAM_MAX_TRANSFER_SIZE);
+    int ret = 0;
+    ssize_t remaininglen = len;
     uint8_t *dest = buf;
 
     while(remaininglen != 0) {
         if (self->fs->blocksize <= self->blockbuf.offset_in_buf) {
-            // We've ran out of current block, so we need to move to the next block
-            TRY(nextinodeblock(self));
+            /*
+             * We've ran out of current block, so we need to move to the next
+             * block
+             */
+            ret = nextinodeblock(self);
+            if (ret < 0) {
+                goto fail;
+            }
             // Invalidate old buffer
             heap_free(self->blockbuf.buf);
             self->blockbuf.buf = NULL;
             self->blockbuf.offset_in_buf = 0;
         }
-        // read as much blocks as we can, directly to the destination.
-        if ((self->blockbuf.offset_in_buf == 0) && (self->fs->blocksize <= remaininglen)) {
+        // Read as much blocks as we can, directly to the destination.
+        if (
+            (self->blockbuf.offset_in_buf == 0) &&
+            (self->fs->blocksize <= remaininglen))
+        {
             blkcnt_t blkcount = remaininglen / self->fs->blocksize;
             // Blocks may not be contiguous on ext2, but if we can, it's faster to read as much sectors at once.
             uint32_t lastbase = self->currentblockaddr;
             size_t contiguouslen = 1;
             for (blkcnt_t i = 0; i < (blkcount - 1); i++) {
-                TRY(nextinodeblock(self));
+                ret = nextinodeblock(self);
+                if (ret < 0) {
+                    goto fail;
+                }
                 if (self->currentblockaddr != lastbase + contiguouslen) {
-                    TRY(readblocks(self->fs, dest, lastbase, contiguouslen));
+                    ret = readblocks(
+                        self->fs, dest, lastbase,
+                        contiguouslen);
+                    if (ret < 0) {
+                        goto fail;
+                    }
                     size_t readsize = self->fs->blocksize * contiguouslen;
                     dest += readsize;
                     remaininglen -= readsize;
@@ -459,8 +575,14 @@ FAILABLE_PROLOGUE
                     contiguouslen++;
                 }
             }
-            TRY(readblocks(self->fs, dest, lastbase, contiguouslen));
-            TRY(nextinodeblock(self));
+            ret = readblocks(self->fs, dest, lastbase, contiguouslen);
+            if (ret < 0) {
+                goto fail;
+            }
+            ret = nextinodeblock(self);
+            if (ret < 0) {
+                goto fail;
+            }
             size_t readsize = self->fs->blocksize * contiguouslen;
             dest += readsize;
             remaininglen -= readsize;
@@ -475,7 +597,11 @@ FAILABLE_PROLOGUE
         if (self->blockbuf.buf == NULL) {
             // We don't have valid blk buffer - Let's buffer a block
             uint8_t *newbuf = NULL;
-            TRY(readblocks_alloc(&newbuf, self->fs, self->currentblockaddr, 1));
+            ret = readblocks_alloc(
+                &newbuf, self->fs, self->currentblockaddr, 1);
+            if (ret < 0) {
+                goto fail;
+            }
             self->blockbuf.buf = newbuf;
         }
         // read from current buffered blk data, as much as we can.
@@ -490,18 +616,27 @@ FAILABLE_PROLOGUE
         dest += readlen;
         remaininglen -= readlen;
     }
-
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    goto out;
+fail:
+out:
+    return ret;
 }
 
-static FAILABLE_FUNCTION openinode(struct inocontext *out, struct fscontext *self, ino_t inode) {
-FAILABLE_PROLOGUE
+static WARN_UNUSED_RESULT int openinode(
+    struct inocontext *out, struct fscontext *self, ino_t inode)
+{
+    int ret = 0;
     uint32_t blockaddr;
     off_t offset;
     uint8_t *blkdata = NULL;
-    TRY(locateinode(&blockaddr, &offset, self, inode));
-    TRY(readblocks_alloc(&blkdata, self, blockaddr, 1));
+    ret = locateinode(&blockaddr, &offset, self, inode);
+    if (ret < 0) {
+        goto fail;
+    }
+    ret = readblocks_alloc(&blkdata, self, blockaddr, 1);
+    if (ret < 0) {
+        goto fail;
+    }
     uint8_t *inodedata = &blkdata[offset];
     memset(out, 0, sizeof(*out));
     uint32_t sizel = 0, sizeh = 0;
@@ -531,16 +666,17 @@ FAILABLE_PROLOGUE
     }
     out->size = ((uint64_t)sizeh << 32) | (uint64_t)sizel;
     // Move to the very first block
-    {
-        status_t status = nextinodeblock(out);
-        // Above should only access the first direct block pointer, which cannot fail.
-        assert(status == OK);
-        (void)status;
-    }
-
-FAILABLE_EPILOGUE_BEGIN
+    ret = nextinodeblock(out);
+    /*
+     * Above should only access the first direct block pointer, which cannot
+     * fail.
+     */
+    MUST_SUCCEED(ret);
+    goto out;
+fail:
+out:
     heap_free(blkdata);
-FAILABLE_EPILOGUE_END
+    return ret;
 }
 
 static void closeinode(struct inocontext *self) {
@@ -557,72 +693,76 @@ struct DIR {
     struct inocontext inocontext;
 };
 
-// Returns ERR_EOF when it reaches end of the directory.
-static FAILABLE_FUNCTION readdirectory(struct dirent *out, DIR *self) {
-FAILABLE_PROLOGUE
+// Returns FS_EOF when it reaches end of the directory.
+static WARN_UNUSED_RESULT int readdirectory(struct dirent *out, DIR *self) {
+    int ret = 0;
     while(1) {
         uint8_t header[8];
         memset(out, 0, sizeof(*out));
-        TRY(readinode(&self->inocontext, header, 8));
+        ret = readinode(&self->inocontext, header, 8);
+        if (ret < 0) {
+            goto fail;
+        }
         out->d_ino       = uint32leat(&header[0x0]);
         size_t entrysize = uint16leat(&header[0x4]);
         size_t namelen   = header[0x6];
-        if (!(self->inocontext.fs->requiredfeatures & REQUIRED_FEATUREFLAG_DIRENTRY_CONTAINS_TYPEFIELD)) {
-            // YJK/OS does not support name longer than 255 characters.
+        if (!(self->inocontext.fs->requiredfeatures &
+            REQUIRED_FEATUREFLAG_DIRENTRY_CONTAINS_TYPEFIELD))
+        {
+            // YJK/OS does not support names longer than 255 characters.
             if(header[0x7] != 0) {
-                THROW(ERR_NAMETOOLONG);
+                ret = -ENAMETOOLONG;
+                goto fail;
             }
         }
-        TRY(readinode(&self->inocontext, out->d_name, namelen));
+        ret = readinode(
+            &self->inocontext, out->d_name, namelen);
+        if (ret < 0) {
+            goto fail;
+        }
         size_t readlen = namelen + sizeof(header);
         size_t skiplen = entrysize - readlen;
-#if 1
-        TRY(skipreadinode(&self->inocontext, skiplen));
-#else
-        {
-            size_t remaininglen = skiplen;
-            for (size_t i = 0; i < skiplen; i++) {
-                uint8_t unused[16];
-                size_t maxlen = sizeof(unused);
-                size_t readlen = remaininglen;
-                if (maxlen < readlen) {
-                    readlen = maxlen;
-                }
-                TRY(readinode(&self->inocontext, unused, readlen));
-                remaininglen -= readlen;
-            }
+        ret = skipreadinode(&self->inocontext, skiplen);
+        if (ret < 0) {
+            goto fail;
         }
-#endif
         if (out->d_ino != 0) {
             break;
         }
     }
-
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    goto out;
+fail:
+out:
+    return ret;
 }
 
-static FAILABLE_FUNCTION opendirectory(DIR **dir_out, struct fscontext *self, ino_t inode) {
-FAILABLE_PROLOGUE
-    bool inodeopened = false;
+static WARN_UNUSED_RESULT int opendirectory(
+    DIR **dir_out, struct fscontext *self, ino_t inode)
+{
+    int ret = 0;
     DIR *dir = heap_alloc(sizeof(*dir), HEAP_FLAG_ZEROMEMORY);
     if (dir == NULL) {
-        THROW(ERR_NOMEM);
+        goto fail;
     }
-    TRY(openinode(&dir->inocontext, self, inode));
-    inodeopened = true;
-    if ((dir->inocontext.typeandpermissions & INODE_TYPE_MASK) != INODE_TYPE_DIRECTORY) {
-        THROW(ERR_NOTDIR);
+    ret = openinode(&dir->inocontext, self, inode);
+    if (ret < 0) {
+        goto fail_after_alloc;
+    }
+    if ((dir->inocontext.typeandpermissions & INODE_TYPE_MASK)
+        != INODE_TYPE_DIRECTORY)
+    {
+        ret = -ENOTDIR;
+        goto fail_after_open;
     }
     *dir_out = dir;
-FAILABLE_EPILOGUE_BEGIN
-    if (DID_FAIL) {
-        if (inodeopened) {
-            closeinode(&dir->inocontext);
-        }
-        heap_free(dir);
-    }
-FAILABLE_EPILOGUE_END
+    goto out;
+fail_after_open:
+    closeinode(&dir->inocontext);
+fail_after_alloc:
+    heap_free(dir);
+fail:
+out:
+    return ret;
 }
 
 static void closedirectory(DIR *self) {
@@ -633,22 +773,25 @@ static void closedirectory(DIR *self) {
     heap_free(self);
 }
 
-static FAILABLE_FUNCTION openfile(struct inocontext *out, struct fscontext *self, ino_t inode) {
-FAILABLE_PROLOGUE
-    bool inodeopened = false;
-    TRY(openinode(out, self, inode));
-    inodeopened = true;
+static WARN_UNUSED_RESULT int openfile(
+    struct inocontext *out, struct fscontext *self, ino_t inode)
+{
+    int ret;
+    ret = openinode(out, self, inode);
+    assert(ret != FS_EOF);
+    if (ret < 0) {
+        goto fail;
+    }
     if ((out->typeandpermissions & INODE_TYPE_MASK) == INODE_TYPE_DIRECTORY) {
-        THROW(ERR_ISDIR);
+        ret = -EISDIR;
+        goto fail_after_open;
     }
-    inodeopened = true;
-FAILABLE_EPILOGUE_BEGIN
-    if (DID_FAIL) {
-        if (inodeopened) {
-            closeinode(out);
-        }
-    }
-FAILABLE_EPILOGUE_END
+    goto out;
+fail_after_open:
+    closeinode(out);
+fail:
+out:
+    return ret;
 }
 
 static void closefile(struct inocontext *self) {
@@ -658,10 +801,11 @@ static void closefile(struct inocontext *self) {
     closeinode(self);
 }
 
-static FAILABLE_FUNCTION resolvepath(ino_t *ino_out, struct fscontext *self, ino_t parent, char const *path) {
-FAILABLE_PROLOGUE
+static WARN_UNUSED_RESULT int resolvepath(
+    ino_t *ino_out, struct fscontext *self, ino_t parent, char const *path)
+{
+    int ret = 0;
     DIR *dir;
-    bool diropened = false;
     ino_t currentino = parent;
     char namebuf[NAME_MAX + 1];
     char const *remainingpath = path;
@@ -675,7 +819,8 @@ FAILABLE_PROLOGUE
         } else {
             size_t len = nextslash - remainingpath;
             if (NAME_MAX < len) {
-                THROW(ERR_NAMETOOLONG);
+                ret = -ENAMETOOLONG;
+                goto fail;
             }
             memcpy(namebuf, remainingpath, len);
             name = namebuf;
@@ -683,37 +828,37 @@ FAILABLE_PROLOGUE
             newremainingpath = &nextslash[1];
         }
         if (name[0] != '\0') {
-            TRY(opendirectory(&dir, self, currentino));
-            diropened = true;
-            bool found = false;
+            ret = opendirectory(&dir, self, currentino);
+            if (ret < 0) {
+                goto fail;
+            }
             while (1) {
                 struct dirent ent;
-                status_t status = readdirectory(&ent, dir);
-                if (status == ERR_EOF) {
+                ret = readdirectory(&ent, dir);
+                if (ret == FS_EOF) {
+                    ret = -ENOENT;
                     break;
-                } else if (status != OK) {
-                    THROW(status);
+                } else if (ret < 0) {
+                    break;
                 }
                 currentino = ent.d_ino;
                 if (strcmp(name, ent.d_name) == 0) {
-                    found = true;
+                    ret = 0;
                     break;
                 }
             }
             closedirectory(dir);
-            diropened = false;
-            if (!found) {
-                THROW(ERR_NOENT);
+            if (ret < 0) {
+                goto fail;
             }
         }
         remainingpath = newremainingpath;
     }
     *ino_out = currentino;
-FAILABLE_EPILOGUE_BEGIN
-    if (diropened) {
-        closedirectory(dir);
-    }
-FAILABLE_EPILOGUE_END
+    goto out;
+fail:
+out:
+    return ret;
 }
 
 struct openfdcontext {
@@ -722,34 +867,45 @@ struct openfdcontext {
     off_t cursorpos;
 };
 
-static FAILABLE_FUNCTION fd_op_read(struct fd *self, void *buf, size_t *len_inout) {
-FAILABLE_PROLOGUE
+WARN_UNUSED_RESULT static ssize_t fd_op_read(
+    struct fd *self, void *buf, size_t len)
+{
+    assert(len <= STREAM_MAX_TRANSFER_SIZE);
     struct openfdcontext *context = self->data;
     off_t maxlen = context->inocontext.size - context->cursorpos;
-    size_t readlen = *len_inout;
+    size_t readlen = len;
     if (maxlen < readlen) {
         readlen = maxlen;
     }
-    TRY(readinode(&context->inocontext, buf, readlen));
+    int ret = readinode(&context->inocontext, buf, readlen);
+    assert(ret != FS_EOF);
+    if (ret < 0) {
+        goto fail;
+    }
     context->cursorpos += readlen;
-    *len_inout = readlen;
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    goto out;
+fail:
+    readlen = -1;
+out:
+    return readlen;
 }
 
-static FAILABLE_FUNCTION fd_op_write(struct fd *self, void const *buf, size_t *len_inout) {
-FAILABLE_PROLOGUE
+WARN_UNUSED_RESULT static ssize_t fd_op_write(
+    struct fd *self, void const *buf, size_t len)
+{
+    assert(len <= STREAM_MAX_TRANSFER_SIZE);
     (void)self;
     (void)buf;
-    (void)len_inout;
-    THROW(ERR_NOTSUP);
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return -EIO;
 }
 
-static FAILABLE_FUNCTION fd_op_seek(struct fd *self, off_t offset, int whence) {
+static WARN_UNUSED_RESULT int fd_op_seek(
+    struct fd *self, off_t offset, int whence)
+{
     struct openfdcontext *context = self->data;
-    return seekinode(&context->inocontext, offset, whence);
+    int ret = seekinode(&context->inocontext, offset, whence);
+    assert(ret != FS_EOF);
+    return ret;
 }
 
 static void fd_op_close(struct fd *self) {
@@ -766,8 +922,10 @@ static struct fd_ops const FD_OPS = {
     .close = fd_op_close,
 };
 
-static FAILABLE_FUNCTION vfs_op_mount(struct vfs_fscontext **out, struct ldisk *disk) {
-FAILABLE_PROLOGUE
+static WARN_UNUSED_RESULT int vfs_op_mount(
+    struct vfs_fscontext **out, struct ldisk *disk)
+{
+    int ret = 0;
     uint8_t superblk[1024];
     struct fscontext *context = heap_alloc(sizeof(*context), HEAP_FLAG_ZEROMEMORY);
     //--------------------------------------------------------------------------
@@ -777,12 +935,19 @@ FAILABLE_PROLOGUE
         assert(1024 % disk->physdisk->blocksize == 0);
         off_t blockoffset = 1024 / disk->physdisk->blocksize;
         blkcnt_t blkcount = 1024 / disk->physdisk->blocksize;
-        TRY(ldisk_read_exact(disk, superblk, blockoffset, blkcount));
+        ret = ldisk_read_exact(
+            disk, superblk, blockoffset,
+            blkcount);
+        if (ret < 0) {
+            goto fail;
+        }
     }
     context->signature = uint16leat(&superblk[0x038]);
     if (context->signature != EXT2_SIGNATURE) {
-        iodev_printf(&disk->iodev, "ext2: invalid superblk signature\n");
-        THROW(ERR_INVAL);
+        iodev_printf(
+            &disk->iodev, "ext2: invalid superblk signature\n");
+        ret = -EINVAL;
+        goto fail;
     }
     context->disk                      = disk;
     context->totalinodes               = uint32leat(&superblk[0x000]);
@@ -793,8 +958,10 @@ FAILABLE_PROLOGUE
     context->superblkblknum            = uint32leat(&superblk[0x014]);
     uint32_t blksizeraw            = uint32leat(&superblk[0x018]);
     if (21 < blksizeraw) {
-        iodev_printf(&disk->iodev, "ext2: block size value is too large\n");
-        THROW(ERR_INVAL);
+        iodev_printf(
+            &disk->iodev, "ext2: block size value is too large\n");
+        ret = -EINVAL;
+        goto fail;
     }
     context->blocksize                   = 1024U << blksizeraw;
     context->blksinblkgroup            = uint32leat(&superblk[0x020]);
@@ -848,7 +1015,12 @@ FAILABLE_PROLOGUE
         context->inodesize = 128;
     }
     uint8_t const *id = context->filesystemid;
-    iodev_printf(&disk->iodev, "ext2 V%u-%02u, ID: %02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x\n", context->majorver, context->minorver, id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7], id[8], id[9], id[10], id[11], id[12], id[13], id[14], id[15]);
+    iodev_printf(
+        &disk->iodev,
+        "ext2 V%u-%02u, ID: %02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x\n",
+        context->majorver, context->minorver,
+        id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7], id[8], id[9],
+        id[10], id[11], id[12], id[13], id[14], id[15]);
 
     size_t blkgroupcount = sizetoblocks(context->totalblks, context->blksinblkgroup);
     size_t blkgroupcount2 = sizetoblocks(context->totalinodes, context->inodesinblkgroup);
@@ -880,56 +1052,64 @@ FAILABLE_PROLOGUE
     // Check feature flags
     //--------------------------------------------------------------------------
     if (context->requiredfeatures & ~SUPPORTED_REQUIRED_FLAGS) {
-        iodev_printf(&disk->iodev, "ext2: found unsupported required features(flag %x)\n", context->requiredfeatures & ~SUPPORTED_REQUIRED_FLAGS);
-        THROW(ERR_INVAL);
+        iodev_printf(
+            &disk->iodev,
+            "ext2: found unsupported required features(flag %x)\n",
+            context->requiredfeatures & ~SUPPORTED_REQUIRED_FLAGS);
+        ret = -EINVAL;
+        goto fail;
     }
     if (context->requiredfeatures_rw & ~SUPPORTED_RWMOUNT_FLAGS) {
-        iodev_printf(&disk->iodev, "ext2: found unsupported required features for R/W mount(flag %x)\n", context->requiredfeatures_rw & ~SUPPORTED_RWMOUNT_FLAGS);
-        THROW(ERR_INVAL);
+        iodev_printf(
+            &disk->iodev,
+            "ext2: found unsupported required features for R/W mount(flag %x)\n",
+            context->requiredfeatures_rw & ~SUPPORTED_RWMOUNT_FLAGS);
+        ret = -EINVAL;
+        goto fail;
     }
     context->vfs_fscontext.data = context;
     *out = &context->vfs_fscontext;
-
-FAILABLE_EPILOGUE_BEGIN
-    if (DID_FAIL) {
-        heap_free(context);
-    }
-FAILABLE_EPILOGUE_END
+    goto out;
+fail:
+    heap_free(context);
+out:
+    return ret;
 }
 
-static FAILABLE_FUNCTION vfs_op_umount(struct vfs_fscontext *self) {
-FAILABLE_PROLOGUE
+static  WARN_UNUSED_RESULT int vfs_op_umount(struct vfs_fscontext *self) {
     heap_free(self->data);
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return 0;
 }
 
-static FAILABLE_FUNCTION vfs_op_open(struct fd **out, struct vfs_fscontext *self, char const *path, int flags) {
-FAILABLE_PROLOGUE
-    bool fileopened = false;
-    bool fileregistered = false;
+static WARN_UNUSED_RESULT int vfs_op_open(
+    struct fd **out, struct vfs_fscontext *self, char const *path, int flags)
+{
+    int ret;
     ino_t inode;
     struct fscontext *fscontext = self->data;
     (void)flags;
     struct openfdcontext *fdcontext = heap_alloc(sizeof(*fdcontext), HEAP_FLAG_ZEROMEMORY);
-    fileopened = true;
-    TRY(resolvepath(&inode, fscontext, INODE_ROOTDIRECTORY, path));
-    TRY(openfile(&fdcontext->inocontext, fscontext, inode));
-    fileopened = true;
-    TRY(vfs_registerfile(&fdcontext->fd, &FD_OPS, self, fdcontext));
-    fileregistered = true;
-    *out = &fdcontext->fd;
-FAILABLE_EPILOGUE_BEGIN
-    if (DID_FAIL) {
-        if (fileregistered) {
-            vfs_unregisterfile(&fdcontext->fd);
-        }
-        if (fileopened) {
-            closefile(&fdcontext->inocontext);
-        }
-        heap_free(fdcontext);
+    ret = resolvepath(&inode, fscontext, INODE_ROOTDIRECTORY, path);
+    if (ret < 0) {
+        goto fail_after_alloc;
     }
-FAILABLE_EPILOGUE_END
+    ret = openfile(&fdcontext->inocontext, fscontext, inode);
+    if (ret < 0) {
+        goto fail_after_alloc;
+    }
+    ret = vfs_registerfile(
+        &fdcontext->fd, &FD_OPS, self, fdcontext);
+    if (ret < 0) {
+        goto fail_after_open;
+    }
+    *out = &fdcontext->fd;
+    goto out;
+fail_after_open:
+    closefile(&fdcontext->inocontext);
+fail_after_alloc:
+    heap_free(fdcontext);
+out:
+    return ret;
 }
 
 static struct vfs_fstype_ops const FSTYPE_OPS = {

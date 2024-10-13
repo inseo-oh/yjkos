@@ -1,9 +1,10 @@
 #include <assert.h>
 #include <kernel/arch/pci.h>
 #include <kernel/dev/pci.h>
+#include <kernel/lib/diagnostics.h>
 #include <kernel/io/tty.h>
 #include <kernel/panic.h>
-#include <kernel/status.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -184,8 +185,7 @@ void pci_writestatusreg(pcipath path, uint16_t value) {
 }
 
 // TODO: Memory BAR support is currently incomplete, because it doesn't query how much address space is used.
-FAILABLE_FUNCTION pci_readbar(uintptr_t *addr_out, bool *isiobar_out, bool *isprefetchable_out, pcipath path, uint8_t bar) {
-FAILABLE_PROLOGUE
+WARN_UNUSED_RESULT int pci_readbar(uintptr_t *addr_out, bool *isiobar_out, bool *isprefetchable_out, pcipath path, uint8_t bar) {
     assert(bar <= 5);
     uint8_t regoffset = 0x10 + (bar * 4);
     uint32_t word = arch_pci_readconfig(path, regoffset);
@@ -203,11 +203,13 @@ FAILABLE_PROLOGUE
                 baseaddr = word & ~0xf;
                 break;
             case 0x2:
-                pci_printf(path, "BAR%d: 64-bit BAR is not supported", bar);
-                THROW(ERR_IO);
+                pci_printf(
+                    path, "BAR%d: 64-bit BAR is not supported", bar);
+                return -EIO;
             default:
-                pci_printf(path, "BAR%d: unrecognized BAR type %d", bar, type);
-                THROW(ERR_IO);
+                pci_printf(
+                    path, "BAR%d: unrecognized BAR type %d", bar, type);
+                return -EIO;
         }
         *addr_out = baseaddr;
         *isiobar_out = false;
@@ -219,32 +221,36 @@ FAILABLE_PROLOGUE
         *isiobar_out = true;
         *isprefetchable_out = false;
     }
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return 0;
 }
 
-FAILABLE_FUNCTION pci_readmembar(uintptr_t *addr_out, bool *isprefetchable_out, pcipath path, uint8_t bar) {
-FAILABLE_PROLOGUE
+WARN_UNUSED_RESULT int pci_readmembar(uintptr_t *addr_out, bool *isprefetchable_out, pcipath path, uint8_t bar) {
     bool isiobar;
-    TRY(pci_readbar(addr_out, &isiobar, isprefetchable_out, path, bar));
+    int ret = pci_readbar(
+        addr_out, &isiobar, isprefetchable_out, path, bar);
+    if (ret < 0) {
+        return ret;
+    }
     if (isiobar) {
         pci_printf(path, "BAR%d: expected memory BAR, got I/O BAR", path, bar);
-        THROW(ERR_IO);
+        return -EIO;
     }
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return 0;
 }
 
-FAILABLE_FUNCTION pci_readiobar(uintptr_t *addr_out, pcipath path, uint8_t bar) {
-FAILABLE_PROLOGUE
+WARN_UNUSED_RESULT int pci_readiobar(uintptr_t *addr_out, pcipath path, uint8_t bar) {
     bool isiobar, isprefetchable_out;
-    TRY(pci_readbar(addr_out, &isiobar, &isprefetchable_out, path, bar));
+    int ret = pci_readbar(
+        addr_out, &isiobar,
+        &isprefetchable_out, path, bar);
+    if (ret < 0) {
+        return ret;
+    }
     if (!isiobar) {
         pci_printf(path, "BAR%d: expected I/O BAR, got memory BAR", bar);
-        THROW(ERR_IO);
+        return -EIO;
     }
-FAILABLE_EPILOGUE_BEGIN
-FAILABLE_EPILOGUE_END
+    return 0;
 }
 
 static void printcallback(pcipath path, uint16_t venid, uint16_t devid, uint8_t baseclass, uint8_t subclass, void *data) {
