@@ -85,16 +85,78 @@ out:
     return result;
 }
 
-void psf_init(void) {
+static void init_psf1(void) {
     uint8_t *data = _binary_kernelfont_psf_start;
-    uint16_t magic16 = uint16leat(data);
-    if (magic16 == PSF1_MAGIC) {
-        panic("PSF1 fonts are not supported");
+    uint8_t mode = data[2];
+    uint32_t width = 8;
+    uint32_t height = data[3];
+    uint32_t numglyph = 256;
+    uint32_t headersize = 4;
+    if ((mode & 0x01)) {
+        numglyph = 512;
     }
-    uint32_t magic32 = uint32leat(data);
-    if (magic32 != PSF2_MAGIC) {
-        panic("Invalid PSF2 magic");
+    tty_printf(
+        "psf: v1 font %ux%u mode %u, numglyph %u\n",
+        width, height, mode, numglyph);
+    uint32_t bytesperglyph = height;
+    if (!(mode & (0x02 | 0x04))) {
+        goto unicodetabledone;
     }
+    if ((SIZE_MAX / bytesperglyph) < numglyph) {
+        tty_printf(
+            "psf: glyph table is too large - cannot locate unicode translation table\n");
+        goto unicodetabledone;
+    }
+    s_unicodetable = heap_calloc(sizeof(*s_unicodetable), UINT16_MAX, HEAP_FLAG_ZEROMEMORY);
+    s_glyphs = data + headersize;
+    s_fontwidth = width;
+    s_fontheight = height;
+    s_bytesperglyph = bytesperglyph;
+    s_glyphcount = numglyph;
+    if (s_unicodetable == NULL) {
+        tty_printf(
+            "psf: not enough memory to have unicode translation table\n");
+        goto unicodetabledone;
+    }
+    // Read each UTF-16 entry
+    uint32_t glyph = 0;
+    uint8_t *nextchr = s_glyphs + (bytesperglyph * numglyph);
+    bool hadmultichars = false;
+    bool gotchar = false;
+    while ((nextchr < _binary_kernelfont_psf_end) && (glyph < numglyph)) {
+        uint16_t unicode = uint16leat(nextchr);
+        if (unicode == 0xffff) {
+            // EOL
+            nextchr += 2;
+            glyph++;
+            gotchar = false;
+            continue;
+        }
+        if (unicode == 0xfffe) {
+            // Mapping to unicode character sequences is not supported
+            nextchr++;
+            continue;
+        }
+        nextchr += 2;
+        goto unicodedone;
+        nextchr++;
+    unicodedone:
+        if (gotchar) {
+            hadmultichars = true;
+        }
+        gotchar = true;
+        s_unicodetable[unicode] = glyph;
+    }
+    if (hadmultichars) {
+        tty_printf(
+            "psf: mapping to unicode character sequences is not supported\n");
+    }
+unicodetabledone:
+    return;
+}
+
+static void init_psf2(void) {
+    uint8_t *data = _binary_kernelfont_psf_start;
     uint32_t version       = uint32leat(data + 4);
     if (version != 0) {
         tty_printf("psf: font version is not 0(got %u) - Not guranteed to work!\n", version);
@@ -105,7 +167,9 @@ void psf_init(void) {
     uint32_t bytesperglyph = uint32leat(data + 20);
     uint32_t height        = uint32leat(data + 24);
     uint32_t width         = uint32leat(data + 28);
-    tty_printf("psf: font %ux%u headersize %u, flags %u, numglyph %u bytesperglyph %u\n", width, height, headersize, flags, numglyph, bytesperglyph);
+    tty_printf(
+        "psf: v2 font %ux%u headersize %u, flags %u, numglyph %u\n",
+        width, height, headersize, flags, numglyph);
     s_glyphs = data + headersize;
     s_fontwidth = width;
     s_fontheight = height;
@@ -116,25 +180,35 @@ void psf_init(void) {
     }
     // Read unicode translation table
     if ((SIZE_MAX / bytesperglyph) < numglyph) {
-        tty_printf("psf: glyph table is too large - cannot locate unicode translation table\n");
+        tty_printf(
+            "psf: glyph table is too large - cannot locate unicode translation table\n");
         goto unicodetabledone;
     }
     s_unicodetable = heap_calloc(sizeof(*s_unicodetable), UINT16_MAX, HEAP_FLAG_ZEROMEMORY);
     if (s_unicodetable == NULL) {
-        tty_printf("psf: not enough memory to have unicode translation table\n");
+        tty_printf(
+            "psf: not enough memory to have unicode translation table\n");
         goto unicodetabledone;
     }
     // Read each UTF-8 entry
     uint32_t glyph = 0;
     uint8_t *nextchr = s_glyphs + (bytesperglyph * numglyph);
+    bool hadmultichars = false;
+    bool gotchar = false;
     while ((nextchr < _binary_kernelfont_psf_end) && (glyph < numglyph)) {
         uint8_t b = *nextchr;
         if (b == 0xff) {
             // EOL
             nextchr++;
             glyph++;
+            gotchar = false;
             continue;
-        } 
+        }
+        if (b == 0xfe) {
+            // Mapping to unicode character sequences is not supported
+            nextchr++;
+            continue;
+        }
         int byteslen = utf8_getbyteslen(b);
         int32_t unicode;
         if (byteslen < 0) {
@@ -143,11 +217,9 @@ void psf_init(void) {
         // Make sure we don't get EOL or EOF.
         for (int i = 1; i < byteslen; i++) {
             if (_binary_kernelfont_psf_end <= &nextchr[i]) {
-                tty_printf("psf: &_binary_kernelfont_psf_end <= &nextchr[i]\n");
                 goto badcode;
             }
             if (nextchr[i] == 0xff) {
-                tty_printf("psf: nextchr[i] == 0xff\n");
                 goto badcode;
             }
         }
@@ -158,18 +230,43 @@ void psf_init(void) {
         nextchr += byteslen;
         goto unicodedone;
     badcode:
-        tty_printf("psf: unicode table entry #%zu - illegal utf-8 sequence\n", glyph);
+        tty_printf(
+            "psf: unicode table entry #%zu - illegal utf-8 sequence\n", glyph);
         unicode = b;
         nextchr++;
     unicodedone:
         if (0xffff < unicode) {
             continue;
         }
+        if (gotchar) {
+            hadmultichars = true;
+        }
+        gotchar = true;
         s_unicodetable[unicode] = glyph;
+    }
+    if (hadmultichars) {
+        tty_printf(
+            "psf: mapping to unicode character sequences is not supported\n");
     }
 unicodetabledone:
     return;
 }
+
+void psf_init(void) {
+    uint8_t *data = _binary_kernelfont_psf_start;
+    uint16_t magic16 = uint16leat(data);
+    if (magic16 == PSF1_MAGIC) {
+        init_psf1();
+        return;
+    }
+    uint32_t magic32 = uint32leat(data);
+    if (magic32 == PSF2_MAGIC) {
+        init_psf2();
+        return;
+    }
+    panic("Invalid PSF magic");
+}
+
 
 size_t psf_getwidth(void) {
     return s_fontwidth;
