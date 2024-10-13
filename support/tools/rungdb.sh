@@ -7,4 +7,4 @@ if [ ! -z $1 ]; then
 fi
 echo "Using IP address: "$IP
 KBINARY=out/x86/bootroot/boot/yjkernel-nostrip
-i386-elf-gdb -ex "target remote $IP:1234" $KBINARY
+i586-elf-gdb -ex "target remote $IP:1234" $KBINARY
