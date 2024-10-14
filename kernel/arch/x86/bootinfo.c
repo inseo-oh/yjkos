@@ -7,6 +7,7 @@
 #include <kernel/io/tty.h>
 #include <kernel/lib/bitmap.h>
 #include <kernel/lib/pstring.h>
+#include <kernel/mem/heap.h>
 #include <kernel/mem/pmm.h>
 #include <kernel/panic.h>
 #include <kernel/raster/fb.h>
@@ -242,18 +243,43 @@ void archx86_bootinfo_process(physptr infoaddr) {
                 if (pagecount == 0) {
                     continue;
                 }
-                tty_printf("register memory: %08x ~ %08x (%u pages)\n", addr, addr + len - 1, pagecount);
+                tty_printf(
+                    "register memory: %08x ~ %08x (%u pages)\n",
+                    addr, addr + len - 1, pagecount);
                 pmm_register(addr, pagecount);
             }
         }
     }
     if (info.flags & MULTIBOOT_INFO_FRAMEBUFFER_INFO) {
         tty_printf("framebuffer address is %p\n", info.framebuffer_addr);
-        if (info.framebuffer_type == 0) {
-            tty_printf("indexed color video %dx%d\n", info.framebuffer_width, info.framebuffer_height);
-            panic("TODO: support indexed color");
-        } else if (info.framebuffer_type == 1) {
-            fb_init(
+        if (info.framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_INDEXED) {
+            uint8_t *colors = heap_alloc(
+                info.framebuffer_palette_num_colors * 3, 0);
+            if (colors == NULL) {
+                panic("not enough memory to store palette");
+            }
+            for (int i = 0; i < info.framebuffer_palette_num_colors; i++) {
+                struct multiboot_color color;
+                pmemcpy_in(
+                    &color,
+                    info.framebuffer_palette_addr + (sizeof(color) * i),
+                    sizeof(color), true);
+                colors[i * 3 + 0] = color.red;
+                colors[i * 3 + 1] = color.green;
+                colors[i * 3 + 2] = color.blue;
+            }
+            fb_init_indexed(
+                colors,
+                info.framebuffer_palette_num_colors,
+                info.framebuffer_addr,
+                info.framebuffer_width,
+                info.framebuffer_height,
+                info.framebuffer_pitch,
+                info.framebuffer_bpp
+            );
+            
+        } else if (info.framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_RGB) {
+            fb_init_rgb(
                 info.framebuffer_red_field_position,
                 info.framebuffer_red_mask_size,
                 info.framebuffer_green_field_position,
@@ -266,10 +292,16 @@ void archx86_bootinfo_process(physptr infoaddr) {
                 info.framebuffer_pitch,
                 info.framebuffer_bpp
             );
-        } else if (info.framebuffer_type == 2) {
+        } else if (
+            info.framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_EGA_TEXT)
+        {
             tty_printf("text mode %dx%d\n", info.framebuffer_width, info.framebuffer_height);
             assert(info.framebuffer_bpp == 16);
-            archx86_vgatty_init(info.framebuffer_addr, info.framebuffer_width, info.framebuffer_height, info.framebuffer_pitch);
+            archx86_vgatty_init(
+                info.framebuffer_addr,
+                info.framebuffer_width,
+                info.framebuffer_height,
+                info.framebuffer_pitch);
             tty_printf("initialized text mode console\n");
         } else {
             tty_printf("unknown framebuffer type %d with size %dx%d\n", info.framebuffer_type, info.framebuffer_width, info.framebuffer_height);
