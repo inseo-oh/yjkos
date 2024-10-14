@@ -134,7 +134,7 @@ static void init_psf1(void) {
         }
         if (unicode == 0xfffe) {
             // Mapping to unicode character sequences is not supported
-            nextchr++;
+            nextchr += 2;
             continue;
         }
         nextchr += 2;
