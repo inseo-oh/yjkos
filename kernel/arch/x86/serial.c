@@ -258,7 +258,9 @@ WARN_UNUSED_RESULT int archx86_serial_init(
         return ret;
     }
     writeier(out, 0);
-    writereg(out, REG_MCR, MCR_FLAG_DTR | MCR_FLAG_RTS | MCR_FLAG_OUT1 | MCR_FLAG_OUT2);
+    writereg(
+        out, REG_MCR,
+        MCR_FLAG_DTR | MCR_FLAG_RTS | MCR_FLAG_OUT1 | MCR_FLAG_OUT2);
     return 0;
 }
 
