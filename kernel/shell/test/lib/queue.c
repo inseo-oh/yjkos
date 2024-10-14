@@ -57,7 +57,7 @@ SHELLRODATA static struct test const TESTS[] = {
     { .name = "queue", .fn = do_test },
 };
 
-SHELLDATA const struct testgroup TESTGROUP_QUEUE = {
+SHELLRODATA const struct testgroup TESTGROUP_QUEUE = {
     .name = "queue",
     .tests = TESTS,
     .testslen = sizeof(TESTS)/sizeof(*TESTS),

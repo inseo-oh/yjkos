@@ -80,7 +80,7 @@ SHELLRODATA static struct test const TESTS[] = {
     { .name = "consumeword",          .fn = do_consumeword           },
 };
 
-SHELLDATA const struct testgroup TESTGROUP_SMATCHER = {
+SHELLRODATA const struct testgroup TESTGROUP_SMATCHER = {
     .name = "smatcher",
     .tests = TESTS,
     .testslen = sizeof(TESTS)/sizeof(*TESTS),

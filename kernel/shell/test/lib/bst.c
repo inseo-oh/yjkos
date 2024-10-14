@@ -690,7 +690,7 @@ SHELLRODATA static struct test const TESTS[] = {
     { .name = "height",                     .fn = do_height                },
 };
 
-SHELLDATA const struct testgroup TESTGROUP_BST = {
+SHELLRODATA const struct testgroup TESTGROUP_BST = {
     .name = "bst",
     .tests = TESTS,
     .testslen = sizeof(TESTS)/sizeof(*TESTS),

@@ -24,7 +24,7 @@ SHELLRODATA static struct test const TESTS[] = {
     { .name = "bad allocation",         .fn = do_badalloc  },
 };
 
-SHELLDATA const struct testgroup TESTGROUP_PMM = {
+SHELLRODATA const struct testgroup TESTGROUP_PMM = {
     .name = "pmm",
     .tests = TESTS,
     .testslen = sizeof(TESTS)/sizeof(*TESTS),

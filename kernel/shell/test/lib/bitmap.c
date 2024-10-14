@@ -163,7 +163,7 @@ SHELLRODATA static struct test const TESTS[] = {
     { .name = "clearbits",             .fn = do_clearbits             },
 };
 
-SHELLDATA const struct testgroup TESTGROUP_BITMAP = {
+SHELLRODATA const struct testgroup TESTGROUP_BITMAP = {
     .name = "bitmap",
     .tests = TESTS,
     .testslen = sizeof(TESTS)/sizeof(*TESTS),

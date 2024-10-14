@@ -20,7 +20,7 @@ SHELLRODATA static struct test const TESTS[] = {
     // TODO: Add tests for calloc and reallocarray
 };
 
-SHELLDATA const struct testgroup TESTGROUP_HEAP = {
+SHELLRODATA const struct testgroup TESTGROUP_HEAP = {
     .name = "heap",
     .tests = TESTS,
     .testslen = sizeof(TESTS)/sizeof(*TESTS),

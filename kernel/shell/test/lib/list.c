@@ -254,7 +254,7 @@ SHELLRODATA static struct test const TESTS[] = {
     { .name = "remove node",    .fn = do_removenode   },
 };
 
-SHELLDATA const struct testgroup TESTGROUP_LIST = {
+SHELLRODATA const struct testgroup TESTGROUP_LIST = {
     .name = "list",
     .tests = TESTS,
     .testslen = sizeof(TESTS)/sizeof(*TESTS),
