@@ -9,62 +9,87 @@
 #include <string.h>
 #include <sys/types.h>
 
-static struct stream s_stream;
-
-static size_t s_totalcolumns, s_totalrows;
-static uint16_t s_currentcolumn = 0, s_currentrow = 0;
-static struct vt100tty_screenline *s_screenlines;
-static void (*updatescreen)(struct vt100tty_screenline *s_screenlines);
-
-static void advanceline(bool wastextoverflow) {
-    s_currentcolumn = 0;
-    s_currentrow++;
-    while (s_totalrows <= s_currentrow) {
-        for (size_t src_line = 1; src_line < s_totalrows; src_line++) {
-            size_t dest_line = src_line - 1;
-            memcpy(s_screenlines[dest_line].chars, s_screenlines[src_line].chars,  s_totalcolumns * sizeof(*s_screenlines[dest_line].chars));
-            s_screenlines[dest_line].iscontinuation = s_screenlines[src_line].iscontinuation;
-        }
-        s_currentrow--;
-        if (s_currentrow < s_totalrows) {
-            memset(s_screenlines[s_currentrow].chars, ' ', s_totalcolumns * sizeof(*s_screenlines[s_currentrow].chars));
-        }
-    }
-    s_screenlines[0].iscontinuation = false;
-    s_screenlines[s_currentrow].iscontinuation = wastextoverflow;
+static struct vt100tty_char *charat(struct vt100tty *self, int row, int column)
+{
+    return &self->chars[(row * self->columns) + column];
 }
 
-static void writechar(char chr) {
+static void advanceline(struct vt100tty *self, bool wastextoverflow) {
+    self->currentcolumn = 0;
+    self->currentrow++;
+    bool hasscroll = self->ops->scroll != NULL;
+    while (self->rows <= self->currentrow) {
+        for (int srcline = 1; srcline < self->rows; srcline++) {
+            int destline = srcline - 1;
+            struct vt100tty_char *dest = charat(self, destline, 0);
+            struct vt100tty_char *src = charat(self, srcline, 0);
+            memcpy(
+               dest, src, self->columns * sizeof(*self->chars));
+            if (!hasscroll) {
+                for (int col = 0; col < self->columns; col++) {
+                    dest[col].needsupdate = true;
+                    src[col].needsupdate = true;
+                }
+            }
+            self->lineinfos[destline].iscontinuation =
+                self->lineinfos[srcline].iscontinuation;
+            self->lineinfos[destline].needsupdate |= !hasscroll;
+        }
+        self->currentrow--;
+        if (hasscroll) {
+            self->ops->scroll(self, 1);
+        }
+        if (self->currentrow < self->rows) {
+            struct vt100tty_char *dest =
+                charat(self, self->currentrow, 0);
+            for (int col = 0; col < self->columns; col++) {
+                dest[col].chr = ' ';
+                dest[col].needsupdate = true;
+            }
+            self->lineinfos[self->currentrow].needsupdate = true;
+        }
+    }
+    self->lineinfos[0].iscontinuation = false;
+    self->lineinfos[self->currentrow].iscontinuation = wastextoverflow;
+}
+
+static void writechar(struct vt100tty *self, char chr) {
     if (chr == '\n') {
-        advanceline(false);
+        advanceline(self, false);
         return;
     } else if (chr == '\r') {
-        s_currentcolumn = 0;
+        self->currentcolumn = 0;
         return;
-    } else if (s_totalcolumns <= s_currentcolumn) {
-        advanceline(true);
+    } else if (self->columns <= self->currentcolumn) {
+        advanceline(self, true);
     }
-    s_screenlines[s_currentrow].chars[s_currentcolumn] = chr;
-    s_currentcolumn++;
+    struct vt100tty_char *dest =
+        charat(self, self->currentrow, self->currentcolumn);
+    dest->chr = chr;
+    dest->needsupdate = true;
+    self->lineinfos[self->currentrow].needsupdate = true;
+    self->currentcolumn++;
 }
 
 static WARN_UNUSED_RESULT ssize_t stream_op_write(
-    struct stream *self, void *data, size_t size) {
-    (void)self;
+    struct stream *stream, void *data, size_t size)
+{
+    struct vt100tty *self = stream->data;
     assert(size <= STREAM_MAX_TRANSFER_SIZE);
 
     for (size_t idx = 0; idx < size; idx++) {
         uint8_t c = ((uint8_t *)data)[idx];
-        writechar(c);
+        writechar(self, c);
     }
     return size;
 }
 
 static WARN_UNUSED_RESULT ssize_t stream_op_read(
-    struct stream *self, void *buf, size_t size) {
-    (void)self;
+    struct stream *stream, void *buf, size_t size)
+{
+    (void)stream;
     assert(size <= STREAM_MAX_TRANSFER_SIZE);
-    
+
     size_t read_len = 0;
     for (size_t idx = 0; idx < size; idx++) {
         struct kbd_keyevent event;
@@ -84,9 +109,13 @@ static WARN_UNUSED_RESULT ssize_t stream_op_read(
     return read_len;
 }
 
-static void stream_op_flush(struct stream *self) {
-    (void)self;
-    updatescreen(s_screenlines);
+static void stream_op_flush(struct stream *stream) {
+    (void)stream;
+    struct vt100tty *self = stream->data;
+    self->ops->updatescreen(self);
+    for (int r = 0; r < self->rows; r++) {
+        self->lineinfos[self->currentrow].needsupdate = false;
+    }
 }
 
 static struct stream_ops const OPS = {
@@ -95,17 +124,25 @@ static struct stream_ops const OPS = {
     .flush = stream_op_flush,
 };
 
-void vt100tty_init(struct vt100tty_screenline *screenlines, size_t columns, size_t rows, void (*updatescreen_op)(struct vt100tty_screenline *s_screenlines)) {
-    s_stream.data = NULL;
-    s_stream.ops = &OPS;
-    s_totalcolumns = columns;
-    s_totalrows = rows;
-    s_screenlines = screenlines;
-    updatescreen = updatescreen_op;
- 
-    for (size_t r = 0; r < s_totalrows; r++) {
-        memset(s_screenlines[s_currentrow].chars, ' ', s_totalcolumns * sizeof(*s_screenlines[s_currentrow].chars));
-    }
-    tty_setconsole(&s_stream);
-}
+void vt100tty_init(
+    struct vt100tty *out, struct vt100tty_lineinfo *lineinfos,
+    struct vt100tty_char *chars, struct vt100tty_ops const *ops,
+    int columns, int rows)
+{
+    out->stream.data = out;
+    out->stream.ops = &OPS;
+    out->columns = columns;
+    out->rows = rows;
+    out->lineinfos = lineinfos;
+    out->ops = ops;
+    out->chars = chars;
 
+    for (int r = 0; r < out->rows; r++) {
+        for (int c = 0; c < out->columns; c++) {
+            charat(out, r, c)->chr = ' ';
+            charat(out, r, c)->needsupdate = true;
+        }
+        out->lineinfos[r].needsupdate = true;
+    }
+    tty_setconsole(&out->stream);
+}
