@@ -195,7 +195,15 @@ SHELLFUNC static int program_main(int argc, char *argv[]) {
     doom_set_file_io(dopen, dclose, dread, dwrite, dseek, dtell, deof);
     doom_init(argc, argv, 0);
     ticktime starttime = g_ticktime;
+    ticktime lastframetime = g_ticktime;
+    uint32_t framecount = 0;
+    uint32_t fps = 0;
     while (1) {
+        if ((g_ticktime - lastframetime) >= 1000) {
+            fps = (framecount * 1000) / (g_ticktime - lastframetime);
+            framecount = 0;
+            lastframetime = g_ticktime;
+        }
         if (g_ticktime - starttime >= MIDIPERIOD) {
             starttime = g_ticktime;
             uint32_t midimsg;
@@ -230,7 +238,18 @@ SHELLFUNC static int program_main(int argc, char *argv[]) {
             }
         }
         fb_drawimage(newfb, SCREENWIDTH, SCREENHEIGHT, SCREENWIDTH, 0, 0);
+        fb_drawrect(188, 16, 0, 0, makecolor(255, 255, 255));
+        char textbuf[] = "FPS: xx";
+        if (fps < 100) {
+            textbuf[5] = fps / 10 + '0';
+            textbuf[6] = fps % 10 + '0';
+        } else {
+            textbuf[5] = '-';
+            textbuf[6] = '-';
+        }
+        fb_drawtext(textbuf, 0, 0, makecolor(0, 0, 0));
         fb_update();
+        framecount++;
     }
     return 0;
 }
