@@ -107,6 +107,12 @@ void fb_drawtext(char *text, int32_t destx, int32_t desty, fb_color color) {
                 size_t c = 0; c < psf_getwidth();
                 c++, mask >>= 1, destpixel++)
             {
+                if (*srcpixel == 0) {
+                    mask = 0x7f;
+                    srcpixel++;
+                    c += (8 - (c % 8)) - 1;
+                    continue;
+                }
                 if (mask == 0) {
                     mask = 0x80;
                     srcpixel++;
@@ -195,31 +201,69 @@ static void update_null(void) {}
 void (*fb_update)(void) = update_null;
 
 static void update32(void) {
-    if (s_backbuffer == NULL) {
+    if ((s_backbuffer == NULL) || (s_damagefirsty < 0)) {
         return;
     }
-    fb_color *srcline = s_backbuffer;
-    uint32_t *destline = s_fbbase;
-    for (int32_t srcy = 0; srcy < s_height; srcy++) {
-        fb_color *srcpixel = srcline;
+    if (CONFIG_SHOW_DAMAGE) {
+        uint32_t *destline = &((uint32_t *)s_fbbase)[
+            s_damagefirsty * (s_fbpitch / 4)];
+        for (int32_t srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
+            uint32_t *destpixel = destline;
+            for (int32_t srcx = 0; srcx < s_width; srcx++, destpixel++) {
+                *destpixel = 0x7f7f7f;
+            }
+            destline += s_fbpitch / 4;
+        }
+    }
+    fb_color *srcpixel = &s_backbuffer[s_damagefirsty * s_width];
+    uint32_t *destline = &((uint32_t *)s_fbbase)[
+        s_damagefirsty * (s_fbpitch / 4)];
+    int32_t lastcolor = -1;
+    uint32_t lastnativecolor = -1;
+    for (int32_t srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
         uint32_t *destpixel = destline;
         for (int32_t srcx = 0; srcx < s_width; srcx++, srcpixel++, destpixel++) {
-            *destpixel = makenativecolor_rgb(*srcpixel);
+            int32_t color = *srcpixel;
+            if (color == lastcolor) {
+                *destpixel = lastnativecolor;
+            } else {
+                lastnativecolor =  makenativecolor_rgb(color);
+                lastcolor = color;
+                *destpixel = lastnativecolor;
+            }
         }
-        srcline += s_width;
         destline += s_fbpitch / 4;
     }
+    s_damagefirsty = -1;
+    s_damagelasty = -1;
 }
 
 static void update24(void) {
-    if (s_backbuffer == NULL) {
+    if ((s_backbuffer == NULL) || (s_damagefirsty < 0)) {
         return;
     }
-    fb_color *srcpixel = s_backbuffer;
-    uint8_t *destline = s_fbbase;
+    if (CONFIG_SHOW_DAMAGE) {
+        uint8_t *destline = &((uint8_t *)s_fbbase)[s_damagefirsty * s_fbpitch];
+        for (int32_t srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
+            uint8_t *destpixel = destline;
+            for (
+                int32_t srcx = 0; srcx < s_width;
+                srcx++, destpixel += 3)
+            {
+                destpixel[0] = 127;
+                destpixel[1] = 127;
+                destpixel[2] = 127;
+            }
+            destline += s_fbpitch;
+        }
+    }
+
+    fb_color *srcpixel = &s_backbuffer[s_damagefirsty * s_width];
+    uint8_t *destline = &((uint8_t *)s_fbbase)[s_damagefirsty * s_fbpitch];
     int32_t lastcolor = -1;
     uint32_t lastnativecolor = -1;
-    for (int32_t srcy = 0; srcy < s_height; srcy++) {
+
+    for (int32_t srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
         uint8_t *destpixel = destline;
         for (
             int32_t srcx = 0; srcx < s_width;
@@ -240,6 +284,8 @@ static void update24(void) {
         }
         destline += s_fbpitch;
     }
+    s_damagefirsty = -1;
+    s_damagelasty = -1;
 }
 
 static void update8(void) {
