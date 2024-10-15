@@ -56,6 +56,10 @@ static const struct vt100tty_ops OPS = {
 };
 
 void fbtty_init(void) {
+    fb_drawrect(
+        fb_getwidth(), fb_getheight(),
+        0, 0, black());
+
     int32_t columns = fb_getwidth() / psf_getwidth();
     int32_t rows = fb_getheight() / psf_getheight();
     struct vt100tty_lineinfo *lineinfos = heap_calloc(
