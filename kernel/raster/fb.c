@@ -134,7 +134,7 @@ void fb_drawtext(char *text, int32_t destx, int32_t desty, fb_color color) {
 static union {
     struct {
         int8_t   redfieldpos,  greenfieldpos,  bluefieldpos;
-        uint32_t redinputmask, greeninputmask, blueinputmask;
+        uint32_t redmasksize,  greenmasksize,  bluemasksize;
     } rgb;
     struct {
         uint8_t *palette;
@@ -145,19 +145,20 @@ static union {
 static void *s_fbbase;
 static int32_t s_fbpitch;
 
+
 static uint32_t makenativecolor_rgb(fb_color rgb) {
-    uint32_t red   = ((rgb >> 10) & 0x1f) << 3;
-    uint32_t green = ((rgb >> 5) & 0x1f) << 3;
-    uint32_t blue  = (rgb & 0x1f) << 3;
-    uint32_t redinputmask = s_colorinfo.rgb.redinputmask;
-    uint32_t greeninputmask = s_colorinfo.rgb.greeninputmask;
-    uint32_t blueinputmask = s_colorinfo.rgb.blueinputmask;
+    uint32_t red   = (((rgb >> 10) & 0x1f) * 255) / 0x1f;
+    uint32_t green = (((rgb >> 5) & 0x1f) * 255) / 0x1f;
+    uint32_t blue  = ((rgb & 0x1f) * 255) / 0x1f;
+    uint32_t redshiftcount = 8 - s_colorinfo.rgb.redmasksize;
+    uint32_t greenshiftcount = 8 - s_colorinfo.rgb.greenmasksize;
+    uint32_t blueshiftcount = 8 - s_colorinfo.rgb.bluemasksize;
     int8_t redfieldpos = s_colorinfo.rgb.redfieldpos;
     int8_t greenfieldpos = s_colorinfo.rgb.greenfieldpos;
     int8_t bluefieldpos = s_colorinfo.rgb.bluefieldpos;
-    return (((uint32_t)red)   & redinputmask)   << redfieldpos |
-           (((uint32_t)green) & greeninputmask) << greenfieldpos |
-           (((uint32_t)blue)  & blueinputmask)  << bluefieldpos;
+    return (((uint32_t)red)   >> redshiftcount)   << redfieldpos |
+           (((uint32_t)green) >> greenshiftcount) << greenfieldpos |
+           (((uint32_t)blue)  >> blueshiftcount)  << bluefieldpos;
 }
 
 static uint32_t makenativecolor_indexed(fb_color rgb) {
@@ -288,6 +289,52 @@ static void update24(void) {
     s_damagelasty = -1;
 }
 
+static void update16(void) {
+    if ((s_backbuffer == NULL) || (s_damagefirsty < 0)) {
+        return;
+    }
+    if (CONFIG_SHOW_DAMAGE) {
+        uint16_t *destline = &((uint16_t *)s_fbbase)[
+            s_damagefirsty * (s_fbpitch / 2)];
+        for (int32_t srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
+            uint16_t *destpixel = destline;
+            for (
+                int32_t srcx = 0; srcx < s_width;
+                srcx++, destpixel++)
+            {
+                destpixel[0] = 0x7f7f;
+            }
+            destline += s_fbpitch;
+        }
+    }
+
+    fb_color *srcpixel = &s_backbuffer[s_damagefirsty * s_width];
+    uint16_t *destline = &((uint16_t *)s_fbbase)[
+        s_damagefirsty * (s_fbpitch / 2)];
+    int32_t lastcolor = -1;
+    uint32_t lastnativecolor = -1;
+
+    for (int32_t srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
+        uint16_t *destpixel = destline;
+        for (
+            int32_t srcx = 0; srcx < s_width;
+            srcx++, srcpixel++, destpixel++)
+        {
+            int32_t color = *srcpixel;
+            if (color == lastcolor) {
+                *destpixel = lastnativecolor;
+            } else {
+                lastnativecolor = makenativecolor_rgb(color);
+                lastcolor = color;
+                *destpixel = lastnativecolor;
+            }
+        }
+        destline += s_fbpitch / 2;
+    }
+    s_damagefirsty = -1;
+    s_damagelasty = -1;
+}
+
 static void update8(void) {
     if ((s_backbuffer == NULL) || (s_damagefirsty < 0)) {
         return;
@@ -316,6 +363,56 @@ static void update8(void) {
                 lastnativecolor = makenativecolor_indexed(color);
                 lastcolor = color;
                 destline[x] = lastnativecolor;
+            }
+        }
+        destline += s_fbpitch;
+    }
+    s_damagefirsty = -1;
+    s_damagelasty = -1;
+}
+
+static void update1(void) {
+    if ((s_backbuffer == NULL) || (s_damagefirsty < 0)) {
+        return;
+    }
+    fb_color *srcpixel = &s_backbuffer[s_damagefirsty * s_width];
+    uint8_t *destline = &((uint8_t *)s_fbbase)[s_damagefirsty * s_fbpitch];
+    int32_t lastcolor = -1;
+    uint32_t lastnativecolor = -1;
+
+    if (CONFIG_SHOW_DAMAGE) {
+        uint8_t *destline = &((uint8_t *)s_fbbase)[s_damagefirsty * s_fbpitch];
+        for (int32_t srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
+            for (int32_t x = 0; x < s_width; x += 8) {
+                destline[x / 8] = 0xff;
+            }
+            destline += s_fbpitch;
+        }
+    }
+
+    for (int32_t srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
+        uint8_t temppixeldata = 0;
+        for (int32_t x = 0; x < s_width; x++, srcpixel++) {
+            int32_t color = *srcpixel;
+            uint32_t resultcolor;
+            if (color == lastcolor) {
+                resultcolor = lastnativecolor;
+            } else {
+                int red   = ((color >> 10) & 0x1f) << 3;
+                int green = ((color >> 5) & 0x1f) << 3;
+                int blue  = (color & 0x1f) << 3;
+                int avg = (red + green + blue) / 3;
+                lastnativecolor = 128 <= avg;
+                lastcolor = color;
+                resultcolor = lastnativecolor;
+            }
+            temppixeldata <<= 1;
+            if (resultcolor) {
+                temppixeldata |= 1;
+            }
+            if ((x + 1) % 8 == 0) {
+                destline[x / 8] = temppixeldata;
+                temppixeldata = 0;
             }
         }
         destline += s_fbpitch;
@@ -377,9 +474,9 @@ void fb_init_rgb(
     s_colorinfo.rgb.redfieldpos = redfieldpos;
     s_colorinfo.rgb.greenfieldpos = greenfieldpos;
     s_colorinfo.rgb.bluefieldpos = bluefieldpos;
-    s_colorinfo.rgb.redinputmask = makebitmask(0, redmasksize);
-    s_colorinfo.rgb.greeninputmask = makebitmask(0, greenmasksize);
-    s_colorinfo.rgb.blueinputmask = makebitmask(0, bluemasksize);
+    s_colorinfo.rgb.redmasksize = redmasksize;
+    s_colorinfo.rgb.greenmasksize = greenmasksize;
+    s_colorinfo.rgb.bluemasksize = bluemasksize;
     s_width = width;
     s_height = height;
     s_fbpitch = pitch;
@@ -395,6 +492,10 @@ void fb_init_rgb(
             break;
         case 24:
             fb_update = update24;
+            break;
+        case 16:
+        case 15:
+            fb_update = update16;
             break;
         default:
             tty_printf("fb: unsupported rgb bpp %dbpp\n", bpp);
@@ -433,6 +534,10 @@ void fb_init_indexed(
     switch (bpp) {
         case 8:
             fb_update = update8;
+            break;
+        case 1:
+            assert((width % 8) == 0);
+            fb_update = update1;
             break;
         default:
             tty_printf("fb: unsupported indexed bpp %dbpp\n", bpp);
