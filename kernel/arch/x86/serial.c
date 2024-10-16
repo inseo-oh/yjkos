@@ -136,8 +136,8 @@ static void waitreadytosend(struct archx86_serial *self) {
     if (!self->useirq || !arch_interrupts_areenabled()) {
         while (!(readreg(self, REG_LSR) & LSR_FLAG_TX_HOLDING_REG_EMPTY)) {}
     } else {
-        while (self->txint == 0) {}
-        self->txint--;
+        while (self->txint == false) {}
+        self->txint = false;
     }
 }
 
@@ -145,8 +145,8 @@ static void waitreadytorecv(struct archx86_serial *self) {
     if (!self->useirq || !arch_interrupts_areenabled()) {
         while (!(readreg(self, REG_LSR) & LSR_FLAG_DATA_READY)) {}
     } else {
-        while (self->rxint == 0) {}
-        self->rxint--;
+        while (self->rxint == false) {}
+        self->rxint = false;
     }
 }
 
@@ -234,10 +234,10 @@ static void irqhandler(int irqnum, void *data) {
     (void)lsr;
     switch (iir & (0x3 << 1)) {
         case 0x1 << 1:
-            self->txint++;
+            self->txint = true;
             break;
         case 0x2 << 1:
-            self->rxint++;
+            self->rxint = true;
             break;
     }
     archx86_pic_sendeoi(irqnum);

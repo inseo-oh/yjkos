@@ -11,8 +11,8 @@ struct archx86_serial {
     uint16_t baseaddr;
     struct archx86_pic_irqhandler irqhandler;
     uint8_t irq;
-    _Atomic(int) txint;
-    _Atomic(int) rxint;
+    _Atomic(bool) txint;
+    _Atomic(bool) rxint;
     // Config flags
     bool cr_to_crlf : 1;
     // Internal flags
