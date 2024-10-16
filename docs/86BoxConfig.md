@@ -10,9 +10,9 @@ This describes 86Box config that this OS was tested on:
 
 ## Display
 Any VESA card will probably work fine, but the one I was tested on is Cirrus Logic GD5430.
-But it won't work well right now, due to lack of support for indexed colors.
+But note that I couldn't get any color video mode to work, it's monochrome only from my testing.
 
-Previously it was also tested on ATI Mach64GX and Mach64VT2. This thing is new enough to happily work with 24-bit color.
+Previously it was also tested on Mach64VT2. This thing is new enough to happily work with 24-bit color.
 
 ## HDD and CD-ROM drive
 
