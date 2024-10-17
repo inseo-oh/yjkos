@@ -1,8 +1,8 @@
 #include "shell.h"
 #include <assert.h>
+#include <kernel/fs/vfs.h>
 #include <kernel/io/stream.h>
 #include <kernel/io/tty.h>
-#include <kernel/io/vfs.h>
 #include <kernel/raster/fb.h>
 
 enum {

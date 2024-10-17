@@ -24,3 +24,4 @@ extern struct shell_program g_shell_program_runtest;
 extern struct shell_program g_shell_program_hello;
 extern struct shell_program g_shell_program_kdoom;
 extern struct shell_program g_shell_program_rawvidplay;
+extern struct shell_program g_shell_program_ls;

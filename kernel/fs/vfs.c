@@ -1,5 +1,5 @@
-#include "vfs.h"
 #include <assert.h>
+#include <kernel/fs/vfs.h>
 #include <kernel/io/disk.h>
 #include <kernel/io/iodev.h>
 #include <kernel/io/tty.h>
@@ -7,6 +7,7 @@
 #include <kernel/lib/list.h>
 #include <kernel/mem/heap.h>
 #include <kernel/panic.h>
+#include <dirent.h>
 #include <errno.h>
 #include <limits.h>
 #include <stddef.h>
@@ -138,7 +139,10 @@ static WARN_UNUSED_RESULT int mount(
     if (ret < 0) {
         goto fail;
     }
-    // We don't want any failable action to happen after mount, because unmounting can also technically fail.
+    /*
+     * Since unmounting can also technically fail, we don't want any errors
+     * after this point.
+     */
     list_insertback(&s_mounts, &context->node, context);
     context->mountpath = newmountpath;
     context->fstype = fstype;
@@ -150,7 +154,9 @@ out:
 }
 
 // Returns ERR_INVAL if `mountpath` is not a mount point.
-static WARN_UNUSED_RESULT int findmount(struct vfs_fscontext **out, char const *mountpath) {
+static WARN_UNUSED_RESULT int findmount(
+    struct vfs_fscontext **out, char const *mountpath)
+{
     int ret = 0;
     char *newmountpath = NULL;
     ret = removerelpath(&newmountpath, mountpath);
@@ -279,7 +285,9 @@ static WARN_UNUSED_RESULT int resolvepath(
     assert(s_mounts.front != NULL);
     struct vfs_fscontext *result = NULL;
     size_t lastmatchlen = 0;
-    for (struct list_node *mountnode = s_mounts.front; mountnode != NULL; mountnode = mountnode->next) {
+    for (
+        struct list_node *mountnode = s_mounts.front; mountnode != NULL; mountnode = mountnode->next)
+    {
         struct vfs_fscontext *entry = mountnode->data;
         size_t len = strlen(entry->mountpath);
         if (lastmatchlen <= len) {
@@ -305,13 +313,21 @@ struct openfilecontext {
     int ret;
 };
 
-static void resolvepathcallback_openfile(struct vfs_fscontext *fscontext, char const *path, void *data) {
+static void resolvepathcallback_openfile(
+    struct vfs_fscontext *fscontext, char const *path, void *data)
+{
     struct openfilecontext *context = data;
-    context->ret = fscontext->fstype->ops->open(
-        &context->fdresult, fscontext, path, context->flags);
+    if (fscontext->fstype->ops->open == NULL) {
+        context->ret = -ENOENT;
+    } else {
+        context->ret = fscontext->fstype->ops->open(
+            &context->fdresult, fscontext, path, context->flags);
+    }
 }
 
-WARN_UNUSED_RESULT int vfs_openfile(struct fd **out, char const *path, int flags) {
+WARN_UNUSED_RESULT int vfs_openfile(
+    struct fd **out, char const *path, int flags)
+{
     struct openfilecontext context;
     context.flags = flags;
     int ret = resolvepath(
@@ -329,11 +345,63 @@ void vfs_closefile(struct fd *fd) {
     fd->ops->close(fd);
 }
 
+struct opendircontext {
+    DIR *dirresult;
+    int ret;
+};
+
+static void resolvepathcallback_opendirectory(
+    struct vfs_fscontext *fscontext, char const *path, void *data)
+{
+    struct opendircontext *context = data;
+    if (fscontext->fstype->ops->opendir == NULL) {
+        context->ret = -ENOENT;
+    } else {
+    }
+    context->ret = fscontext->fstype->ops->opendir(
+        &context->dirresult, fscontext, path);
+}
+
+int vfs_opendir(DIR **out, char const *path) {
+    struct opendircontext context;
+    int ret = resolvepath(
+        path, resolvepathcallback_opendirectory, &context);
+    if (ret < 0) {
+        return ret;
+    } else if (context.ret < 0) {
+        return context.ret;
+    }
+    *out = context.dirresult;
+    return 0;
+}
+
+WARN_UNUSED_RESULT int vfs_closedir(DIR *dir) {
+    if (dir == NULL) {
+        return -EBADF;
+    }
+    if (dir->fscontext->fstype->ops->closedir == NULL) {
+        return -EBADF;
+    }
+    return dir->fscontext->fstype->ops->closedir(dir);
+}
+
+WARN_UNUSED_RESULT int vfs_readdir(struct dirent *out, DIR *dir) {
+    if (dir == NULL) {
+        return -EBADF;
+    }
+    if (dir->fscontext->fstype->ops->readdir == NULL) {
+        return -EBADF;
+    }
+    return dir->fscontext->fstype->ops->readdir(out, dir);
+}
+
 WARN_UNUSED_RESULT ssize_t vfs_readfile(struct fd *fd, void *buf, size_t len) {
     return fd->ops->read(fd, buf, len);
 }
 
-WARN_UNUSED_RESULT ssize_t vfs_writefile(struct fd *fd, void const *buf, size_t len) {
+WARN_UNUSED_RESULT ssize_t vfs_writefile(
+    struct fd *fd, void const *buf, size_t len)
+{
     return fd->ops->write(fd, buf, len);
 }
 

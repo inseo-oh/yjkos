@@ -1,7 +1,7 @@
-#include "vfs.h"
 #include "fsinit.h"
 #include <assert.h>
 #include <dirent.h>
+#include <kernel/fs/vfs.h>
 #include <kernel/io/disk.h>
 #include <kernel/io/iodev.h>
 #include <kernel/io/stream.h>
@@ -186,7 +186,10 @@ static WARN_UNUSED_RESULT uint8_t *allocblockbuf(struct fscontext *self,
     return buf;
 }
 
-static WARN_UNUSED_RESULT int readblocks_alloc(uint8_t **out, struct fscontext *self, uint32_t blockaddr, blkcnt_t blkcount) {
+static WARN_UNUSED_RESULT int readblocks_alloc(
+    uint8_t **out, struct fscontext *self, uint32_t blockaddr,
+    blkcnt_t blkcount)
+{
     int ret;
     uint8_t *buf = allocblockbuf(self, blkcount, 0);
     if (buf == NULL) {
@@ -221,7 +224,8 @@ static WARN_UNUSED_RESULT int readblockgroupdescriptor(
     blockoffset += self->blkgroupdescriptorblk;
 
     uint8_t *buf = NULL;
-    ret = readblocks_alloc(&buf, self, blockoffset, 1);
+    ret = readblocks_alloc(
+        &buf, self, blockoffset, 1);
     if (ret < 0) {
         goto fail;
     }
@@ -264,11 +268,7 @@ out:
     return ret;
 }
 
-enum {
-    FS_EOF =-32768
-};
-
-// Returns FS_EOF on EOF.
+// Returns -ENOENT on EOF.
 static WARN_UNUSED_RESULT int nextinodeblock(struct inocontext *self) {
     int ret = 0;
     enum {
@@ -280,7 +280,7 @@ static WARN_UNUSED_RESULT int nextinodeblock(struct inocontext *self) {
         // We can use direct block pointer
         resultaddr = self->directblkptrs[self->nextdirectptrindex];
         if (resultaddr == 0) {
-            ret = FS_EOF;
+            ret = -ENOENT;
             goto fail;
         }
         self->nextdirectptrindex++;
@@ -296,14 +296,14 @@ static WARN_UNUSED_RESULT int nextinodeblock(struct inocontext *self) {
                 tableaddr = self->singlyindirecttable;
             } else {
                 // read the next pointer from doubly indirect table
-                if ((self->doublyindirectbuf.buf == NULL) || (self->fs->blocksize <= self->doublyindirectbuf.offset_in_buf)) {
+                if (
+                    (self->doublyindirectbuf.buf == NULL) || (self->fs->blocksize <= self->doublyindirectbuf.offset_in_buf)) {
                     // We need to move to next doubly indirect table
                     uint32_t tableaddr;
                     if (!self->doublyindirectused) {
                         // We are using doubly indirect table for the first time
                         tableaddr = self->doublyindirecttable;
                     } else {
-                        /////////////////
                         // read the next pointer from triply indirect table
                         if ((self->triplyindirectbuf.buf == NULL) || (self->fs->blocksize <= self->triplyindirectbuf.offset_in_buf)) {
                             // We need to move to next triply indirect table
@@ -315,14 +315,14 @@ static WARN_UNUSED_RESULT int nextinodeblock(struct inocontext *self) {
                                 iodev_printf(
                                     &self->fs->disk->iodev,
                                     "File is too large\n");
-                                ret = FS_EOF;
+                                ret = -ENOENT;
                                 goto fail;
                             }
                             if (tableaddr == 0) {
                                 heap_free(self->triplyindirectbuf.buf);
                                 self->triplyindirectbuf.buf = NULL;
                                 self->triplyindirectbuf.offset_in_buf = 0;
-                                ret = FS_EOF;
+                                ret = -ENOENT;
                                 goto fail;
                             }
                             uint8_t *newtable = NULL;
@@ -343,7 +343,7 @@ static WARN_UNUSED_RESULT int nextinodeblock(struct inocontext *self) {
                         heap_free(self->doublyindirectbuf.buf);
                         self->doublyindirectbuf.buf = NULL;
                         self->doublyindirectbuf.offset_in_buf = 0;
-                        ret = FS_EOF;
+                        ret = -ENOENT;
                         goto fail;
                     }
                     uint8_t *newtable = NULL;
@@ -363,7 +363,7 @@ static WARN_UNUSED_RESULT int nextinodeblock(struct inocontext *self) {
                 heap_free(self->singlyindirectbuf.buf);
                 self->singlyindirectbuf.buf = NULL;
                 self->singlyindirectbuf.offset_in_buf = 0;
-                ret = FS_EOF;
+                ret = -ENOENT;
                 goto fail;
             }
             uint8_t *newtable = NULL;
@@ -419,8 +419,10 @@ static void rewindinode(struct inocontext *self) {
     MUST_SUCCEED(ret);
 }
 
-// Returns FS_EOF on EOF
-static WARN_UNUSED_RESULT int skipreadinode(struct inocontext *self, size_t len) {
+// Returns -ENOENT on EOF
+static WARN_UNUSED_RESULT int skipreadinode(
+    struct inocontext *self, size_t len)
+{
     assert(len <= STREAM_MAX_TRANSFER_SIZE);
     int ret = 0;
     ssize_t remaininglen = len;
@@ -498,7 +500,7 @@ static WARN_UNUSED_RESULT int seekinode(
                 }
                 assert(skiplen != 0);
                 ret = skipreadinode(self, skiplen);
-                if (ret == FS_EOF) {
+                if (ret == -ENOENT) {
                     assert(!"TODO");
                 } else if (ret < 0) {
                     goto fail;
@@ -551,7 +553,10 @@ static WARN_UNUSED_RESULT int readinode(
             (self->fs->blocksize <= remaininglen))
         {
             blkcnt_t blkcount = remaininglen / self->fs->blocksize;
-            // Blocks may not be contiguous on ext2, but if we can, it's faster to read as much sectors at once.
+            /*
+             * Blocks may not be contiguous on ext2, but if we can, it's faster
+             * to read as much sectors at once.
+             */
             uint32_t lastbase = self->currentblockaddr;
             size_t contiguouslen = 1;
             for (blkcnt_t i = 0; i < (blkcount - 1); i++) {
@@ -575,7 +580,9 @@ static WARN_UNUSED_RESULT int readinode(
                     contiguouslen++;
                 }
             }
-            ret = readblocks(self->fs, dest, lastbase, contiguouslen);
+            ret = readblocks(
+                self->fs, dest, lastbase,
+                contiguouslen);
             if (ret < 0) {
                 goto fail;
             }
@@ -598,7 +605,8 @@ static WARN_UNUSED_RESULT int readinode(
             // We don't have valid blk buffer - Let's buffer a block
             uint8_t *newbuf = NULL;
             ret = readblocks_alloc(
-                &newbuf, self->fs, self->currentblockaddr, 1);
+                &newbuf, self->fs,
+                self->currentblockaddr, 1);
             if (ret < 0) {
                 goto fail;
             }
@@ -611,7 +619,9 @@ static WARN_UNUSED_RESULT int readinode(
             readlen = maxlen;
         }
         assert(readlen != 0);
-        memcpy(dest, &self->blockbuf.buf[self->blockbuf.offset_in_buf], readlen);
+        memcpy(
+            dest, &self->blockbuf.buf[self->blockbuf.offset_in_buf],
+            readlen);
         self->blockbuf.offset_in_buf += readlen;
         dest += readlen;
         remaininglen -= readlen;
@@ -629,7 +639,8 @@ static WARN_UNUSED_RESULT int openinode(
     uint32_t blockaddr;
     off_t offset;
     uint8_t *blkdata = NULL;
-    ret = locateinode(&blockaddr, &offset, self, inode);
+    ret = locateinode(
+        &blockaddr, &offset, self, inode);
     if (ret < 0) {
         goto fail;
     }
@@ -653,7 +664,8 @@ static WARN_UNUSED_RESULT int openinode(
     out->disksectors                = uint32leat(&inodedata[0x1c]);
     out->flags                      = uint32leat(&inodedata[0x20]);
     for (int i = 0; i < 12; i++) {
-        out->directblkptrs[i]       = uint32leat(&inodedata[0x28 + sizeof(*out->directblkptrs) * i]);
+        out->directblkptrs[i]       = uint32leat(
+            &inodedata[0x28 + sizeof(*out->directblkptrs) * i]);
     }
     out->singlyindirecttable        = uint32leat(&inodedata[0x58]);
     out->doublyindirecttable        = uint32leat(&inodedata[0x5c]);
@@ -689,24 +701,26 @@ static void closeinode(struct inocontext *self) {
     heap_free(self->triplyindirectbuf.buf);
 }
 
-struct DIR {
+struct directory {
+    struct DIR dir;
     struct inocontext inocontext;
 };
 
-// Returns FS_EOF when it reaches end of the directory.
+// Returns -ENOENT when it reaches end of the directory.
 static WARN_UNUSED_RESULT int readdirectory(struct dirent *out, DIR *self) {
+    struct directory *dir = self->data;
     int ret = 0;
     while(1) {
         uint8_t header[8];
         memset(out, 0, sizeof(*out));
-        ret = readinode(&self->inocontext, header, 8);
+        ret = readinode(&dir->inocontext, header, 8);
         if (ret < 0) {
             goto fail;
         }
         out->d_ino       = uint32leat(&header[0x0]);
         size_t entrysize = uint16leat(&header[0x4]);
         size_t namelen   = header[0x6];
-        if (!(self->inocontext.fs->requiredfeatures &
+        if (!(dir->inocontext.fs->requiredfeatures &
             REQUIRED_FEATUREFLAG_DIRENTRY_CONTAINS_TYPEFIELD))
         {
             // YJK/OS does not support names longer than 255 characters.
@@ -716,13 +730,13 @@ static WARN_UNUSED_RESULT int readdirectory(struct dirent *out, DIR *self) {
             }
         }
         ret = readinode(
-            &self->inocontext, out->d_name, namelen);
+            &dir->inocontext, out->d_name, namelen);
         if (ret < 0) {
             goto fail;
         }
         size_t readlen = namelen + sizeof(header);
         size_t skiplen = entrysize - readlen;
-        ret = skipreadinode(&self->inocontext, skiplen);
+        ret = skipreadinode(&dir->inocontext, skiplen);
         if (ret < 0) {
             goto fail;
         }
@@ -740,7 +754,8 @@ static WARN_UNUSED_RESULT int opendirectory(
     DIR **dir_out, struct fscontext *self, ino_t inode)
 {
     int ret = 0;
-    DIR *dir = heap_alloc(sizeof(*dir), HEAP_FLAG_ZEROMEMORY);
+    struct directory *dir = heap_alloc(
+        sizeof(*dir), HEAP_FLAG_ZEROMEMORY);
     if (dir == NULL) {
         goto fail;
     }
@@ -754,7 +769,9 @@ static WARN_UNUSED_RESULT int opendirectory(
         ret = -ENOTDIR;
         goto fail_after_open;
     }
-    *dir_out = dir;
+    dir->dir.data = dir;
+    dir->dir.fscontext = &self->vfs_fscontext;
+    *dir_out = &dir->dir;
     goto out;
 fail_after_open:
     closeinode(&dir->inocontext);
@@ -769,8 +786,9 @@ static void closedirectory(DIR *self) {
     if (self == NULL) {
         return;
     }
-    closeinode(&self->inocontext);
-    heap_free(self);
+    struct directory *dir = self->data;
+    closeinode(&dir->inocontext);
+    heap_free(dir);
 }
 
 static WARN_UNUSED_RESULT int openfile(
@@ -778,7 +796,7 @@ static WARN_UNUSED_RESULT int openfile(
 {
     int ret;
     ret = openinode(out, self, inode);
-    assert(ret != FS_EOF);
+    assert(ret != -ENOENT);
     if (ret < 0) {
         goto fail;
     }
@@ -835,7 +853,7 @@ static WARN_UNUSED_RESULT int resolvepath(
             while (1) {
                 struct dirent ent;
                 ret = readdirectory(&ent, dir);
-                if (ret == FS_EOF) {
+                if (ret == -ENOENT) {
                     ret = -ENOENT;
                     break;
                 } else if (ret < 0) {
@@ -878,7 +896,7 @@ WARN_UNUSED_RESULT static ssize_t fd_op_read(
         readlen = maxlen;
     }
     int ret = readinode(&context->inocontext, buf, readlen);
-    assert(ret != FS_EOF);
+    assert(ret != -ENOENT);
     if (ret < 0) {
         goto fail;
     }
@@ -904,7 +922,7 @@ static WARN_UNUSED_RESULT int fd_op_seek(
 {
     struct openfdcontext *context = self->data;
     int ret = seekinode(&context->inocontext, offset, whence);
-    assert(ret != FS_EOF);
+    assert(ret != -ENOENT);
     return ret;
 }
 
@@ -927,7 +945,8 @@ static WARN_UNUSED_RESULT int vfs_op_mount(
 {
     int ret = 0;
     uint8_t superblk[1024];
-    struct fscontext *context = heap_alloc(sizeof(*context), HEAP_FLAG_ZEROMEMORY);
+    struct fscontext *context =
+        heap_alloc(sizeof(*context), HEAP_FLAG_ZEROMEMORY);
     //--------------------------------------------------------------------------
     // Read superblock
     //--------------------------------------------------------------------------
@@ -987,26 +1006,37 @@ static WARN_UNUSED_RESULT int vfs_op_mount(
         context->optionalfeatures      = uint32leat(&superblk[0x05c]);
         context->requiredfeatures      = uint32leat(&superblk[0x060]);
         context->requiredfeatures_rw   = uint32leat(&superblk[0x064]);
-        memcpy(context->filesystemid,  &superblk[0x068], sizeof(context->filesystemid));
-        memcpy(context->volumename,    &superblk[0x078], sizeof(context->volumename));
-        memcpy(context->lastmountpath, &superblk[0x088], sizeof(context->lastmountpath));
+        memcpy(
+            context->filesystemid,  &superblk[0x068],
+            sizeof(context->filesystemid));
+        memcpy(
+            context->volumename,   
+            &superblk[0x078], sizeof(context->volumename));
+        memcpy(
+            context->lastmountpath, &superblk[0x088],
+            sizeof(context->lastmountpath));
         bool notterminated = false;
         if (context->volumename[sizeof(context->volumename) - 1] != '\0') {
             context->volumename[sizeof(context->volumename) - 1] = '\0';
             notterminated = true;
         }
-        if (context->lastmountpath[sizeof(context->lastmountpath) - 1] != '\0') {
+        if (context->lastmountpath[sizeof(context->lastmountpath) - 1] != '\0')
+        {
             context->lastmountpath[sizeof(context->lastmountpath) - 1] = '\0';
             notterminated = true;
         }
         if (notterminated) {
-            iodev_printf(&disk->iodev, "ext2: some strings in superblk were not terminated - terminating at the last character\n");
+            iodev_printf(
+                &disk->iodev,
+                "ext2: some strings in superblock were not terminated - terminating at the last character\n");
 
         }
         context->compressionalgorithms = uint32leat(&superblk[0x0c8]);
         context->preallocatefileblks   = superblk[0x0cc];
         context->preallocatedirblks    = superblk[0x0cd];
-        memcpy(context->journalid, &superblk[0x0d0], sizeof(context->journalid));
+        memcpy(
+            context->journalid, &superblk[0x0d0],
+            sizeof(context->journalid));
         context->journalinode          = uint32leat(&superblk[0x0e0]);
         context->journaldevice         = uint32leat(&superblk[0x0e4]);
         context->orphaninodelisthead   = uint32leat(&superblk[0x0e8]);
@@ -1022,10 +1052,15 @@ static WARN_UNUSED_RESULT int vfs_op_mount(
         id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7], id[8], id[9],
         id[10], id[11], id[12], id[13], id[14], id[15]);
 
-    size_t blkgroupcount = sizetoblocks(context->totalblks, context->blksinblkgroup);
-    size_t blkgroupcount2 = sizetoblocks(context->totalinodes, context->inodesinblkgroup);
+    size_t blkgroupcount = sizetoblocks(
+        context->totalblks, context->blksinblkgroup);
+    size_t blkgroupcount2 = sizetoblocks(
+        context->totalinodes, context->inodesinblkgroup);
     if (blkgroupcount != blkgroupcount2) {
-        iodev_printf(&disk->iodev, "Two calculated blk group count does not match: %zu != %zu\n", blkgroupcount, blkgroupcount2);
+        iodev_printf(
+            &disk->iodev,
+            "Two calculated blk group count does not match: %zu != %zu\n",
+            blkgroupcount, blkgroupcount2);
     }
     context->blkgroupcount = blkgroupcount;
     if (context->blocksize == 1024) {
@@ -1088,8 +1123,10 @@ static WARN_UNUSED_RESULT int vfs_op_open(
     ino_t inode;
     struct fscontext *fscontext = self->data;
     (void)flags;
-    struct openfdcontext *fdcontext = heap_alloc(sizeof(*fdcontext), HEAP_FLAG_ZEROMEMORY);
-    ret = resolvepath(&inode, fscontext, INODE_ROOTDIRECTORY, path);
+    struct openfdcontext *fdcontext = heap_alloc(
+        sizeof(*fdcontext), HEAP_FLAG_ZEROMEMORY);
+    ret = resolvepath(
+        &inode, fscontext, INODE_ROOTDIRECTORY, path);
     if (ret < 0) {
         goto fail_after_alloc;
     }
@@ -1112,10 +1149,43 @@ out:
     return ret;
 }
 
+static WARN_UNUSED_RESULT int vfs_op_opendir(
+    DIR **out, struct vfs_fscontext *self, char const *path)
+{
+    int ret;
+    ino_t inode;
+    struct fscontext *fscontext = self->data;
+    ret = resolvepath(
+        &inode, fscontext, INODE_ROOTDIRECTORY, path);
+    if (ret < 0) {
+        goto fail;
+    }
+    ret = opendirectory(out, fscontext, inode);
+    if (ret < 0) {
+        goto fail;
+    }
+    goto out;
+fail:
+out:
+    return ret;
+}
+
+static WARN_UNUSED_RESULT int vfs_op_closedir(DIR *self) {
+    closedirectory(self);
+    return 0;
+}
+
+WARN_UNUSED_RESULT static int vfs_op_readdir(struct dirent *out, DIR *self) {
+    return readdirectory(out, self);
+}
+
 static struct vfs_fstype_ops const FSTYPE_OPS = {
-    .mount  = vfs_op_mount,
-    .umount = vfs_op_umount,
-    .open   = vfs_op_open,
+    .mount    = vfs_op_mount,
+    .umount   = vfs_op_umount,
+    .open     = vfs_op_open,
+    .opendir  = vfs_op_opendir,
+    .closedir = vfs_op_closedir,
+    .readdir  = vfs_op_readdir,
 };
 
 static struct vfs_fstype s_fstype;

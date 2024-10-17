@@ -3,6 +3,7 @@
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
 #include <sys/types.h>
+#include <dirent.h>
 
 struct vfs_fscontext;
 struct fd;
@@ -39,6 +40,12 @@ void vfs_unregisterfile(struct fd *self);
 
 ////////////////////////////////////////////////////////////////////////////////
 
+struct DIR {
+    struct vfs_fscontext *fscontext;
+    void *data;
+};
+
+/* TODO: Make all fields optional */
 struct vfs_fstype_ops {
     /*
      * When mounting disk, you just give VFS system some memory to store its
@@ -48,9 +55,15 @@ struct vfs_fstype_ops {
     WARN_UNUSED_RESULT int (*mount)(
         struct vfs_fscontext **out, struct ldisk *disk);
     WARN_UNUSED_RESULT int (*umount)(struct vfs_fscontext *self);
+    /* Below are optional */
     WARN_UNUSED_RESULT int (*open)(
         struct fd **out, struct vfs_fscontext *self, char const *path,
         int flags);
+    WARN_UNUSED_RESULT int (*opendir)(
+        DIR **out, struct vfs_fscontext *self, char const *path);
+    WARN_UNUSED_RESULT int (*closedir)(DIR *self);
+    WARN_UNUSED_RESULT int (*readdir)(struct dirent *out, DIR *self);
+    
 };
 
 struct vfs_fstype {
@@ -77,6 +90,9 @@ void vfs_mountroot(void);
 WARN_UNUSED_RESULT int vfs_openfile(
     struct fd **out, char const *path, int flags);
 void vfs_closefile(struct fd *fd);
+WARN_UNUSED_RESULT int vfs_opendir(DIR **out, char const *path);
+int vfs_closedir(DIR *dir);
+WARN_UNUSED_RESULT int vfs_readdir(struct dirent *out, DIR *dir);
 WARN_UNUSED_RESULT ssize_t vfs_readfile(struct fd *fd, void *buf, size_t len);
 WARN_UNUSED_RESULT ssize_t vfs_writefile(
     struct fd *fd, void const *buf, size_t len);

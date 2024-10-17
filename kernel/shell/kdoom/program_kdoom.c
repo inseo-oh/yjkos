@@ -5,7 +5,7 @@
 #include "thirdparty/PureDOOM.h"
 #include <assert.h>
 #include <kernel/arch/hcf.h>
-#include <kernel/io/vfs.h>
+#include <kernel/fs/vfs.h>
 #include <kernel/mem/heap.h>
 #include <kernel/panic.h>
 #include <kernel/raster/fb.h>

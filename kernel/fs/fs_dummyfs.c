@@ -1,6 +1,6 @@
-#include "vfs.h"
 #include "fsinit.h"
 #include <dirent.h>
+#include <kernel/fs/vfs.h>
 #include <kernel/io/disk.h>
 #include <kernel/io/iodev.h>
 #include <kernel/lib/diagnostics.h>

@@ -222,5 +222,6 @@ void shell_init(void) {
     registerprogram(&g_shell_program_hello);
     registerprogram(&g_shell_program_kdoom);
     registerprogram(&g_shell_program_rawvidplay);
+    registerprogram(&g_shell_program_ls);
 }
 

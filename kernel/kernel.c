@@ -3,10 +3,10 @@
 #include <kernel/arch/tsc.h>
 #include <kernel/dev/pci.h>
 #include <kernel/dev/ps2.h>
+#include <kernel/fs/vfs.h>
 #include <kernel/io/disk.h>
 #include <kernel/io/iodev.h>
 #include <kernel/io/tty.h>
-#include <kernel/io/vfs.h>
 #include <kernel/lib/noreturn.h>
 #include <kernel/mem/heap.h>
 #include <kernel/mem/pmm.h>
