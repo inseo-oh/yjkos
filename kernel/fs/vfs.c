@@ -61,7 +61,7 @@ static WARN_UNUSED_RESULT int removerelpath(
 {
     int ret = 0;
     char *newpath = NULL;
-    size_t size = strlen(path) + 1;
+    size_t size = strlen(path) + 2; // Leave room for / and NULL terminator.
     if (size == 0) {
         ret = -ENOMEM;
         goto fail;
@@ -132,6 +132,7 @@ static WARN_UNUSED_RESULT int mount(
     char *newmountpath;
     int ret;
     ret = removerelpath(&newmountpath, mountpath);
+
     if (ret < 0) {
         goto fail;
     }
@@ -277,6 +278,7 @@ static WARN_UNUSED_RESULT int resolvepath(
 {
     int ret = 0;
     char *newpath = NULL;
+
     ret = removerelpath(&newpath, path);
     if (ret < 0) {
         goto fail;
@@ -357,9 +359,9 @@ static void resolvepathcallback_opendirectory(
     if (fscontext->fstype->ops->opendir == NULL) {
         context->ret = -ENOENT;
     } else {
+        context->ret = fscontext->fstype->ops->opendir(
+            &context->dirresult, fscontext, path);
     }
-    context->ret = fscontext->fstype->ops->opendir(
-        &context->dirresult, fscontext, path);
 }
 
 int vfs_opendir(DIR **out, char const *path) {
