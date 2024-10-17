@@ -67,7 +67,7 @@ void __fixdfsi(void) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-SHELLFUNC static void* dmalloc(int size) {
+static void* dmalloc(int size) {
     size_t finalsize = size * 2;
     void *ptr = heap_alloc(finalsize, 0);
     if (ptr == NULL) {
@@ -76,22 +76,22 @@ SHELLFUNC static void* dmalloc(int size) {
     return ptr;
 }
 
-SHELLFUNC static void dfree(void* ptr) {
+static void dfree(void* ptr) {
     return;
     heap_free(ptr);
 }
 
-SHELLFUNC static void dprint(const char* str) {
+static void dprint(const char* str) {
     tty_printf("%s", str);
 }
 
-SHELLFUNC static void dexit(int exitcode) {
+static void dexit(int exitcode) {
     tty_printf("[kdoom] exited with code %d. Halting system.\n", exitcode);
     arch_hcf();
     while(1) {}
 }
 
-SHELLFUNC static char *dgetenv(char const *env) {
+static char *dgetenv(char const *env) {
     // STUB
     if (strcmp(env, "HOME") == 0) {
         return "/";
@@ -99,7 +99,7 @@ SHELLFUNC static char *dgetenv(char const *env) {
     return NULL;
 }
 
-SHELLFUNC static void* dopen(const char* filename, const char* mode) {
+static void* dopen(const char* filename, const char* mode) {
     if (mode[0] == 'w') {
         return NULL;
     }
@@ -116,14 +116,14 @@ SHELLFUNC static void* dopen(const char* filename, const char* mode) {
     return fd;
 }
 
-SHELLFUNC static void dclose(void* handle) {
+static void dclose(void* handle) {
     if (handle == NULL) {
         return;
     }
     vfs_closefile(handle);
 }
 
-SHELLFUNC static int dread(void* handle, void *buf, int count) {
+static int dread(void* handle, void *buf, int count) {
     size_t len = count;
     ssize_t ret = vfs_readfile(handle, buf, len);
     if (ret < 0) {
@@ -134,7 +134,7 @@ SHELLFUNC static int dread(void* handle, void *buf, int count) {
     return ret;
 }
 
-SHELLFUNC static int dwrite(void* handle, const void *buf, int count) {
+static int dwrite(void* handle, const void *buf, int count) {
     assert(!"TODO");
     (void)handle;
     (void)buf;
@@ -142,7 +142,7 @@ SHELLFUNC static int dwrite(void* handle, const void *buf, int count) {
     return 0;
 }
 
-SHELLFUNC static int dseek(void* handle, int offset, doom_seek_t origin) {
+static int dseek(void* handle, int offset, doom_seek_t origin) {
     int whence;
     switch(origin) {
         case DOOM_SEEK_END:
@@ -166,19 +166,19 @@ SHELLFUNC static int dseek(void* handle, int offset, doom_seek_t origin) {
     return offset;
 }
 
-SHELLFUNC static int dtell(void* handle) {
+static int dtell(void* handle) {
     (void)handle;
     assert(!"TODO");
     return 0;
 }
 
-SHELLFUNC static int deof(void* handle) {
+static int deof(void* handle) {
     (void)handle;
     assert(!"TODO");
     return 0;
 }
 
-SHELLFUNC static void dgettime(int* sec, int* usec) {
+static void dgettime(int* sec, int* usec) {
     ticktime currenttime = g_ticktime;
     *sec = currenttime / 1000;
     *usec = (currenttime % 1000) * 1000;
@@ -186,7 +186,7 @@ SHELLFUNC static void dgettime(int* sec, int* usec) {
 
 #define MIDIPERIOD (1000 / 140) // 140Hz
 
-SHELLFUNC static int program_main(int argc, char *argv[]) {
+static int program_main(int argc, char *argv[]) {
     doom_set_malloc(dmalloc, dfree);
     doom_set_print(dprint);
     doom_set_exit(dexit);
@@ -256,7 +256,7 @@ SHELLFUNC static int program_main(int argc, char *argv[]) {
 
 #else
 
-SHELLFUNC static int program_main(int argc, char *argv[]) {
+static int program_main(int argc, char *argv[]) {
     (void)argc;
     (void)argv;
     tty_printf("ERROR: YJKERNEL_ENABLE_KDOOM was disabled during compilation\n");
@@ -265,7 +265,7 @@ SHELLFUNC static int program_main(int argc, char *argv[]) {
 
 #endif
 
-SHELLDATA struct shell_program g_shell_program_kdoom = {
+struct shell_program g_shell_program_kdoom = {
     .name = "kdoom",
     .main = program_main,
 };

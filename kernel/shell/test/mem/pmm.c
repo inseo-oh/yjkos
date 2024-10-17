@@ -4,14 +4,14 @@
 #include <kernel/mem/pmm.h>
 #include <kernel/types.h>
 
-SHELLFUNC static bool do_randalloc(void) {
+static bool do_randalloc(void) {
     bool previnterrupts = arch_interrupts_disable();
     TEST_EXPECT(pmm_pagepool_test_random());
     interrupts_restore(previnterrupts);
     return true;
 }
 
-SHELLFUNC static bool do_badalloc(void) {
+static bool do_badalloc(void) {
     bool previnterrupts = arch_interrupts_disable();
     size_t pagecount = ~0;
     TEST_EXPECT(pmm_alloc(&pagecount) == PHYSICALPTR_NULL);
@@ -19,12 +19,12 @@ SHELLFUNC static bool do_badalloc(void) {
     return true;
 }
 
-SHELLRODATA static struct test const TESTS[] = {
+static struct test const TESTS[] = {
     { .name = "random allocation test", .fn = do_randalloc },
     { .name = "bad allocation",         .fn = do_badalloc  },
 };
 
-SHELLRODATA const struct testgroup TESTGROUP_PMM = {
+const struct testgroup TESTGROUP_PMM = {
     .name = "pmm",
     .tests = TESTS,
     .testslen = sizeof(TESTS)/sizeof(*TESTS),

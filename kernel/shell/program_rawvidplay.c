@@ -10,7 +10,7 @@ enum {
 };
 static fb_color s_framebuffer[FRAME_SIZE];
 
-SHELLFUNC static int program_main(int argc, char *argv[]) {
+static int program_main(int argc, char *argv[]) {
     if (argc < 2) {
         tty_printf("usage: rawvidplay <rawvideo file>\n");
         return 1;
@@ -38,7 +38,7 @@ SHELLFUNC static int program_main(int argc, char *argv[]) {
     return 0;
 }
 
-SHELLDATA struct shell_program g_shell_program_rawvidplay = {
+struct shell_program g_shell_program_rawvidplay = {
     .name = "rawvidplay",
     .main = program_main,
 };

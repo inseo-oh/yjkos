@@ -2,7 +2,7 @@
 #include "../test.h"
 #include <kernel/lib/bitmap.h>
 
-SHELLFUNC static bool do_makebitmask(void) {
+static bool do_makebitmask(void) {
     TEST_EXPECT(makebitmask(0, 0) == 0);
     TEST_EXPECT(makebitmask(1, 0) == 0);
     TEST_EXPECT(makebitmask(1, 1) == (0x1 << 1));
@@ -12,7 +12,7 @@ SHELLFUNC static bool do_makebitmask(void) {
     return true;
 }
 
-SHELLFUNC static bool do_findfirstsetbit(void) {
+static bool do_findfirstsetbit(void) {
     struct bitmap bmp;
     uint words[] = {
         0xe0ddf00d, // 11100000110111011111000000001101
@@ -31,7 +31,7 @@ SHELLFUNC static bool do_findfirstsetbit(void) {
     return true;
 }
 
-SHELLFUNC static bool do_findlastcontiguousbit(void) {
+static bool do_findlastcontiguousbit(void) {
     struct bitmap bmp;
     uint words[] = {
         0xe0ddf00d, // 11100000110111011111000000001101
@@ -53,7 +53,7 @@ SHELLFUNC static bool do_findlastcontiguousbit(void) {
     return true;
 }
 
-SHELLFUNC static bool do_arebitsset(void) {
+static bool do_arebitsset(void) {
     struct bitmap bmp;
     uint words[] = {
         0xe0ddf00d, // 11100000110111011111000000001101
@@ -78,7 +78,7 @@ SHELLFUNC static bool do_arebitsset(void) {
 }
 
 
-SHELLFUNC static bool do_setbits(void) {
+static bool do_setbits(void) {
     struct bitmap bmp;
     uint words[] = {
         0, 0, 0,
@@ -105,7 +105,7 @@ SHELLFUNC static bool do_setbits(void) {
     return true;
 }
 
-SHELLFUNC static bool do_clearbits(void) {
+static bool do_clearbits(void) {
     struct bitmap bmp;
     uint words[] = {
         0xffffffff, 0xffffffff, 0xffffffff,
@@ -132,7 +132,7 @@ SHELLFUNC static bool do_clearbits(void) {
     return true;
 }
 
-SHELLFUNC static bool do_findsetbits(void) {
+static bool do_findsetbits(void) {
     struct bitmap bmp;
     uint words[] = {
         0xe0ddf00d, // 11100000110111011111000000001101
@@ -153,7 +153,7 @@ SHELLFUNC static bool do_findsetbits(void) {
     return true;
 }
 
-SHELLRODATA static struct test const TESTS[] = {
+static struct test const TESTS[] = {
     { .name = "makebitmask",           .fn = do_makebitmask           },
     { .name = "findfirstsetbit",       .fn = do_findfirstsetbit       },
     { .name = "findlastcontiguousbit", .fn = do_findlastcontiguousbit },
@@ -163,7 +163,7 @@ SHELLRODATA static struct test const TESTS[] = {
     { .name = "clearbits",             .fn = do_clearbits             },
 };
 
-SHELLRODATA const struct testgroup TESTGROUP_BITMAP = {
+const struct testgroup TESTGROUP_BITMAP = {
     .name = "bitmap",
     .tests = TESTS,
     .testslen = sizeof(TESTS)/sizeof(*TESTS),

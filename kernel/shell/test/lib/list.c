@@ -3,7 +3,7 @@
 #include <kernel/lib/list.h>
 #include <string.h>
 
-SHELLFUNC static bool do_insertfront(void) {
+static bool do_insertfront(void) {
     struct list lst;
     struct list_node nodes[3];
 
@@ -38,7 +38,7 @@ SHELLFUNC static bool do_insertfront(void) {
     return true;
 }
 
-SHELLFUNC static bool do_insertback(void) {
+static bool do_insertback(void) {
     struct list lst;
     struct list_node nodes[3];
 
@@ -72,7 +72,7 @@ SHELLFUNC static bool do_insertback(void) {
     return true;
 }
 
-SHELLFUNC static bool do_insertafter(void) {
+static bool do_insertafter(void) {
     struct list lst;
     struct list_node nodes[5];
 
@@ -104,7 +104,7 @@ SHELLFUNC static bool do_insertafter(void) {
     return true;
 }
 
-SHELLFUNC static bool do_insertbefore(void) {
+static bool do_insertbefore(void) {
     struct list lst;
     struct list_node nodes[5];
 
@@ -136,7 +136,7 @@ SHELLFUNC static bool do_insertbefore(void) {
     return true;
 }
 
-SHELLFUNC static bool do_removefront(void) {
+static bool do_removefront(void) {
     struct list lst;
     struct list_node nodes[3];
     struct list_node *removednode;
@@ -174,7 +174,7 @@ SHELLFUNC static bool do_removefront(void) {
     return true;
 }
 
-SHELLFUNC static bool do_removeback(void) {
+static bool do_removeback(void) {
     struct list lst;
     struct list_node nodes[3];
     struct list_node *removednode;
@@ -212,7 +212,7 @@ SHELLFUNC static bool do_removeback(void) {
     return true;
 }
 
-SHELLFUNC static bool do_removenode(void) {
+static bool do_removenode(void) {
     struct list lst;
     struct list_node nodes[3];
 
@@ -244,7 +244,7 @@ SHELLFUNC static bool do_removenode(void) {
     return true;
 }
 
-SHELLRODATA static struct test const TESTS[] = {
+static struct test const TESTS[] = {
     { .name = "insert front",   .fn = do_insertfront  },
     { .name = "insert back",    .fn = do_insertback   },
     { .name = "insert after",   .fn = do_insertafter  },
@@ -254,7 +254,7 @@ SHELLRODATA static struct test const TESTS[] = {
     { .name = "remove node",    .fn = do_removenode   },
 };
 
-SHELLRODATA const struct testgroup TESTGROUP_LIST = {
+const struct testgroup TESTGROUP_LIST = {
     .name = "list",
     .tests = TESTS,
     .testslen = sizeof(TESTS)/sizeof(*TESTS),

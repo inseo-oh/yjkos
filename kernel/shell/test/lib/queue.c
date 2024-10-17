@@ -4,7 +4,7 @@
 #include <errno.h>
 #include <stdint.h>
 
-SHELLRODATA static uint32_t const TEST_INTS[] = {
+static uint32_t const TEST_INTS[] = {
     0x47bd8fbc,
     0x051b34b6,
     0x305c5756,
@@ -17,7 +17,7 @@ SHELLRODATA static uint32_t const TEST_INTS[] = {
     0xe80d6aa0,
 };
 
-SHELLFUNC static bool do_test(void) {
+static bool do_test(void) {
     struct queue queue;
     uint32_t buf[5];
     QUEUE_INIT_FOR_ARRAY(&queue, buf);
@@ -53,11 +53,11 @@ SHELLFUNC static bool do_test(void) {
 }
 
 
-SHELLRODATA static struct test const TESTS[] = {
+static struct test const TESTS[] = {
     { .name = "queue", .fn = do_test },
 };
 
-SHELLRODATA const struct testgroup TESTGROUP_QUEUE = {
+const struct testgroup TESTGROUP_QUEUE = {
     .name = "queue",
     .tests = TESTS,
     .testslen = sizeof(TESTS)/sizeof(*TESTS),

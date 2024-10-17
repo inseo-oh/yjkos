@@ -38,10 +38,10 @@ union shellcmd {
     } runprogram;
 };
 
-SHELLBSS static struct list s_programs;
+static struct list s_programs;
 
 // Returns shell exit code (See SHELL_EXITCODE_~)
-SHELLFUNC WARN_UNUSED_RESULT static int parsecmd(union shellcmd *out, struct smatcher *cmdstr) {
+WARN_UNUSED_RESULT static int parsecmd(union shellcmd *out, struct smatcher *cmdstr) {
     int result = SHELL_EXITCODE_OK;
     size_t oldcurrentindex = cmdstr->currentindex;
     char **argv = NULL;
@@ -101,7 +101,7 @@ out:
     return result;
 }
 
-SHELLFUNC static void cmd_destroy(union shellcmd *cmd) {
+static void cmd_destroy(union shellcmd *cmd) {
     switch(cmd->kind) {
         case CMDKIND_RUNPROGRAM:
             for (int i = 0; i < cmd->runprogram.argc; i++) {
@@ -113,7 +113,7 @@ SHELLFUNC static void cmd_destroy(union shellcmd *cmd) {
     }
 }
 
-SHELLFUNC static void cmd_dump(union shellcmd const *cmd) {
+static void cmd_dump(union shellcmd const *cmd) {
     switch(cmd->kind) {
         case CMDKIND_RUNPROGRAM:
             tty_printf("[cmd_dump] RUNPROGRAM\n");
@@ -130,7 +130,7 @@ SHELLFUNC static void cmd_dump(union shellcmd const *cmd) {
     }
 }
 
-SHELLFUNC static int cmd_exec(union shellcmd const *cmd) {
+static int cmd_exec(union shellcmd const *cmd) {
     switch(cmd->kind) {
         case CMDKIND_RUNPROGRAM: {
             assert(cmd->runprogram.argc != 0);
@@ -156,11 +156,11 @@ SHELLFUNC static int cmd_exec(union shellcmd const *cmd) {
     }
 }
 
-SHELLFUNC static void registerprogram(struct shell_program *program) {
+static void registerprogram(struct shell_program *program) {
     list_insertback(&s_programs, &program->node, program);
 }
 
-SHELLFUNC int shell_execcmd(char const *str) {
+int shell_execcmd(char const *str) {
     int ret;
     union shellcmd cmd;
     struct smatcher linematcher;
@@ -182,7 +182,7 @@ SHELLFUNC int shell_execcmd(char const *str) {
     return 0;
 }
 
-SHELLFUNC void shell_repl(void) {
+void shell_repl(void) {
     char cmdline[SHELL_MAX_CMDLINE_LEN + 1];
 
     while(1) {
@@ -217,7 +217,7 @@ SHELLFUNC void shell_repl(void) {
     }
 }
 
-SHELLFUNC void shell_init(void) {
+void shell_init(void) {
     registerprogram(&g_shell_program_runtest);
     registerprogram(&g_shell_program_hello);
     registerprogram(&g_shell_program_kdoom);

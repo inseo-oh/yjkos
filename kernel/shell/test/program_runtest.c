@@ -3,7 +3,7 @@
 #include <kernel/io/tty.h>
 #include <string.h>
 
-SHELLRODATA static struct testgroup const * const TESTGROUPS[] = {
+static struct testgroup const * const TESTGROUPS[] = {
     // lib
     &TESTGROUP_BITMAP,
     &TESTGROUP_BST,
@@ -15,7 +15,7 @@ SHELLRODATA static struct testgroup const * const TESTGROUPS[] = {
     &TESTGROUP_HEAP,
 };
 
-SHELLFUNC static bool runtests(struct testgroup const *group) {
+static bool runtests(struct testgroup const *group) {
     size_t okcount = 0, failcount = 0;
     tty_printf("running test group '%s' (%zu tests)\n", group->name, group->testslen);
     for (size_t i = 0; i < group->testslen; i++) {
@@ -30,7 +30,7 @@ SHELLFUNC static bool runtests(struct testgroup const *group) {
     return failcount == 0;
 }
 
-SHELLRODATA static char const * const HELP = 
+static char const * const HELP = 
     "Usage: test <options> <testgroups...>\n"
     "\n"
     "OPTIONS:\n"
@@ -39,7 +39,7 @@ SHELLRODATA static char const * const HELP =
     " -a, --all : Runs all testgroups\n"
     ;
 
-SHELLFUNC static int program_main(int argc, char *argv[]) {
+static int program_main(int argc, char *argv[]) {
     // Check options
     bool opt_help = false;
     bool opt_list = false;
@@ -105,7 +105,7 @@ testdone:
     return 0;
 }
 
-SHELLDATA struct shell_program g_shell_program_runtest = {
+struct shell_program g_shell_program_runtest = {
     .name = "runtest",
     .main = program_main,
 };

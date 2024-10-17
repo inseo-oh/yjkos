@@ -3,7 +3,7 @@
 #include <kernel/lib/smatcher.h>
 #include <string.h>
 
-SHELLFUNC static bool do_slice(void) {
+static bool do_slice(void) {
     struct smatcher smatcher, newsmatcher;
     smatcher_init(&smatcher, "hello world people");
     smatcher_slice(&newsmatcher, &smatcher, 6, 10);
@@ -13,7 +13,7 @@ SHELLFUNC static bool do_slice(void) {
     return true;
 }
 
-SHELLFUNC static bool do_consumestringifmatch(void) {
+static bool do_consumestringifmatch(void) {
     struct smatcher smatcher;
     smatcher_init_with_len(&smatcher, "hello world people", 11);
     TEST_EXPECT(smatcher_consumestringifmatch(&smatcher, "hello1") == false);
@@ -29,7 +29,7 @@ SHELLFUNC static bool do_consumestringifmatch(void) {
     return true;
 }
 
-SHELLFUNC static bool do_consumewordifmatch(void) {
+static bool do_consumewordifmatch(void) {
     struct smatcher smatcher;
     smatcher_init_with_len(&smatcher, "hello worldpeopleguy", 17);
     TEST_EXPECT(smatcher_consumewordifmatch(&smatcher, "world")  == false);
@@ -43,7 +43,7 @@ SHELLFUNC static bool do_consumewordifmatch(void) {
     return true;
 }
 
-SHELLFUNC static bool do_skipwhitespaces(void) {
+static bool do_skipwhitespaces(void) {
     struct smatcher smatcher;
     smatcher_init_with_len(&smatcher, "hello    worldpeople", 14);
     TEST_EXPECT(smatcher_consumestringifmatch(&smatcher, "hello")  == true);
@@ -56,7 +56,7 @@ SHELLFUNC static bool do_skipwhitespaces(void) {
     return true;
 }
 
-SHELLFUNC static bool do_consumeword(void) {
+static bool do_consumeword(void) {
     char const *str;
     size_t len;
     struct smatcher smatcher;
@@ -72,7 +72,7 @@ SHELLFUNC static bool do_consumeword(void) {
     return true;
 }
 
-SHELLRODATA static struct test const TESTS[] = {
+static struct test const TESTS[] = {
     { .name = "slice",                .fn = do_slice                 },
     { .name = "consumestringifmatch", .fn = do_consumestringifmatch  },
     { .name = "consumewordifmatch",   .fn = do_consumewordifmatch    },
@@ -80,7 +80,7 @@ SHELLRODATA static struct test const TESTS[] = {
     { .name = "consumeword",          .fn = do_consumeword           },
 };
 
-SHELLRODATA const struct testgroup TESTGROUP_SMATCHER = {
+const struct testgroup TESTGROUP_SMATCHER = {
     .name = "smatcher",
     .tests = TESTS,
     .testslen = sizeof(TESTS)/sizeof(*TESTS),

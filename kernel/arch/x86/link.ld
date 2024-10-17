@@ -23,9 +23,6 @@ SECTIONS
     __physaddr_kernel_begin__ = (. - VIRTUAL_BASE + LOAD_ADDR_OFFSET);
 
     .text : AT(ADDR(.text) - VIRTUAL_BASE + LOAD_ADDR_OFFSET) ALIGN(4096) {
-        __ARCHX86_KERNEL_SHELLTEXT_BEGIN__ = .;
-        *(.text.shell)
-        __ARCHX86_KERNEL_SHELLTEXT_END__ = .;
         . = ALIGN(4096);
         __ARCHX86_KERNEL_TEXT_BEGIN__ = .;
         *(.text)
@@ -42,9 +39,6 @@ SECTIONS
         __initarray_end__ = .;
     }
     .data : AT(ADDR(.data) - VIRTUAL_BASE + LOAD_ADDR_OFFSET) ALIGN(4096) {
-        __ARCHX86_KERNEL_SHELLDATA_BEGIN__ = .;
-        *(.data.shell)
-        __ARCHX86_KERNEL_SHELLDATA_END__ = .;
         . = ALIGN(4096);
         __ARCHX86_KERNEL_RO_AFTER_EARLY_INIT_BEGIN__ = .;
         *(.data.ro_after_early_init)
@@ -54,16 +48,10 @@ SECTIONS
         *(.data.*)
     }
     .rodata : AT(ADDR(.rodata) - VIRTUAL_BASE + LOAD_ADDR_OFFSET) ALIGN(4096) {
-        __ARCHX86_KERNEL_SHELLRODATA_BEGIN__ = .;
-        *(.rodata.shell)
-        __ARCHX86_KERNEL_SHELLRODATA_END__ = .;
         *(.rodata)
         *(.rodata.*)
     }
     .bss : AT(ADDR(.bss) - VIRTUAL_BASE + LOAD_ADDR_OFFSET) ALIGN(4096) {
-        __ARCHX86_KERNEL_SHELLBSS_BEGIN__ = .;
-        *(.bss.shell)
-        __ARCHX86_KERNEL_SHELLBSS_END__ = .;
         . = ALIGN(4096);
         *(.bss)
         *(.bss.*)

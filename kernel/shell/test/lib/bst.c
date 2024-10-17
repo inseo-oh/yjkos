@@ -6,7 +6,7 @@
 #include <kernel/panic.h>
 #include <string.h>
 
-SHELLFUNC static struct bst_node *assertnonnullnode(struct bst_node *node, char const *assertion, char const *function, char const *file, int line) {
+static struct bst_node *assertnonnullnode(struct bst_node *node, char const *assertion, char const *function, char const *file, int line) {
     if (node == NULL) {
         tty_printf("non-null assertion failed at %s(%s:%d): %s\n", function, file, line, assertion);
         panic(NULL);
@@ -17,7 +17,7 @@ SHELLFUNC static struct bst_node *assertnonnullnode(struct bst_node *node, char 
 #define ASSERT_NONNULL_BSTNODE(_x)  assertnonnullnode(_x, #_x, __func__, __FILE__, __LINE__)
 
 
-SHELLFUNC static bool do_insertnode_unbalenced(void) {
+static bool do_insertnode_unbalenced(void) {
     struct bst bst;
     bst_init(&bst);
 
@@ -128,7 +128,7 @@ SHELLFUNC static bool do_insertnode_unbalenced(void) {
 //       2) Balencing works the same when removing, and we test all four AVL balencing
 //          cases in this one test.
 
-SHELLFUNC static bool do_balencing(void) {
+static bool do_balencing(void) {
     struct bst bst;
     struct bst_node nodes[12];
 
@@ -426,7 +426,7 @@ struct testtree {
  *            \                        \
  *             69                       6
 */
-SHELLFUNC static void inittesttree(struct testtree *out) {
+static void inittesttree(struct testtree *out) {
     memset(out, 0, sizeof(*out));
 
     out->nodes[0].key = 50;
@@ -464,7 +464,7 @@ SHELLFUNC static void inittesttree(struct testtree *out) {
     bst_recalculatebf_tree(&out->bst);
 }
 
-SHELLFUNC static bool do_removenode_unbalenced(void) {
+static bool do_removenode_unbalenced(void) {
     struct testtree tree;
     /*
      * Remove a terminal node
@@ -527,7 +527,7 @@ SHELLFUNC static bool do_removenode_unbalenced(void) {
     return true;
 }
 
-SHELLFUNC static bool do_findnode(void) {
+static bool do_findnode(void) {
     struct testtree tree;
     inittesttree(&tree);
 
@@ -540,7 +540,7 @@ SHELLFUNC static bool do_findnode(void) {
     return true;
 }
 
-SHELLFUNC static bool do_minmaxof(void) {
+static bool do_minmaxof(void) {
     struct testtree tree;
     inittesttree(&tree);
 
@@ -550,7 +550,7 @@ SHELLFUNC static bool do_minmaxof(void) {
     return true;
 }
 
-SHELLFUNC static bool do_dirinparent(void) {
+static bool do_dirinparent(void) {
     struct testtree tree;
     inittesttree(&tree);
 
@@ -562,7 +562,7 @@ SHELLFUNC static bool do_dirinparent(void) {
     return true;
 }
 
-SHELLFUNC static bool do_successor(void) {
+static bool do_successor(void) {
     struct testtree tree;
     inittesttree(&tree);
 
@@ -586,7 +586,7 @@ SHELLFUNC static bool do_successor(void) {
     return true;
 }
 
-SHELLFUNC static bool do_predecessor(void) {
+static bool do_predecessor(void) {
     struct testtree tree;
     inittesttree(&tree);
 
@@ -608,7 +608,7 @@ SHELLFUNC static bool do_predecessor(void) {
     return true;
 }
 
-SHELLFUNC static bool do_rotate(void) {
+static bool do_rotate(void) {
     struct testtree tree;
     inittesttree(&tree);
 
@@ -666,7 +666,7 @@ SHELLFUNC static bool do_rotate(void) {
     return true;
 }
 
-SHELLFUNC static bool do_height(void) {
+static bool do_height(void) {
     struct testtree tree;
     inittesttree(&tree);
 
@@ -677,7 +677,7 @@ SHELLFUNC static bool do_height(void) {
     return true;
 }
 
-SHELLRODATA static struct test const TESTS[] = {
+static struct test const TESTS[] = {
     { .name = "insert node unbalenced",     .fn = do_insertnode_unbalenced },
     { .name = "remove node unbalenced",     .fn = do_removenode_unbalenced },
     { .name = "insert node & balencing",    .fn = do_balencing             },
@@ -690,7 +690,7 @@ SHELLRODATA static struct test const TESTS[] = {
     { .name = "height",                     .fn = do_height                },
 };
 
-SHELLRODATA const struct testgroup TESTGROUP_BST = {
+const struct testgroup TESTGROUP_BST = {
     .name = "bst",
     .tests = TESTS,
     .testslen = sizeof(TESTS)/sizeof(*TESTS),
