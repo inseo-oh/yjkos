@@ -7,3 +7,4 @@ kernel/shell/kdoom/thirdparty/PureDOOM.h
 support/thirdparty/terminus-font-*/*.psf
 support/rootfsmount
 harddisk.img
+**/__pycache__
