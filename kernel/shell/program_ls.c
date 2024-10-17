@@ -2,9 +2,7 @@
 #include <errno.h>
 #include <dirent.h>
 #include <kernel/fs/vfs.h>
-#include <kernel/io/stream.h>
 #include <kernel/io/tty.h>
-#include <kernel/raster/fb.h>
 
 static void showdir(char const *path) {
     DIR *dir;
