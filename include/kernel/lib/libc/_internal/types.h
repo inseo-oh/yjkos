@@ -2,7 +2,7 @@
 #define _YJK_INTERNAL_TYPES_H    1
 
 #ifndef __YJK_USE_INTERNAL_TYPES_H
-#error Do not include <internal/types.h> directly. Include <sys/types.h> instead.
+#error Do not include <_internal/types.h> directly. Include <sys/types.h> instead.
 #endif
 
 #ifdef __i386__
