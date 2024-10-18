@@ -1,4 +1,6 @@
-#pragma once
+#ifndef _INTTYPES_H
+#define _INTTYPES_H 1
+
 #define PRId32  "d"
 #define PRIi32  "i"
 #define PRIu32  "u"
@@ -22,3 +24,5 @@
 #define PRIuPTR  PRIu32
 #define PRIxPTR  PRIx32
 #define PRIXPTR  PRIX32
+
+#endif

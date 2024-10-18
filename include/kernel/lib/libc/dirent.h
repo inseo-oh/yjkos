@@ -1,4 +1,6 @@
-#pragma once
+#ifndef _DIRENT_H
+#define _DIRENT_H   1
+
 #include <sys/types.h>
 #include <limits.h>
 
@@ -11,4 +13,4 @@ struct dirent {
     char d_name[NAME_MAX + 1];
 };
 
-
+#endif

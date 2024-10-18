@@ -1,4 +1,5 @@
-#pragma once
+#ifndef _ERRNO_H
+#define _ERRNO_H    1
 
 #define EPERM        1  // Operation not permitted
 #define ENOENT       2  // No such file or directory
@@ -12,3 +13,5 @@
 #define EINVAL       22 // Invalid argument
 #define ENAMETOOLONG 36 // File name too long
 #define ENOTSUP      95 // Operation not supported
+
+#endif

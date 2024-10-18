@@ -1,4 +1,5 @@
-#pragma once
+#ifndef _YJK_INTERNAL_TYPES_H
+#define _YJK_INTERNAL_TYPES_H    1
 
 #ifndef __YJK_USE_INTERNAL_TYPES_H
 #error Do not include <internal/types.h> directly. Include <sys/types.h> instead.
@@ -14,3 +15,4 @@ typedef long __YJK_SSIZE_TYPE;
 #error Unknown arch
 #endif
 
+#endif

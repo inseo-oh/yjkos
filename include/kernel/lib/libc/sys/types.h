@@ -1,4 +1,6 @@
-#pragma once
+#ifndef _SYS_TYPES_H
+#define _SYS_TYPES_H    1
+
 #include <stdint.h>
 
 #define __YJK_USE_INTERNAL_TYPES_H
@@ -17,3 +19,4 @@ typedef int64_t       off_t;
 typedef uint64_t      time_t;
 typedef uint16_t      uid_t;
 
+#endif
