@@ -27,3 +27,4 @@ extern struct shell_program g_shell_program_rawvidplay;
 extern struct shell_program g_shell_program_ls;
 extern struct shell_program g_shell_program_true;
 extern struct shell_program g_shell_program_false;
+extern struct shell_program g_shell_program_cat;
