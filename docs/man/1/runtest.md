@@ -17,7 +17,7 @@ Runs selected or all of YJKernel's built-in unit tests. Tests can be selected by
 Available options are:
 
 - `-l`: Lists available test groups and exit.
-- `-q`: Runs all testgroups. Manually specified groups are ignored.
+- `-a`: Runs all testgroups. Manually specified groups are ignored.
 
 
 
