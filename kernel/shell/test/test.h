@@ -24,6 +24,7 @@ extern const struct testgroup TESTGROUP_BST;
 extern const struct testgroup TESTGROUP_LIST;
 extern const struct testgroup TESTGROUP_QUEUE;
 extern const struct testgroup TESTGROUP_SMATCHER;
+extern const struct testgroup TESTGROUP_C_UNISTD;
 
 // mem
 extern const struct testgroup TESTGROUP_PMM;

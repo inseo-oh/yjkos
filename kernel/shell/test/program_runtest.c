@@ -1,7 +1,9 @@
 #include "../shell.h"
 #include "test.h"
 #include <kernel/io/tty.h>
+#include <kernel/lib/diagnostics.h>
 #include <string.h>
+#include <unistd.h>
 
 static struct testgroup const * const TESTGROUPS[] = {
     // lib
@@ -9,6 +11,7 @@ static struct testgroup const * const TESTGROUPS[] = {
     &TESTGROUP_BST,
     &TESTGROUP_LIST,
     &TESTGROUP_QUEUE,
+    &TESTGROUP_C_UNISTD,
 
     // mem
     &TESTGROUP_PMM,
@@ -30,44 +33,51 @@ static bool runtests(struct testgroup const *group) {
     return failcount == 0;
 }
 
-static char const * const HELP = 
-    "Usage: test <options> <testgroups...>\n"
-    "\n"
-    "OPTIONS:\n"
-    " -h, --help: Shows this help and exit\n"
-    " -l, --list: Lists available testgroups and exit\n"
-    " -a, --all : Runs all testgroups\n"
-    ;
+struct opts {
+    bool list : 1;
+    bool all : 1;
+};
+
+static WARN_UNUSED_RESULT bool getopts(
+    struct opts *out, int argc, char *argv[])
+{
+    bool ok = true;
+    int c;
+    while (1) {
+        c = getopt(argc, argv, "hla");
+        if (c == -1) {
+            break;
+        }
+        switch(c) {
+            case 'l':
+                out->list = true;
+                break;
+            case 'a':
+                out->all = true;
+                break;
+            case '?':
+            case ':':
+                ok = false;
+        }
+    }
+    return ok;
+}
 
 static int program_main(int argc, char *argv[]) {
-    // Check options
-    bool opt_help = false;
-    bool opt_list = false;
-    bool opt_all = false;
-    for (int i = 1; i < argc; i++) {
-        if ((strcmp(argv[i], "-h") == 0) || (strcmp(argv[i], "--help") == 0)) {
-            opt_help = true;
-        } else if ((strcmp(argv[i], "-l") == 0) || (strcmp(argv[i], "--list") == 0)) {
-            opt_list = true;
-        } else if ((strcmp(argv[i], "-a") == 0) || (strcmp(argv[i], "--all") == 0)) {
-            opt_all = true;
-        } else if (argv[i][0] == '-') {
-            tty_printf("Unrecognized option %s\n", argv[i]);
-            return 1;
-        }
+    struct opts opts;
+    bool argok = getopts(&opts, argc, argv);
+    if (!argok) {
+        return 1;
     }
-    // Process options
-    if (opt_help) {
-        tty_printf("%s", HELP);
-        return 0;
-    }
-    if (opt_list) {
+    if (opts.list) {
         for (size_t i = 0; i < sizeof(TESTGROUPS)/sizeof(void *); i++) {
-            tty_printf("test group '%s' (%zu tests)\n", TESTGROUPS[i]->name, TESTGROUPS[i]->testslen);
+            tty_printf(
+                "test group '%s' (%zu tests)\n",
+                TESTGROUPS[i]->name, TESTGROUPS[i]->testslen);
         }
         return 0;
     }
-    if (opt_all) {
+    if (opts.all) {
         for (size_t i = 0; i < sizeof(TESTGROUPS)/sizeof(void *); i++) {
             if (!runtests(TESTGROUPS[i])) {
                 return 1;
@@ -77,10 +87,7 @@ static int program_main(int argc, char *argv[]) {
     }
     // Run tests
     bool notests = true;
-    for (int i = 1; i < argc; i++) {
-        if (argv[i][0] == '-') {
-            continue;
-        }
+    for (int i = optind; i < argc; i++) {
         notests = false;
         struct testgroup const *group = NULL;
         for (size_t j = 0; j < sizeof(TESTGROUPS)/sizeof(void *); j++) {
@@ -89,7 +96,9 @@ static int program_main(int argc, char *argv[]) {
             }
         }
         if (group == NULL) {
-            tty_printf("No testgroup named %s exists - Run `runtest -l` for testgroup list\n", argv[i]);
+            tty_printf(
+                "No testgroup named %s exists - Run `runtest -l` for testgroup list\n",
+                argv[i]);
             return 1;
         }
         if (!runtests(group)) {
@@ -97,7 +106,8 @@ static int program_main(int argc, char *argv[]) {
         }
     }
     if (notests) {
-        tty_printf("No test or options specified - Run `runtest -h` for help\n");
+        tty_printf(
+            "No test or options specified - Run `runtest -h` for help\n");
         return 1;
     }
 testdone:

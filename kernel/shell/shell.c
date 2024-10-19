@@ -9,6 +9,7 @@
 #include <limits.h>
 #include <stdint.h>
 #include <string.h>
+#include <unistd.h>
 
 
 //------------------------------- Configuration -------------------------------
@@ -147,6 +148,8 @@ static int cmd_exec(union shellcmd const *cmd) {
                 tty_printf("%s: command not found\n", cmd->runprogram.argv[0]);
                 return 127;
             }
+            optind = 1;
+            opterr = 1;
             return program_to_run->main(cmd->runprogram.argc, cmd->runprogram.argv);
         }
         case CMDKIND_EMPTY:
