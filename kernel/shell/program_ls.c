@@ -86,8 +86,6 @@ static int format(
 static void showdir(
     char const *progname, char const *path, struct opts const *opts)
 {
-
-
     DIR *dir;
     int ret = vfs_opendir(&dir, path);
     if (ret < 0) {
@@ -170,12 +168,9 @@ out:
     return;
 }
 
-
-
 static int program_main(int argc, char *argv[]) {
     struct opts opts;
-    bool argok = getopts(&opts, argc, argv);
-    if (!argok) {
+    if (!getopts(&opts, argc, argv)) {
         return 1;
     }
     if (argc <= optind) {

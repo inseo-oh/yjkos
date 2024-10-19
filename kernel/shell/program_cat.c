@@ -1,8 +1,5 @@
 #include "shell.h"
 #include <dirent.h>
-#include <errno.h>
-#include <stdio.h>
-#include <string.h>
 #include <stdint.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -69,12 +66,9 @@ static void showfile(
     }
 }
 
-
-
 static int program_main(int argc, char *argv[]) {
     struct opts opts;
-    bool argok = getopts(&opts, argc, argv);
-    if (!argok) {
+    if (!getopts(&opts, argc, argv)) {
         return 1;
     }
     if (argc <= optind) {
@@ -92,4 +86,3 @@ struct shell_program g_shell_program_cat = {
     .name = "cat",
     .main = program_main,
 };
-
