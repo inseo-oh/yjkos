@@ -1,8 +1,8 @@
 #ifndef _YJK_INTERNAL_TYPES_H
-#define _YJK_INTERNAL_TYPES_H    1
+#define _YJK_INTERNAL_TYPES_H   1
 
-#ifndef __YJK_USE_INTERNAL_TYPES_H
-#error Do not include <_internal/types.h> directly. Include <sys/types.h> instead.
+#ifndef __YJK_USE_INTERNAL
+#error Do not include this header directly. Include <sys/types.h> instead.
 #endif
 
 #ifdef __i386__

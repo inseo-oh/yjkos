@@ -3,8 +3,8 @@
 
 #include <stdint.h>
 
-#define __YJK_USE_INTERNAL_TYPES_H
-#include <_internal/types.h>
+#define __YJK_USE_INTERNAL
+#include "../_internal/types.h"
 
 // https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/sys_types.h.html
 
