@@ -31,6 +31,7 @@ static WARN_UNUSED_RESULT bool getopts(
 {
     bool ok = true;
     int c;
+    memset(out, 0, sizeof(*out));
     while (1) {
         c = getopt(argc, argv, "ACFHLRSacdfghiklmnopqrstux1");
         if (c == -1) {
