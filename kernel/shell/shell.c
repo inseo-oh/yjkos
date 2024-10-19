@@ -229,5 +229,6 @@ void shell_init(void) {
     registerprogram(&g_shell_program_true);
     registerprogram(&g_shell_program_false);
     registerprogram(&g_shell_program_cat);
+    registerprogram(&g_shell_program_uname);
 }
 

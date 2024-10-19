@@ -3,6 +3,7 @@
 compile_commands.json
 customrootfs/*
 out/
+include/kernel/version.h
 kernel/shell/kdoom/thirdparty/PureDOOM.h
 support/thirdparty/terminus-font-*/*.psf
 support/rootfsmount
