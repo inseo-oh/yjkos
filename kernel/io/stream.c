@@ -143,7 +143,6 @@ WARN_UNUSED_RESULT ssize_t stream_putstr(struct stream *self, char const *s) {
         if (result < 0) {
             return result;
         }
-        writtencount++;
     }
     return writtencount;
 }
