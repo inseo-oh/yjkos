@@ -28,7 +28,7 @@ ARCH=$1
 PREFIX=$2
 
 case $ARCH in
-  "x86")
+  "i586")
     TARGET=i586-elf;
     ;;
   *)

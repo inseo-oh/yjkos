@@ -100,7 +100,7 @@ static int program_main(int argc, char *argv[]) {
         }
     }
     if (opts.machine) {
-#if YJKERNEL_ARCH_X86
+#if YJKERNEL_ARCH_I586
         tty_printf("i586");
 #else
         #error Unknown arch

@@ -34,7 +34,7 @@ nokvm       = os.getenv('YJK_NO_KVM')       == '1' # No KVM?
 tfaultdebug = os.getenv('YJK_TFAULT_DEBUG') == '1' # Triple-fault debug?
 penguinqemu = os.getenv('YJK_PENGUINQEMU')  == '1' # Use Linux QEMU under WSL2?
 
-cdrompath = "out/x86/YJKOS_x86.iso"
+cdrompath = "out/i586/YJKOS_i586.iso"
 hddpath   = "harddisk.img"
 qemuexe   = "qemu-system-i386"
 

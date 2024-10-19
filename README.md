@@ -43,7 +43,7 @@ Finally, run `kdoom` at the command line once the system is booted.
 ### Building
 You'll first need a cross-compiler setup. You'll have to pick where you want to install compiler files - Creating a folder in your home folder will do the job.
 ```
-> support/tools/buildtoolchain.sh x86 path/to/install/to
+> support/tools/buildtoolchain.sh i586 path/to/install/to
 ```
 This process can take a very long time depending on your hardware, so be prepared!
 

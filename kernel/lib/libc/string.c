@@ -76,7 +76,7 @@ void memset(void *s, int c, size_t n) {
 
 // https://pubs.opengroup.org/onlinepubs/9799919799/functions/memcpy.html
 void memcpy(void *restrict s1, const void *restrict s2, size_t n) {
-#ifdef YJKERNEL_ARCH_X86
+#ifdef YJKERNEL_ARCH_I586
     int dummy[3];
     __asm__ volatile (
         "pushf\n"

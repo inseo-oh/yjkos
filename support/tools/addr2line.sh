@@ -6,4 +6,4 @@ if [ $# -lt 1 ]; then
     exit 1
 fi
 
-addr2line $1 -e out/x86/bootroot/boot/yjkernel-nostrip
+addr2line $1 -e out/i586/bootroot/boot/yjkernel-nostrip

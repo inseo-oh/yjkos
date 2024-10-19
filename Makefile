@@ -1,4 +1,4 @@
-ARCH     ?= x86
+ARCH     ?= i586
 OUTDIR    = out/$(ARCH)
 BOOTROOT  = $(OUTDIR)/bootroot
 ISO_NAME  = $(OUTDIR)/YJKOS_$(ARCH).iso
