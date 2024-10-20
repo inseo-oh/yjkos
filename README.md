@@ -26,7 +26,7 @@ Finally, run `kdoom` at the command line once the system is booted.
  - PCI IDE controller
  - Intel Pentium(original) or later
  - 16MiB of RAM(I may decrease this down to 8 in the future)
- - VESA compabible graphics card (NOTE: 256-color or less is not supported yet!)
+ - VESA compabible graphics card
  - Legacy BIOS (though if this isn't the case your machine is probably too new anyway)
  - **Ability to boot from CD-ROM**.
 
