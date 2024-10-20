@@ -23,14 +23,18 @@ bool test_expect_impl(
 #define TEST_RUN(_name, _tests) \
     test_run_impl(_name, (_tests), sizeof(_tests)/sizeof(*(_tests)))
 
-// lib
-extern const struct testgroup TESTGROUP_BITMAP;
-extern const struct testgroup TESTGROUP_BST;
-extern const struct testgroup TESTGROUP_LIST;
-extern const struct testgroup TESTGROUP_QUEUE;
-extern const struct testgroup TESTGROUP_SMATCHER;
-extern const struct testgroup TESTGROUP_C_UNISTD;
+#define ENUMERATE_TESTGROUPS(_x)    \
+    /* lib */                       \
+    _x(TESTGROUP_BITMAP)            \
+    _x(TESTGROUP_BST)               \
+    _x(TESTGROUP_LIST)              \
+    _x(TESTGROUP_QUEUE)             \
+    _x(TESTGROUP_SMATCHER)          \
+    _x(TESTGROUP_C_UNISTD)          \
+    /* mem */                       \
+    _x(TESTGROUP_PMM)               \
+    _x(TESTGROUP_HEAP)              \
 
-// mem
-extern const struct testgroup TESTGROUP_PMM;
-extern const struct testgroup TESTGROUP_HEAP;
+#define X(_x)   extern const struct testgroup _x;
+ENUMERATE_TESTGROUPS(X)
+#undef X

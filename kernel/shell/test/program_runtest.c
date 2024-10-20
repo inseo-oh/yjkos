@@ -6,16 +6,9 @@
 #include <unistd.h>
 
 static struct testgroup const * const TESTGROUPS[] = {
-    // lib
-    &TESTGROUP_BITMAP,
-    &TESTGROUP_BST,
-    &TESTGROUP_LIST,
-    &TESTGROUP_QUEUE,
-    &TESTGROUP_C_UNISTD,
-
-    // mem
-    &TESTGROUP_PMM,
-    &TESTGROUP_HEAP,
+#define X(_x)   &_x,
+    ENUMERATE_TESTGROUPS(X)
+#undef X
 };
 
 static bool runtests(struct testgroup const *group) {
