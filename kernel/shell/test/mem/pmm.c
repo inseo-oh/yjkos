@@ -1,4 +1,3 @@
-#include "../../shell.h"
 #include "../test.h"
 #include <kernel/arch/interrupts.h>
 #include <kernel/mem/pmm.h>

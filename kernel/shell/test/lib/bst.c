@@ -1,4 +1,3 @@
-#include "../../shell.h"
 #include "../test.h"
 #include <kernel/io/tty.h>
 #include <kernel/lib/bst.h>

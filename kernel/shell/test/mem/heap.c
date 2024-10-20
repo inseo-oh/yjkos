@@ -1,4 +1,3 @@
-#include "../../shell.h"
 #include "../test.h"
 #include <kernel/mem/heap.h>
 #include <stddef.h>

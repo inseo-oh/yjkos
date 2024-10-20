@@ -1,4 +1,3 @@
-#include "../../shell.h"
 #include "../test.h"
 #include <kernel/lib/list.h>
 #include <string.h>

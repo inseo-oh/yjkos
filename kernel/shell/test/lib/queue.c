@@ -1,4 +1,3 @@
-#include "../../shell.h"
 #include "../test.h"
 #include <kernel/lib/queue.h>
 #include <errno.h>
