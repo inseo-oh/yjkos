@@ -33,4 +33,3 @@ void sched_printqueues(void);
 WARN_UNUSED_RESULT bool sched_queue(struct thread *thread);
 void sched_schedule(void);
 
-void sched_test(void);
