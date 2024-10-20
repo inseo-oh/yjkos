@@ -2,11 +2,12 @@ ifndef ARCH
 $(error ARCH is not set)
 endif
 
-PROJECTDIR     = ..
-OUTDIR         = $(PROJECTDIR)/out/$(ARCH)
-FONTDIR        = $(OUTDIR)/kernelfont
-FONTNAME       = kernelfont.psf
-FONTOBJ        = kernelfont.o
+PROJECTDIR       := $(CURDIR)/..
+TOOLCHAIN_BINDIR  = $(PROJECTDIR)/toolchain/bin
+OUTDIR            = $(PROJECTDIR)/out/$(ARCH)
+FONTDIR           = $(OUTDIR)/kernelfont
+FONTNAME          = kernelfont.psf
+FONTOBJ           = kernelfont.o
 
 # We have to to remove './' from the result, because without it $(OBJDIR)/kdoom/kdoom.o rule doesn't work due to that ./
 C_SRCS        := $(shell find . -name '*.c' | sed 's/^.\///')
@@ -22,9 +23,9 @@ OBJDIR         = $(OUTDIR)/obj
 
 ARCHDIR = arch/$(ARCH)
 include $(ARCHDIR)/config.mk
-CC            = $(ARCH_CC)
-STRIP         = $(ARCH_STRIP)
-OBJCOPY       = $(ARCH_OBJCOPY)
+CC            = $(TOOLCHAIN_BINDIR)/$(ARCH_CC)
+STRIP         = $(TOOLCHAIN_BINDIR)/$(ARCH_STRIP)
+OBJCOPY       = $(TOOLCHAIN_BINDIR)/$(ARCH_OBJCOPY)
 
 OBJS      = $(addprefix $(OBJDIR)/, $(OBJ_NAMES))
 DEPS      = $(patsubst %.o, %.d, $(OBJS))
@@ -68,7 +69,7 @@ $(OBJDIR)/shell/kdoom/program_kdoom.o: shell/kdoom/program_kdoom.c
 $(OBJDIR)/$(FONTOBJ): $(FONTDIR)/$(FONTNAME)
 	$(info [Target Font O]  $@)
 	@cd $(FONTDIR) && \
-		$(OBJCOPY) -O elf32-i386 -B i386 -I binary $(FONTNAME) $(CURDIR)/$@
+		$(OBJCOPY) -O elf32-i386 -B i386 -I binary $(FONTNAME) $@
 
 $(OBJDIR)/%.o: %.c
 	$(info [Target C]       $@)
@@ -80,10 +81,11 @@ $(OBJDIR)/%.o: %.S
 
 # -Wno-error=maybe-uninitialized is mainly for DOOM code. 
 $(TARGET): prepare $(OBJS)
-	$(info [Target Kernel]  $(TARGET_NOSTRIP), $(TARGET))
+	$(info [Target Kernel]  $(TARGET_NOSTRIP))
 	@$(CC) -o $(TARGET_NOSTRIP) $(OBJS) $(CFLAGS) $(LINK_EXTRAFLAGS)
 	@grub-file --is-x86-multiboot $(TARGET_NOSTRIP)
 	@cp $(TARGET_NOSTRIP) $(TARGET)
+	$(info [Target Strip]   $(TARGET))
 	@$(STRIP) $(TARGET)
 
 -include $(DEPS)

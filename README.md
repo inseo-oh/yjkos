@@ -41,20 +41,15 @@ Finally, run `kdoom` at the command line once the system is booted.
 - sfdisk and kpartx (Needed to create the HDD image)
 
 ### Building
-You'll first need a cross-compiler setup. You'll have to pick where you want to install compiler files - Creating a folder in your home folder will do the job.
-```
-> support/tools/buildtoolchain.sh i586 path/to/install/to
-```
-This process can take a very long time depending on your hardware, so be prepared!
-
-(Tip: Use `MAKEJOBS` environment variable to specifiy how much you want. It defaults to 1)
-
-And don't forget to add the compiler bin directory to the `$PATH`. (e.g. if you installed at `$HOME/cross`, it would be `$HOME/cross/bin`). 
-
-Then building is just matter of doing:
+Run
 ```
 > gmake
 ```
+You can add `-j[number of jobs]` to arguments to speed up build process, depending on how much processor and memory you have.
+Also note that this will also build cross compiler, and it will respect the `-j` option you passed. Cross compiler build can take anywhere from less than 5 minutes to multiple hours depending on host system, so it's *highly recommeded* to use `-j`, especially for initial build.
+
+See `docs/CrossCompiler.md` for more advanced info.
+
 **NOTE:** You will have to do full rebuild if you change compiler flags, by running `gmake clean` first.
 
 And you also need a HDD image (Root permissions are required):

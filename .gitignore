@@ -1,11 +1,12 @@
 .cache
 .vscode
+**/__pycache__
 compile_commands.json
 customrootfs/*
-out/
+harddisk.img
 include/kernel/version.h
 kernel/shell/kdoom/thirdparty/PureDOOM.h
+out/
 support/thirdparty/terminus-font-*/*.psf
 support/rootfsmount
-harddisk.img
-**/__pycache__
+toolchain

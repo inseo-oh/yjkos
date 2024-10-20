@@ -1,13 +1,15 @@
-ARCH     ?= i586
-OUTDIR    = out/$(ARCH)
-BOOTROOT  = $(OUTDIR)/bootroot
-ISO_NAME  = $(OUTDIR)/YJKOS_$(ARCH).iso
-FONTDIR   = $(OUTDIR)/kernelfont
-FONT      = ter-114b.psf
+ARCH            ?= i586
+OUTDIR           = out/$(ARCH)
+BOOTROOT         = $(OUTDIR)/bootroot
+ISO_NAME         = $(OUTDIR)/YJKOS_$(ARCH).iso
+FONTDIR          = $(OUTDIR)/kernelfont
+FONT             = ter-114b.psf
+TOOLCHAIN_BINDIR = toolchain/bin
 
 all: iso
 
 prepare:
+	@MAKEJOBS=$(MAKEJOBS) support/tools/buildtoolchain.sh $(ARCH)
 	@mkdir -p $(BOOTROOT) $(BOOTROOT)/boot $(BOOTROOT)/boot/grub
 	@cp support/res/grub.cfg $(BOOTROOT)/boot/grub/
 	@./support/tools/genversionfile.sh > include/kernel/version.h
@@ -27,10 +29,10 @@ kernel: prepare kernelfont
 
 iso: prepare kernel
 	$(info [Target ISO]     $(ISO_NAME))
-	@grub-mkrescue -o $(ISO_NAME) $(BOOTROOT)
+	$(TOOLCHAIN_BINDIR)/grub-mkrescue -o $(ISO_NAME) $(BOOTROOT)
 
 clean:
-	make -C support/thirdparty/terminus-font-4.49.1 clean
+	@$(MAKE) -C support/thirdparty/terminus-font-4.49.1 clean
 	@$(MAKE) -C kernel ARCH=$(ARCH) clean
 	@rm -rf out
 
