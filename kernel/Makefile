@@ -83,7 +83,7 @@ $(OBJDIR)/%.o: %.S
 $(TARGET): prepare $(OBJS)
 	$(info [Target Kernel]  $(TARGET_NOSTRIP))
 	@$(CC) -o $(TARGET_NOSTRIP) $(OBJS) $(CFLAGS) $(LINK_EXTRAFLAGS)
-	@grub-file --is-x86-multiboot $(TARGET_NOSTRIP)
+	@$(TOOLCHAIN_BINDIR)/grub-file --is-x86-multiboot $(TARGET_NOSTRIP)
 	@cp $(TARGET_NOSTRIP) $(TARGET)
 	$(info [Target Strip]   $(TARGET))
 	@$(STRIP) $(TARGET)
