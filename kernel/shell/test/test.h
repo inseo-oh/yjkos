@@ -34,6 +34,8 @@ bool test_expect_impl(
     /* mem */                       \
     _x(TESTGROUP_PMM)               \
     _x(TESTGROUP_HEAP)              \
+    /* tasks */                     \
+    _x(TESTGROUP_MUTEX)             \
 
 #define X(_x)   extern const struct testgroup _x;
 ENUMERATE_TESTGROUPS(X)
