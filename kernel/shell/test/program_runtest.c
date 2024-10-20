@@ -22,7 +22,9 @@ static bool runtests(struct testgroup const *group) {
             okcount++;
         }
     }
-    tty_printf("finished test group '%s' (%zu tests, %zu passed, %zu failed)\n", group->name, group->testslen, okcount, failcount);
+    tty_printf(
+        "finished test group '%s' (%zu tests, %zu passed, %zu failed)\n", group->name, group->testslen, okcount, failcount
+    );
     return failcount == 0;
 }
 
