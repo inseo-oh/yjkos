@@ -20,12 +20,17 @@ void shell_init(void);
 
 // Programs
 
-extern struct shell_program g_shell_program_runtest;
-extern struct shell_program g_shell_program_hello;
-extern struct shell_program g_shell_program_kdoom;
-extern struct shell_program g_shell_program_rawvidplay;
-extern struct shell_program g_shell_program_ls;
-extern struct shell_program g_shell_program_true;
-extern struct shell_program g_shell_program_false;
-extern struct shell_program g_shell_program_cat;
-extern struct shell_program g_shell_program_uname;
+#define ENUMERATE_SHELLPROGRAMS(_x) \
+    _x(g_shell_program_runtest)     \
+    _x(g_shell_program_hello)       \
+    _x(g_shell_program_kdoom)       \
+    _x(g_shell_program_rawvidplay)  \
+    _x(g_shell_program_ls)          \
+    _x(g_shell_program_true)        \
+    _x(g_shell_program_false)       \
+    _x(g_shell_program_cat)         \
+    _x(g_shell_program_uname)       \
+
+#define X(_x)   extern struct shell_program _x;
+ENUMERATE_SHELLPROGRAMS(X)
+#undef X
