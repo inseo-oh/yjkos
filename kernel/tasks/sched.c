@@ -73,7 +73,9 @@ WARN_UNUSED_RESULT struct sched_queue *sched_getqueue(int8_t priority) {
                     &s_queues, &resultqueue->node,
                     resultqueue);
             } else {
-                list_insertafter(&s_queues, insertafter, &resultqueue->node, resultqueue);
+                list_insertafter(
+                    &s_queues, insertafter,
+                    &resultqueue->node, resultqueue);
             }
         }
     }
@@ -138,11 +140,13 @@ void sched_printqueues(void) {
 
 // Returns false if there's not enough memory.
 WARN_UNUSED_RESULT bool sched_queue(struct thread *thread) {
-    struct sched_queue *queue =sched_getqueue(thread->priority);
+    struct sched_queue *queue = sched_getqueue(thread->priority);
     if (queue == NULL) {
         return false;
     }
-    list_insertfront(&queue->threads, &thread->sched_queuelistnode, thread);
+    list_insertfront(
+        &queue->threads, &thread->sched_queuelistnode,
+        thread);
     return true;
 }
 
@@ -167,6 +171,3 @@ void sched_schedule(void) {
     s_runningthread = nextthread;
     thread_switch(oldthread, nextthread);
 }
-
-
-////////////////////////////////////////////////////////////////////////////////
