@@ -34,7 +34,7 @@ Finally, run `kdoom` at the command line once the system is booted.
 
 ### Dependencies
 - GNU Make(gmake) and Python3. 
-- Whatever needed to build GCC and Binutils (See [OSDev Wiki's GCC Cross Compiler](https://wiki.osdev.org/GCC_Cross-Compiler) article if you need help)
+- Whatever needed to build GCC and Binutils (See [OSDev Wiki's GCC Cross Compiler](https://wiki.osdev.org/GCC_Cross-Compiler) article if you need help). You also need `libzstd` with development files(e.g. libzstd-dev package on Debian systems), as it's required for LTO linking.
 - xorriso (Needed by grub-mkrescue)
 - qemu-system-i386 and/or 86Box if you want to run it
   - NOTE: If you are running under WSL2, bundled script will find and use Windows QEMU, instead of Linux QEMU. (Set `YJK_PENGUINQEMU` environment variable to 1 to disable this behavior)
