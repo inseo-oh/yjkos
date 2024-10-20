@@ -53,7 +53,7 @@ void trapmanager_trap(int trapnum, void *trapframe) {
         tty_printf("no trap handler registered for trap %d\n", trapnum);
         return;
     }
-    for (struct list_node *handlernode = s_traps[trapnum].front; handlernode != NULL; handlernode = handlernode->next) {
+    LIST_FOREACH(&s_traps[trapnum], handlernode) {
         struct traphandler *handler = handlernode->data;
         uint32_t expectedchecksum = calculatechecksum(handler);
         uint32_t gotchecksum = handler->checksum;

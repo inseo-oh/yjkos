@@ -230,7 +230,7 @@ WARN_UNUSED_RESULT int ps2port_register(
 
 void ps2_initdevices(void) {
     // XXX: Use iodev to enumerate devices instead.
-    for (struct list_node *devicenode = s_ports.front; devicenode != NULL; devicenode = devicenode->next) {
+    LIST_FOREACH(&s_ports, devicenode) {
         struct ps2port *port = devicenode->data;
         int ret = init_device(port); 
         if (ret < 0) {

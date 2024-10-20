@@ -37,10 +37,7 @@ WARN_UNUSED_RESULT struct sched_queue *sched_getqueue(int8_t priority) {
         }
     }
     if (!shouldinsertfront) {
-        for (
-            struct list_node *queuenode = s_queues.front; queuenode != NULL;
-            queuenode = queuenode->next)
-        {
+        LIST_FOREACH(&s_queues, queuenode) {
             struct sched_queue *queue = queuenode->data;
             assert(queue);
             struct list_node *nextququenode = queuenode->next;
@@ -113,8 +110,8 @@ struct sched_queue *sched_picknextqueue(void) {
         }
         // Reset opportunities.
         size_t opportunities = 1;
-        for (struct list_node *node = s_queues.back; node != NULL; node = node->prev, opportunities++) {
-            struct sched_queue *queue = node->data;
+        LIST_FOREACH(&s_queues, queuenode) {
+            struct sched_queue *queue = queuenode->data;
             assert(queue);
             queue->opportunities = opportunities;
         }
@@ -128,10 +125,12 @@ struct sched_queue *sched_picknextqueue(void) {
 
 void sched_printqueues(void) {
     tty_printf("----- QUEUE LIST -----\n");
-    for (struct list_node *queuenode = s_queues.front; queuenode != NULL; queuenode = queuenode->next) {
+    LIST_FOREACH(&s_queues, queuenode) {
         struct sched_queue *queue = queuenode->data;
-        tty_printf("queue %p - Pri %d [threads exist: %d]\n", queue, queue->priority, queue->threads.front != NULL);
-        for (struct list_node *threadnode = queue->threads.front; threadnode != NULL; threadnode = threadnode->next) {
+        tty_printf(
+            "queue %p - Pri %d [threads exist: %d]\n",
+            queue, queue->priority, queue->threads.front != NULL);
+        LIST_FOREACH(&queue->threads, threadnode) {
             tty_printf(" - thread %p\n", threadnode);
         }
     }

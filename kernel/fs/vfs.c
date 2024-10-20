@@ -166,7 +166,7 @@ static WARN_UNUSED_RESULT int findmount(
     }
     assert(s_mounts.front != NULL);
     struct vfs_fscontext *fscontext = NULL;
-    for (struct list_node *mountnode = s_mounts.front; mountnode != NULL; mountnode = mountnode->next) {
+    LIST_FOREACH(&s_mounts, mountnode) {
         struct vfs_fscontext *entry = mountnode->data;
         assert(entry);
         if (strcmp(entry->mountpath, newmountpath) == 0) {
@@ -190,7 +190,7 @@ WARN_UNUSED_RESULT int vfs_mount(
     int ret;
     if (fstype == NULL) {
         // Try all possible filesystems
-        for (struct list_node *fstypenode = s_fstypes.front; fstypenode != NULL; fstypenode = fstypenode->next) {
+        LIST_FOREACH(&s_fstypes, fstypenode) {
             ret = mount(fstypenode->data, disk, mountpath);
             if ((ret < 0) && (ret != -EINVAL)) {
                 /* 
@@ -207,7 +207,7 @@ WARN_UNUSED_RESULT int vfs_mount(
     } else {
         // Find filesystem with given name.
         struct vfs_fstype *fstyperesult = NULL;
-        for (struct list_node *fstypenode = s_fstypes.front; fstypenode != NULL; fstypenode = fstypenode->next) {
+        LIST_FOREACH(&s_fstypes, fstypenode) {
             struct vfs_fstype *currentfstype = fstypenode->data;
             if (strcmp(currentfstype->name, fstype) == 0) {
                 fstyperesult = currentfstype;
@@ -259,7 +259,7 @@ void vfs_mountroot(void) {
         MUST_SUCCEED(ret);
         return;
     }
-    for (struct list_node *devnode = devlist->front; devnode != NULL; devnode = devnode->next) {
+    LIST_FOREACH(devlist, devnode) {
         struct iodev *iodev = devnode->data;
         struct ldisk *disk = iodev->data;
         int status = vfs_mount(NULL, disk, "/");
@@ -287,9 +287,7 @@ static WARN_UNUSED_RESULT int resolvepath(
     assert(s_mounts.front != NULL);
     struct vfs_fscontext *result = NULL;
     size_t lastmatchlen = 0;
-    for (
-        struct list_node *mountnode = s_mounts.front; mountnode != NULL; mountnode = mountnode->next)
-    {
+    LIST_FOREACH(&s_mounts, mountnode) {
         struct vfs_fscontext *entry = mountnode->data;
         size_t len = strlen(entry->mountpath);
         if (lastmatchlen <= len) {

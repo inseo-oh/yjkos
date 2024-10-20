@@ -137,7 +137,7 @@ static int cmd_exec(union shellcmd const *cmd) {
             assert(cmd->runprogram.argc != 0);
             assert(cmd->runprogram.argv != NULL);
             struct shell_program *program_to_run = NULL;
-            for (struct list_node * programnode = s_programs.front; programnode != NULL; programnode = programnode->next) {
+            LIST_FOREACH(&s_programs, programnode) {
                 struct shell_program *program = programnode->data;
                 if (strcmp(program->name, cmd->runprogram.argv[0]) == 0) {
                     program_to_run = program;

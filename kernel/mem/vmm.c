@@ -60,7 +60,11 @@ static struct vmobject *takeobject_with_minsize(
         goto out;
     }
     struct bst_node *nextnode = NULL;
-    for (struct bst_node *currentnode = bst_minof_tree(&self->objectgrouptree); currentnode != NULL; currentnode = nextnode) {
+    for (
+        struct bst_node *currentnode =
+            bst_minof_tree(&self->objectgrouptree);
+            currentnode != NULL; currentnode = nextnode)
+    {
         nextnode = bst_successor(currentnode);
         struct objectgroup *currentgroup = currentnode->data;
         assert(currentgroup);
@@ -100,7 +104,11 @@ static struct vmobject *take_object_including(
         goto out;
     }
     struct bst_node *nextnode = NULL;
-    for (struct bst_node *currentnode = bst_minof_tree(&self->objectgrouptree); currentnode != NULL; currentnode = nextnode) {
+    for (
+        struct bst_node *currentnode =
+            bst_minof_tree(&self->objectgrouptree);
+        currentnode != NULL; currentnode = nextnode)
+    {
         nextnode = bst_successor(currentnode);
         struct objectgroup *currentgroup = currentnode->data;
         assert(currentgroup);
@@ -112,7 +120,7 @@ static struct vmobject *take_object_including(
         }
 
         struct vmobject *resultobject = NULL;
-        for (struct list_node *objectnode = currentgroup->objectlist.front; objectnode != NULL; objectnode = objectnode->next) {
+        LIST_FOREACH(&currentgroup->objectlist, objectnode) {
             struct vmobject *object = objectnode->data;
             assert(object);
             if (
@@ -207,7 +215,7 @@ static WARN_UNUSED_RESULT bool add_object_to_tree(
          * sorted by address.
          */
         struct list_node *insertafter = NULL;
-        for (struct list_node *currentnode = group->objectlist.front; currentnode != NULL; currentnode = currentnode->next) {
+        LIST_FOREACH(&group->objectlist, currentnode) {
             struct vmobject *currentobject = currentnode->data;
             if (currentobject->endaddress < object->startaddress) {
                 insertafter = currentnode;
@@ -271,7 +279,7 @@ oom:
  */
 static struct uncommitedobject *find_object_in_uncommited(struct addressspace *self, uintptr_t addr) {
     uintptr_t page_base = aligndown(addr, ARCH_PAGESIZE);
-    for (struct list_node *objectnode = self->uncommitedobjects.front; objectnode != NULL; objectnode = objectnode->next) {
+    LIST_FOREACH(&self->uncommitedobjects, objectnode) {
         struct uncommitedobject *uobject = objectnode->data;
         assert(uobject != NULL);
         if ((uobject->object->startaddress <= page_base) && (page_base <= uobject->object->endaddress)) {
@@ -302,10 +310,15 @@ fail_oom:
 
 
 void vmm_deinit_addressspace(struct addressspace *self) {
-    for (struct bst_node *currentnode = bst_minof_tree(&self->objectgrouptree); currentnode != NULL; currentnode = bst_successor(currentnode)) {
+    for (
+        struct bst_node *currentnode =
+            bst_minof_tree(&self->objectgrouptree); currentnode != NULL;
+            currentnode = bst_successor(currentnode))
+    {
         struct objectgroup *group = currentnode->data;
         while (1) {
-            struct list_node *objectnode = list_removefront(&group->objectlist);
+            struct list_node *objectnode =
+                list_removefront(&group->objectlist);
             if (objectnode == NULL) {
                 break;
             }

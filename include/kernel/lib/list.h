@@ -19,3 +19,7 @@ void list_insertbefore(struct list *list, struct list_node *before, struct list_
 struct list_node *list_removefront(struct list *list);
 struct list_node *list_removeback(struct list *list);
 void list_removenode(struct list *list, struct list_node *node);
+
+#define LIST_FOREACH(_list, _varname) for(                          \
+    struct list_node *_varname = (_list)->front; (_varname) != NULL; \
+    (_varname) = (_varname)->next)

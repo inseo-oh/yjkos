@@ -186,7 +186,7 @@ void ldisk_discover(void) {
         tty_printf("ldisk: no physical disks - aborting\n");
         return;
     }
-    for (struct list_node *devnode = devlist->front; devnode != NULL; devnode = devnode->next) {
+    LIST_FOREACH(devlist, devnode) {
         struct iodev *device = devnode->data;
         struct pdisk *disk = device->data;
         uint8_t *firstblock = NULL;

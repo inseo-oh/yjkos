@@ -109,7 +109,7 @@ static void irqhandler(int trapnum, void *trapframe, void *data) {
         tty_printf("no irq handler registered for irq %d\n", trapnum);
         return;
     }
-    for (struct list_node *handlernode = s_irqs[irqnum].front; handlernode != NULL; handlernode = handlernode->next) {
+    LIST_FOREACH(&s_irqs[irqnum], handlernode) {
         struct archi586_pic_irqhandler *handler = handlernode->data;
         handler->callback(irqnum, handler->data);
     }

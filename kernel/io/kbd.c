@@ -171,7 +171,7 @@ static void updateleds(void) {
     bool scroll = s_flags & KBD_FLAG_LOCK_SCROLL;
     bool caps = s_flags & KBD_FLAG_LOCK_CAPS;
     bool num = s_flags & KBD_FLAG_LOCK_NUM;
-    for (struct list_node *devnode = s_keyboardlist.front; devnode != NULL; devnode = devnode->next) {
+    LIST_FOREACH(&s_keyboardlist, devnode) {
         struct kbddev *device = devnode->data;
         assert(device);
         int ret = device->ops->updateleds(device, scroll, caps, num);

@@ -19,7 +19,7 @@ struct iodevtype {
 static struct list s_devtypes; // Contains iodevtype nodes.
 
 static struct iodevtype *getiodevtypefor(char const *devtype) {
-    for (struct list_node *typenode = s_devtypes.front; typenode != NULL; typenode = typenode->next) {
+    LIST_FOREACH(&s_devtypes, typenode) {
         struct iodevtype *type = typenode->data;
         if (strcmp(devtype, type->name) == 0) {
             return type;

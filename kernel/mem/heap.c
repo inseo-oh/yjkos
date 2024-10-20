@@ -69,7 +69,7 @@ static size_t actualallocsize(size_t size) {
 
 static void checkpoision(void) {
     bool die = false;
-    for (struct list_node *allocnode = s_alloclist.front; allocnode != NULL; allocnode = allocnode->next) {
+    LIST_FOREACH(&s_alloclist, allocnode) {
         struct allocheader *alloc = allocnode->data;
         uint8_t *poision = &((uint8_t *)alloc->data)[alloc->size];
         for (size_t i = 0; i < sizeof(POISONVALUES); i++) {
@@ -454,7 +454,7 @@ void *heap_alloc(size_t size, uint8_t flags) {
     }
     void *result = NULL;
     if (actualblockcount < s_freeblockcount) {
-        for (struct list_node *poolnode = s_heappoollist.front; poolnode != NULL; poolnode = poolnode->next) {
+        LIST_FOREACH(&s_heappoollist, poolnode) {
             struct poolheader *pool = poolnode->data;
             assert(pool != NULL);
             result = allocfrompool(pool, size);
