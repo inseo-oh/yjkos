@@ -16,7 +16,7 @@ struct opts {
     bool machine : 1;
     bool node    : 1;
     bool release : 1;
-    bool sysname    : 1;
+    bool sysname : 1;
     bool version : 1;
 };
 
