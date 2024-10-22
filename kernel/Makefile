@@ -9,7 +9,8 @@ FONTDIR           = $(OUTDIR)/kernelfont
 FONTNAME          = kernelfont.psf
 FONTOBJ           = kernelfont.o
 
-# We have to to remove './' from the result, because without it $(OBJDIR)/kdoom/kdoom.o rule doesn't work due to that ./
+# We have to to remove './' from the result, because without it
+# $(OBJDIR)/kdoom/kdoom.o rule doesn't work due to that ./
 C_SRCS        := $(shell find . -name '*.c' | sed 's/^.\///')
 C_OBJ_NAMES    = $(patsubst %.c, %.o, $(C_SRCS))
 ASM_SRCS      := $(shell find . -name '*.S' | sed 's/^.\///')
@@ -31,7 +32,9 @@ OBJS      = $(addprefix $(OBJDIR)/, $(OBJ_NAMES))
 DEPS      = $(patsubst %.o, %.d, $(OBJS))
 OBJDIRS  = $(sort $(dir $(OBJS)))
 
-CFLAGS  = -Wall -Wextra -Werror -pedantic -I$(PROJECTDIR)/include -I$(PROJECTDIR)/include/kernel/lib/libc
+CFLAGS  = -Wall -Wextra -Werror -pedantic
+CFLAGS += -I$(PROJECTDIR)/include
+CFLAGS += -I$(PROJECTDIR)/include/kernel/lib/libc
 CFLAGS += -ffreestanding -fstack-protector-all
 CFLAGS += -Wno-error=unused-function -Wno-error=unused-const-variable -g 
 CFLAGS += -fsanitize=undefined
@@ -44,6 +47,7 @@ endif
 
 CFLAGS += $(ARCH_CFLAGS)
 
+# -Wno-error=maybe-uninitialized is mainly for DOOM code. 
 LINK_EXTRAFLAGS  = -Wno-error=maybe-uninitialized -Wno-error=stringop-overflow
 LINK_EXTRAFLAGS += -nostdlib -T $(ARCHDIR)/$(ARCH_LDSCRIPT) -lgcc
 
@@ -58,9 +62,10 @@ cleandep:
 prepare:
 	@mkdir -p $(OBJDIRS)
 
-# We need to override many diagnostic flags for DOOM, because it's using C code from late 90s.
-# Most of them are declared inside KDOOM itself to only apply those to PureDOOM header file, but
-# we still need few command-line flags.
+# We need to override many diagnostic flags for DOOM, because it's using C code 
+# from late 90s.
+# Most of them are declared inside KDOOM itself to only apply those to PureDOOM 
+# header file, but we still need few command-line flags.
 # In addition to disabling warnings, it also disables UBSanitizer.
 $(OBJDIR)/shell/kdoom/program_kdoom.o: shell/kdoom/program_kdoom.c
 	$(info [Target C(DOOM)] $@)
@@ -79,13 +84,14 @@ $(OBJDIR)/%.o: %.S
 	$(info [Target ASM]     $@)
 	@$(CC) -o $@ -c -MMD $< $(CFLAGS) -DYJKERNEL_ASMFILE
 
-# -Wno-error=maybe-uninitialized is mainly for DOOM code. 
-$(TARGET): prepare $(OBJS)
+$(TARGET_NOSTRIP): prepare $(OBJS)
 	$(info [Target Kernel]  $(TARGET_NOSTRIP))
 	@$(CC) -o $(TARGET_NOSTRIP) $(OBJS) $(CFLAGS) $(LINK_EXTRAFLAGS)
 	@$(TOOLCHAIN_BINDIR)/grub-file --is-x86-multiboot $(TARGET_NOSTRIP)
-	@cp $(TARGET_NOSTRIP) $(TARGET)
+
+$(TARGET): $(TARGET_NOSTRIP)
 	$(info [Target Strip]   $(TARGET))
+	@cp $(TARGET_NOSTRIP) $(TARGET)
 	@$(STRIP) $(TARGET)
 
 -include $(DEPS)
