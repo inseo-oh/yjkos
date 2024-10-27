@@ -19,8 +19,9 @@ bool queue_isempty(struct queue const *self) {
     return ((self->enqueueindex == self->dequeueindex) && (!self->lastwasenqueue));
 }
 
-WARN_UNUSED_RESULT int queue_enqueue_impl(
-    struct queue *self, void const *data, size_t itemsize) {
+WARN_UNUSED_RESULT int __queue_enqueue(
+    struct queue *self, void const *data, size_t itemsize)
+{
     assert(itemsize == self->itemsize);
     if (queue_isfull(self)) {
         return -ENOMEM;
@@ -32,8 +33,9 @@ WARN_UNUSED_RESULT int queue_enqueue_impl(
     return 0;
 }
 
-WARN_UNUSED_RESULT bool queue_dequeue_impl(
-    void *out_buf, struct queue *self, size_t itemsize) {
+WARN_UNUSED_RESULT bool __queue_dequeue(
+    void *out_buf, struct queue *self, size_t itemsize)
+{
     assert(itemsize == self->itemsize);
     if (queue_isempty(self)) {
         return false;

@@ -13,15 +13,13 @@ struct testgroup {
     size_t testslen;
 };
 
-bool test_expect_impl(
+bool __test_expect(
     bool b, char const *expr, char const *func, char const *file, int line);
 
-#define TEST_EXPECT(_x)                                             \
-    if (!test_expect_impl(_x, #_x, __func__, __FILE__, __LINE__)) { \
-        return false;                                               \
+#define TEST_EXPECT(_x)                                          \
+    if (!__test_expect(_x, #_x, __func__, __FILE__, __LINE__)) { \
+        return false;                                            \
     }
-#define TEST_RUN(_name, _tests) \
-    test_run_impl(_name, (_tests), sizeof(_tests)/sizeof(*(_tests)))
 
 #define ENUMERATE_TESTGROUPS(_x)    \
     /* lib */                       \

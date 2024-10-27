@@ -1,7 +1,7 @@
 #include "test.h"
 #include <kernel/io/tty.h>
 
-bool test_expect_impl(
+bool __test_expect(
     bool b, char const *expr, char const *func, char const *file, int line)
 {
     if (!b) {
