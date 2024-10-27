@@ -20,6 +20,7 @@ void tty_setdebugconsole(struct stream *device) {
 }
 
 void tty_putc(char c) {
+    bool previnterrupts =  arch_interrupts_disable();
     if (s_console != NULL) {
         int ret = stream_putchar(s_console, c);
         (void)ret;
@@ -30,9 +31,11 @@ void tty_putc(char c) {
         (void)ret;
         stream_flush(s_debugconsole);
     }
+    interrupts_restore(previnterrupts);
 }
 
 void tty_puts(char const *s) {
+    bool previnterrupts =  arch_interrupts_disable();
     if (s_console != NULL) {
         int ret = stream_putstr(s_console, s);
         (void)ret;
@@ -43,9 +46,11 @@ void tty_puts(char const *s) {
         (void)ret;
         stream_flush(s_debugconsole);
     }
+    interrupts_restore(previnterrupts);
 }
 
 void tty_vprintf(char const *fmt, va_list ap) {
+    bool previnterrupts =  arch_interrupts_disable();
     if (s_console != NULL) {
         int ret = stream_vprintf(s_console, fmt, ap);
         (void)ret;
@@ -56,6 +61,7 @@ void tty_vprintf(char const *fmt, va_list ap) {
         (void)ret;
         stream_flush(s_debugconsole);
     }
+    interrupts_restore(previnterrupts);
 }
 
 void tty_printf(char const *fmt, ...) {
