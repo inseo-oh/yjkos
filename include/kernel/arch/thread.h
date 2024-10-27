@@ -5,8 +5,15 @@
 
 struct arch_thread;
 
-// Returns NULL when there's not enough memory.
-WARN_UNUSED_RESULT struct arch_thread *arch_thread_create(size_t minstacksize, uintptr_t entryaddr);
+/*
+ * Those init_ parameters are only valid for initial setup. This of course 
+ * applies to any new thread, but the boot thread is exception: It's thread for
+ * already running code. 
+ *
+ * Returns NULL if there's not enough memory.
+ */
+WARN_UNUSED_RESULT struct arch_thread *arch_thread_create(
+    size_t init_stacksize, void (*init_mainfunc)(void *), void *init_data);
 void arch_thread_destroy(struct arch_thread *thread);
 void arch_thread_switch(struct arch_thread *from, struct arch_thread *to);
 

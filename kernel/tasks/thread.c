@@ -5,12 +5,16 @@
 #include <stdint.h>
 #include <string.h>
 
-struct thread *thread_create(size_t minstacksize, uintptr_t entryaddr) {
-    struct thread *thread = heap_alloc(sizeof(*thread), HEAP_FLAG_ZEROMEMORY);
+struct thread *thread_create(
+    size_t stacksize,  void (*init_mainfunc)(void *), void *init_data)
+{
+    struct thread *thread = heap_alloc(
+        sizeof(*thread), HEAP_FLAG_ZEROMEMORY);
     if (thread == NULL) {
         return NULL;
     }
-    thread->arch_thread = arch_thread_create(minstacksize, entryaddr);
+    thread->arch_thread = arch_thread_create(
+        stacksize, init_mainfunc, init_data);
     if (thread->arch_thread == NULL) {
         goto fail_arch_thread;
     }
@@ -33,11 +37,6 @@ void thread_delete(struct thread *thread) {
     heap_free(thread);
 }
 
-// `from` may be NULL if task switching is done for the first time.
 void thread_switch(struct thread *from, struct thread *to) {
-    if (from == NULL) {
-        arch_thread_switch(NULL, to->arch_thread);
-        return;
-    }
     arch_thread_switch(from->arch_thread, to->arch_thread);
 }
