@@ -3,14 +3,17 @@
 #include <kernel/io/tty.h>
 #include <kernel/io/vt100tty.h>
 #include <kernel/lib/diagnostics.h>
-#include <kernel/mem/vmm.h>
-#include <kernel/types.h>
 #include <stdint.h>
 #include <string.h>
 #include <sys/types.h>
+#include <assert.h>
 
 static struct vt100tty_char *charat(struct vt100tty *self, int row, int column)
 {
+    assert(0 <= row);
+    assert(0 <= column);
+    assert(row < self->rows);
+    assert(column < self->columns);
     return &self->chars[(row * self->columns) + column];
 }
 
