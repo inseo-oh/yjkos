@@ -67,21 +67,47 @@ static size_t actualallocsize(size_t size) {
     return size + sizeof(struct allocheader) + sizeof(POISONVALUES);
 }
 
-static void checkpoision(void) {
+void __heap_checkoverflow(struct sourcelocation srcloc) {
+    bool previnterrupts = arch_interrupts_disable();
     bool die = false;
     LIST_FOREACH(&s_alloclist, allocnode) {
+        bool corrupted = false;
         struct allocheader *alloc = allocnode->data;
+        if (alloc == NULL) {
+            tty_printf("heap: list node pointer is null\n");
+            corrupted = true;
+            goto checkend;
+        }
+        physptr physaddr;
+        int ret = arch_mmu_virttophys(
+            &physaddr, (uintptr_t)alloc);
+        if (ret < 0) {
+            tty_printf("heap: bad alloc ptr(error %d)\n", ret);
+            corrupted = true;
+            goto checkend;
+        }
         uint8_t *poision = &((uint8_t *)alloc->data)[alloc->size];
         for (size_t i = 0; i < sizeof(POISONVALUES); i++) {
             if (poision[i] != POISONVALUES[i]) {
-                tty_printf("[alloc@%p] poision value check failed at offset %zu -> Expected %02x, got %02x\n", alloc, i, POISONVALUES[i], poision[i]);
-                die = true;
+                tty_printf(
+                    "heap: bad poision value at offset %zu: expected %02x, got %02x\n",
+                    i, POISONVALUES[i], poision[i]);
+                corrupted = true;
             }
+        }
+    checkend:
+        if (corrupted) {
+            tty_printf("heap: allocation at %p(node: %p) is corrupted\n", alloc, allocnode);
+            tty_printf(
+                "heap: checked at %s:%d <%s>\n",
+                srcloc.filename, srcloc.line, srcloc.function);
+            die = true;
         }
     }
     if (die) {
         panic("heap overflow detected");
     }
+    interrupts_restore(previnterrupts);
 }
 
 static void *allocfrompool(struct poolheader *self, size_t size) {
@@ -126,7 +152,7 @@ out:
         poisiondest[i] = POISONVALUES[i];
     }
     list_insertback(&s_alloclist, &alloc->node, alloc);
-    checkpoision();
+    HEAP_CHECKOVERFLOW();
     return alloc->data;
 }
 
@@ -448,7 +474,7 @@ void *heap_alloc(size_t size, uint8_t flags) {
         return NULL;
     }
     bool previnterrupts = arch_interrupts_disable();
-    checkpoision();
+    HEAP_CHECKOVERFLOW();
     if (!s_initialheapinitialized) {
         addmem(s_initialheapmemory, sizeof(s_initialheapmemory));
     }
@@ -463,7 +489,7 @@ void *heap_alloc(size_t size, uint8_t flags) {
             }
         }
     }
-    checkpoision();
+    HEAP_CHECKOVERFLOW();
     interrupts_restore(previnterrupts);
     if (flags & HEAP_FLAG_ZEROMEMORY) {
         memset(result, 0, size);
@@ -477,7 +503,7 @@ void heap_free(void *ptr) {
     }
     bool previnterrupts = arch_interrupts_disable();
     struct allocheader *alloc = allocheaderof(ptr);
-    checkpoision();
+    HEAP_CHECKOVERFLOW();
     list_removenode(&s_alloclist, &alloc->node);
     if (alloc == NULL) {
         goto die;
@@ -504,7 +530,7 @@ void heap_free(void *ptr) {
     alloc->pool->usedblockcount -= alloc->blockcount;
     s_freeblockcount += alloc->blockcount;
     memset(alloc, 0x6f, alloc->blockcount * BLOCK_SIZE);
-    checkpoision();
+    HEAP_CHECKOVERFLOW();
     interrupts_restore(previnterrupts);
     return;
 die:
@@ -517,7 +543,7 @@ void *heap_realloc(void *ptr, size_t newsize, uint8_t flags) {
     }
     bool previnterrupts = arch_interrupts_disable();
     struct allocheader *alloc = allocheaderof(ptr);
-    checkpoision();
+    HEAP_CHECKOVERFLOW();
     if (alloc == NULL) {
         goto die;
     }
