@@ -30,28 +30,25 @@ STATIC_ASSERT_TEST(sizeof(struct pagetable) == ARCHI586_MMU_PAGE_SIZE);
 #define PDE_BIT_OFFSET   22UL
 #define PDE_BIT_MASK     (ENTRY_BIT_MASK << PDE_BIT_OFFSET)
 
-#define MAKE_VIRTADDR(_pde, _pte, _offset) (((size_t)(_pde) << (size_t)PDE_BIT_OFFSET) | ((size_t)(_pte) << (size_t)PTE_BIT_OFFSET) | ((size_t)(_offset) << (size_t)OFFSET_BIT_OFFSET))
+#define MAKEVIRTADDR(_pde, _pte, _offset) \
+    (((size_t)(_pde) << (size_t)PDE_BIT_OFFSET) |\
+    ((size_t)(_pte) << (size_t)PTE_BIT_OFFSET) |\
+    ((size_t)(_offset) << (size_t)OFFSET_BIT_OFFSET))
 
-#define PAGEDIR_PD_BASE        MAKE_VIRTADDR(ARCHI586_MMU_PAGEDIR_PDE, ARCHI586_MMU_PAGEDIR_PDE, 0)
-#define PAGEDIR_PT_BASE(_pde)  MAKE_VIRTADDR(ARCHI586_MMU_PAGEDIR_PDE, _pde, 0)
+#define PAGEDIR_PD_BASE        MAKEVIRTADDR(ARCHI586_MMU_PAGEDIR_PDE, ARCHI586_MMU_PAGEDIR_PDE, 0)
+#define PAGEDIR_PT_BASE(_pde)  MAKEVIRTADDR(ARCHI586_MMU_PAGEDIR_PDE, _pde, 0)
 
 
 static uint32_t *s_pagedir = (uint32_t *)PAGEDIR_PD_BASE;
 static struct pagetable *s_pagetables = (struct pagetable *)PAGEDIR_PT_BASE(0);
 
-static uintptr_t makevirtaddr(size_t pde, size_t pte, size_t offset) {
-    return MAKE_VIRTADDR(pde, pte, offset);
-}
-
-const uintptr_t ARCH_KERNEL_SPACE_BASE          = MAKE_VIRTADDR(ARCHI586_MMU_KERNEL_PDE_START, 0, 0);
-const uintptr_t ARCH_SCRATCH_MAP_BASE           = MAKE_VIRTADDR(ARCHI586_MMU_SCRATCH_PDE, ARCHI586_MMU_SCRATCH_PTE, 0);
+const uintptr_t ARCH_KERNEL_SPACE_BASE          = MAKEVIRTADDR(ARCHI586_MMU_KERNEL_PDE_START, 0, 0);
+const uintptr_t ARCH_SCRATCH_MAP_BASE           = MAKEVIRTADDR(ARCHI586_MMU_SCRATCH_PDE, ARCHI586_MMU_SCRATCH_PTE, 0);
 const uintptr_t ARCH_KERNEL_IMAGE_ADDRESS_START = ARCH_KERNEL_VIRTUAL_ADDRESS_BEGIN;
 const uintptr_t ARCH_KERNEL_IMAGE_ADDRESS_END   = ARCH_KERNEL_VIRTUAL_ADDRESS_END - 1;
 const uintptr_t ARCH_KERNEL_VM_START            = ARCH_KERNEL_IMAGE_ADDRESS_END + 1;
 const uintptr_t ARCH_KERNEL_VM_END              = ARCH_SCRATCH_MAP_BASE - 1;
 const size_t    ARCH_PAGESIZE                  = ARCHI586_MMU_PAGE_SIZE;
-
-#undef MAKE_VIRTADDR
 
 static size_t pdeindex(uintptr_t addr) {
     return (addr & PDE_BIT_MASK) >> PDE_BIT_OFFSET;
@@ -153,7 +150,7 @@ WARN_UNUSED_RESULT int arch_mmu_map(
             memset(&s_pagetables[pde], 0, sizeof(s_pagetables[pde]));
             // Flush TLB just to be safe
             for (size_t i = 0; i < ARCHI586_MMU_ENTRY_COUNT; i++) {
-                arch_mmu_flushtlb_for((void *)makevirtaddr(pde, i, 0));
+                arch_mmu_flushtlb_for((void *)MAKEVIRTADDR(pde, i, 0));
             }
         }
     }
@@ -338,7 +335,7 @@ void archi586_mmu_init(void) {
     // Unmap lower 2MB area
     for (size_t i = 0; i < ARCHI586_MMU_ENTRY_COUNT; i++) {
         s_pagetables[0].entry[i] = 0;
-        arch_mmu_flushtlb_for((void *)makevirtaddr(0, i, 0));
+        arch_mmu_flushtlb_for((void *)MAKEVIRTADDR(0, i, 0));
     }
 #endif
     /*

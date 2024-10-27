@@ -527,10 +527,10 @@ WARN_UNUSED_RESULT struct vmobject *vmm_map_at(struct addressspace *self, uintpt
 
 void *vmm_ezmap(physptr base, size_t size) {
     size_t offset = base % ARCH_PAGESIZE;
-    physptr page_base = base - offset;
+    physptr pagebase = base - offset;
     size_t actualsize = size + offset;
     struct vmobject *object = vmm_map(
-        vmm_get_kernel_addressspace(), page_base,
+        vmm_get_kernel_addressspace(), pagebase,
         actualsize, MAP_PROT_READ | MAP_PROT_WRITE);
     if (object == NULL) {
         panic("vmm: failed to ezmap virtual memory");

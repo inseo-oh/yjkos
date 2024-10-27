@@ -105,12 +105,13 @@ static void irqhandler(int trapnum, void *trapframe, void *data) {
     int irqnum = trapnum - PIC_VECTOR_BASE;
     assert(irqnum < IRQS_TOTAL);
     bool is_suprious_irq = checkspuriousirq(irqnum);
-    if (!s_irqs[irqnum].front) {
+    if (s_irqs[irqnum].front == NULL) {
         tty_printf("no irq handler registered for irq %d\n", trapnum);
         return;
     }
     LIST_FOREACH(&s_irqs[irqnum], handlernode) {
         struct archi586_pic_irqhandler *handler = handlernode->data;
+        assert(handler != NULL);
         handler->callback(irqnum, handler->data);
     }
     if (!is_suprious_irq) {
