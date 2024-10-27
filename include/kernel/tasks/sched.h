@@ -1,6 +1,7 @@
 #pragma once
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
+#include <kernel/tasks/mutex.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -23,13 +24,11 @@ struct sched_queue {
  * Returns NULL if sched needs to create a new queue and there's not enough
  * memory.
  */
-WARN_UNUSED_RESULT struct sched_queue *sched_getqueue(int8_t priority);
-struct sched_queue *sched_picknextqueue(void);
 void sched_printqueues(void);
-/*
- * Returns false if sched needs to create a new queue and there's not enough
- * memory.
- */
-WARN_UNUSED_RESULT bool sched_queue(struct thread *thread);
+void sched_waitmutex(
+    struct mutex *mutex, struct mutex_locksource const *locksource);
+WARN_UNUSED_RESULT int sched_queue(struct thread *thread);
 void sched_schedule(void);
+void sched_initbootthread(void);
+
 
