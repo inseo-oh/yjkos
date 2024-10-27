@@ -2,7 +2,7 @@
 #include <kernel/arch/pci.h>
 #include <kernel/dev/pci.h>
 #include <kernel/lib/diagnostics.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/panic.h>
 #include <errno.h>
 #include <stdarg.h>
@@ -122,10 +122,10 @@ void pci_probebus(
 }
 
 void pci_printf(pcipath path, char const *fmt, ...) {
-    tty_printf("pci(%d,%d,%d): ", pcipath_getbus(path), pcipath_getdev(path), pcipath_getfunc(path));
+    co_printf("pci(%d,%d,%d): ", pcipath_getbus(path), pcipath_getdev(path), pcipath_getfunc(path));
     va_list ap;
     va_start(ap, fmt);
-    tty_vprintf(fmt, ap);
+    co_vprintf(fmt, ap);
     va_end(ap);
 }
 

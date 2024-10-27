@@ -13,7 +13,7 @@
 #include "vgatty.h"
 #include <kernel/arch/interrupts.h>
 #include <kernel/arch/thread.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/noreturn.h>
 #include <kernel/kernel.h>
 #include <kernel/mem/heap.h>
@@ -45,18 +45,18 @@ static void initserial(void) {
     int ret = archi586_serial_init(
         &s_serial0, 0x3f8, 115200, 4);
     if (ret < 0) {
-        tty_printf(
+        co_printf(
             "failed to initialize serial0 (error %d)\n", ret);
         return;
     }
     ret = archi586_serial_config(&s_serial0, 115200);
     if (ret < 0) {
-        tty_printf("failed to configure serial0 (error %d)\n", ret);
+        co_printf("failed to configure serial0 (error %d)\n", ret);
         return;
     }
     s_serial0.cr_to_crlf = true;
-    tty_setdebugconsole(&s_serial0.stream);
-    tty_printf("serial0 is ready\n");
+    co_setdebug(&s_serial0.stream);
+    co_printf("serial0 is ready\n");
     s_serial0ready = true;
 }
 
@@ -73,7 +73,7 @@ NORETURN void archi586_kernelinit(uint32_t mbmagic, physptr mbinfoaddr) {
     // CR0.WP should've been enabled during early boot process, but if it isn't, the
     // CPU probably doesn't support the feature.
     if (!(archi586_readcr0() & (1 << 16))) {
-        tty_printf(
+        co_printf(
             "warning: CR0.WP dowsn't seem to work. write-protect will not work in ring-0 Mode.\n");
     }
 
@@ -93,14 +93,14 @@ NORETURN void archi586_kernelinit(uint32_t mbmagic, physptr mbinfoaddr) {
     archi586_pic_init();
     archi586_pit_init();
 
-    tty_printf("enable interrupts...");
+    co_printf("enable interrupts...");
     arch_interrupts_enable();
-    tty_printf("ok!\n");
+    co_printf("ok!\n");
     archi586_ps2ctrl_init();
     archi586_idebus_init();
     if (s_serial0ready) {
         archi586_serial_useirq(&s_serial0);
     }
-    tty_printf("enter main kernel initialization\n");
+    co_printf("enter main kernel initialization\n");
     kernel_init();
 }

@@ -2,7 +2,7 @@
 #include <kernel/lib/diagnostics.h>
 #include <kernel/io/disk.h>
 #include <kernel/io/iodev.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/ticktime.h>
 #include <errno.h>
 #include <stdarg.h>

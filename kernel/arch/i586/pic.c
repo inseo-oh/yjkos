@@ -2,7 +2,7 @@
 #include "pic.h"
 #include <assert.h>
 #include <kernel/arch/interrupts.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/list.h>
 #include <kernel/trapmanager.h>
 #include <stddef.h>
@@ -64,12 +64,12 @@ static bool checkspuriousirq(uint8_t irq) {
     bool is_real = readisr() & (1 << irq);
     if (irq == 7) {
         if (!is_real) {
-            tty_printf("pic: spurious irq %u received\n", irq);
+            co_printf("pic: spurious irq %u received\n", irq);
         }
         return is_real;
     } else if (irq == 15) {
         if (!is_real) {
-            tty_printf("pic: spurious irq %u received\n", irq);
+            co_printf("pic: spurious irq %u received\n", irq);
             // If spurious IRQ occured on the slave PIC, master PIC has no idea that it is spurious at all.
             // So we must send EOI to the master.
             archi586_pic_sendeoi(SLAVEPIN_ON_MASTER);
@@ -106,7 +106,7 @@ static void irqhandler(int trapnum, void *trapframe, void *data) {
     assert(irqnum < IRQS_TOTAL);
     bool is_suprious_irq = checkspuriousirq(irqnum);
     if (s_irqs[irqnum].front == NULL) {
-        tty_printf("no irq handler registered for irq %d\n", trapnum);
+        co_printf("no irq handler registered for irq %d\n", trapnum);
         return;
     }
     LIST_FOREACH(&s_irqs[irqnum], handlernode) {

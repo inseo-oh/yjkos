@@ -1,7 +1,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <kernel/arch/interrupts.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
 #include <kernel/mem/heap.h>
@@ -152,7 +152,7 @@ static struct thread *picknexttask(void) {
                     &s_mutexwaitthreads, &thread->sched_listnode);
                 result = thread;
                 if (result->shutdown) {
-                    tty_printf(
+                    co_printf(
                         "sched: thread is about to shutdown - unlocking mutex\n");
                     mutex_unlock(thread->waitingmutex);
                 }
@@ -178,7 +178,7 @@ static struct thread *picknexttask(void) {
         if ((result == NULL) || (!result->shutdown)) {
             break;
         }
-        tty_printf("sched: shutting down thread %p\n", result);
+        co_printf("sched: shutting down thread %p\n", result);
         thread_delete(result);
         result = NULL;
     }
@@ -187,14 +187,14 @@ static struct thread *picknexttask(void) {
 }
 
 void sched_printqueues(void) {
-    tty_printf("----- QUEUE LIST -----\n");
+    co_printf("----- QUEUE LIST -----\n");
     LIST_FOREACH(&s_queues, queuenode) {
         struct sched_queue *queue = queuenode->data;
-        tty_printf(
+        co_printf(
             "queue %p - Pri %d [threads exist: %d]\n",
             queue, queue->priority, queue->threads.front != NULL);
         LIST_FOREACH(&queue->threads, threadnode) {
-            tty_printf(" - thread %p\n", threadnode);
+            co_printf(" - thread %p\n", threadnode);
         }
     }
 }
@@ -209,13 +209,13 @@ void sched_waitmutex(
         sizeof(*locksource));
     struct thread *nextthread = picknexttask();
     if (nextthread == NULL) {
-        tty_printf(
+        co_printf(
             "sched: WARNING: there is no thread to wait for mutex\n");
-        tty_printf(
+        co_printf(
             "mutex is currently locked by %s:%d (%s)\n",
             mutex->locksource.filename, mutex->locksource.line,
             mutex->locksource.func);
-        tty_printf(
+        co_printf(
             "lock requested by %s:%d (%s)\n",
             locksource->filename, locksource->line,
             locksource->func);
@@ -270,7 +270,7 @@ void sched_schedule(void) {
     assert(s_runningthread != NULL);
     int ret = sched_queue(s_runningthread);
     if (ret < 0) {
-        tty_printf(
+        co_printf(
             "sched: failed to queue current thread(error %d)\n",
             ret);
     }

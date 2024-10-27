@@ -1,5 +1,5 @@
 #include <kernel/arch/interrupts.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/tasks/mutex.h>
 #include <kernel/tasks/sched.h>

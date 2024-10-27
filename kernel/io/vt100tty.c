@@ -1,6 +1,6 @@
 #include <kernel/io/kbd.h>
 #include <kernel/io/stream.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/io/vt100tty.h>
 #include <kernel/lib/diagnostics.h>
 #include <stdint.h>
@@ -147,5 +147,5 @@ void vt100tty_init(
         }
         out->lineinfos[r].needsupdate = true;
     }
-    tty_setconsole(&out->stream);
+    co_setprimary(&out->stream);
 }

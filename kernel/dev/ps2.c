@@ -5,7 +5,7 @@
 #include <kernel/dev/ps2kbd.h>
 #include <kernel/io/iodev.h>
 #include <kernel/io/stream.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
 #include <kernel/lib/queue.h>

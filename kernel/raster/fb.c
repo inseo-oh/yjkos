@@ -1,7 +1,7 @@
 #include "psf.h"
 #include "fbtty.h"
 #include <kernel/arch/tsc.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/bitmap.h>
 #include <kernel/lib/string_ext.h>
 #include <kernel/mem/heap.h>
@@ -483,7 +483,7 @@ void fb_init_rgb(
     s_backbuffer = heap_alloc(
         width * height * sizeof(*s_backbuffer), 0);
     if (s_backbuffer == NULL) {
-        tty_printf("fb: not enough memory to allocate buffer\n");
+        co_printf("fb: not enough memory to allocate buffer\n");
         goto fail;
     }
     switch (bpp) {
@@ -498,11 +498,11 @@ void fb_init_rgb(
             fb_update = update16;
             break;
         default:
-            tty_printf("fb: unsupported rgb bpp %dbpp\n", bpp);
+            co_printf("fb: unsupported rgb bpp %dbpp\n", bpp);
             goto fail;
     }
     s_fbbase = vmm_ezmap(framebufferbase, pitch * height);
-    tty_printf("fb: rgb %dx%d %dbpp video\n", width, height, bpp);
+    co_printf("fb: rgb %dx%d %dbpp video\n", width, height, bpp);
     fb_update();
     psf_init();
     fbtty_init();
@@ -528,7 +528,7 @@ void fb_init_indexed(
     s_backbuffer = heap_alloc(
         width * height * sizeof(*s_backbuffer), 0);
     if (s_backbuffer == NULL) {
-        tty_printf("fb: not enough memory to allocate buffer\n");
+        co_printf("fb: not enough memory to allocate buffer\n");
         goto fail;
     }
     switch (bpp) {
@@ -540,11 +540,11 @@ void fb_init_indexed(
             fb_update = update1;
             break;
         default:
-            tty_printf("fb: unsupported indexed bpp %dbpp\n", bpp);
+            co_printf("fb: unsupported indexed bpp %dbpp\n", bpp);
             goto fail;
     }
     s_fbbase = vmm_ezmap(framebufferbase, pitch * height);
-    tty_printf(
+    co_printf(
         "fb: %u-color indexed %dx%d %dbpp video\n",
         colorcount, width, height, bpp);
 

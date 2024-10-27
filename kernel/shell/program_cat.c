@@ -5,7 +5,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <kernel/fs/vfs.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/mem/heap.h>
 
@@ -45,7 +45,7 @@ static void showfile(
     struct fd *fd;
     ssize_t ret = vfs_openfile(&fd, path, 0);
     if (ret < 0) {
-        tty_printf(
+        co_printf(
             "%s: failed to open directory %s (error %d)\n",
             progname, path, ret);
         return;
@@ -56,13 +56,13 @@ static void showfile(
         if (ret == 0) {
             break;
         } else if (ret < 0) {
-            tty_printf(
+            co_printf(
                 "%s: failed to read file %s (error %d)\n",
                 progname, path, ret);
             break;
         }
         for (ssize_t i = 0; i < ret; i++) {
-            tty_printf("%c", buf[i]);
+            co_printf("%c", buf[i]);
         }
     }
 }
@@ -73,7 +73,7 @@ static int program_main(int argc, char *argv[]) {
         return 1;
     }
     if (argc <= optind) {
-        tty_printf(
+        co_printf(
             "%s: reading from stdin is not supported yet\n", argv[0]);
         return 1;
     }

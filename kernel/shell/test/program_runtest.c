@@ -1,6 +1,6 @@
 #include "../shell.h"
 #include "test.h"
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <string.h>
 #include <unistd.h>
@@ -13,16 +13,16 @@ static struct testgroup const * const TESTGROUPS[] = {
 
 static bool runtests(struct testgroup const *group) {
     size_t okcount = 0, failcount = 0;
-    tty_printf("running test group '%s' (%zu tests)\n", group->name, group->testslen);
+    co_printf("running test group '%s' (%zu tests)\n", group->name, group->testslen);
     for (size_t i = 0; i < group->testslen; i++) {
-        tty_printf("[test %u / %u] %s\n", i + 1, group->testslen, group->tests[i].name);
+        co_printf("[test %u / %u] %s\n", i + 1, group->testslen, group->tests[i].name);
         if (!group->tests[i].fn()) {
             failcount++;
         } else {
             okcount++;
         }
     }
-    tty_printf(
+    co_printf(
         "finished test group '%s' (%zu tests, %zu passed, %zu failed)\n", group->name, group->testslen, okcount, failcount
     );
     return failcount == 0;
@@ -67,7 +67,7 @@ static int program_main(int argc, char *argv[]) {
     }
     if (opts.list) {
         for (size_t i = 0; i < sizeof(TESTGROUPS)/sizeof(void *); i++) {
-            tty_printf(
+            co_printf(
                 "test group '%s' (%zu tests)\n",
                 TESTGROUPS[i]->name, TESTGROUPS[i]->testslen);
         }
@@ -92,7 +92,7 @@ static int program_main(int argc, char *argv[]) {
             }
         }
         if (group == NULL) {
-            tty_printf(
+            co_printf(
                 "No testgroup named %s exists - Run `runtest -l` for testgroup list\n",
                 argv[i]);
             return 1;
@@ -102,12 +102,12 @@ static int program_main(int argc, char *argv[]) {
         }
     }
     if (notests) {
-        tty_printf(
+        co_printf(
             "No test or options specified - Run `runtest -h` for help\n");
         return 1;
     }
 testdone:
-    tty_printf("test OK\n");
+    co_printf("test OK\n");
     return 0;
 }
 

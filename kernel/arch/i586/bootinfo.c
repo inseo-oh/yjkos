@@ -4,7 +4,7 @@
 #include "vgatty.h"
 #include <assert.h>
 #include <kernel/arch/mmu.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/bitmap.h>
 #include <kernel/lib/pstring.h>
 #include <kernel/mem/heap.h>
@@ -111,8 +111,8 @@ void archi586_bootinfo_process(physptr infoaddr) {
         multiboot_uint32_t mmaplen = info.mmap_length;
         multiboot_uint32_t mmapaddr = info.mmap_addr;
         size_t readlen;
-        tty_printf("----------------- Memory map -----------------\n");
-        tty_printf("fromaddr  toaddr   length  type\n");
+        co_printf("----------------- Memory map -----------------\n");
+        co_printf("fromaddr  toaddr   length  type\n");
         size_t totalsize;
         bool warntoomuchmem = false;
         uintptr_t entryaddr = mmapaddr;
@@ -158,11 +158,11 @@ void archi586_bootinfo_process(physptr infoaddr) {
             size_t displaylen;
             humanreadablelen(&displaylen, &lenunit, len);
 
-            tty_printf("%08X  %08X  %4zu%s  %s(%u)\n", addr, addr + len - 1, displaylen, lenunit, typestr, type);
+            co_printf("%08X  %08X  %4zu%s  %s(%u)\n", addr, addr + len - 1, displaylen, lenunit, typestr, type);
         }
-        tty_printf("----------------------------------------------\n");
+        co_printf("----------------------------------------------\n");
         if (warntoomuchmem) {
-            tty_printf("the system has more memory, but ignored due to being outside of 32-bit address space.\n");
+            co_printf("the system has more memory, but ignored due to being outside of 32-bit address space.\n");
         }
         entryaddr = mmapaddr;
         for(readlen = 0; readlen < mmaplen; entryaddr += totalsize) {
@@ -243,7 +243,7 @@ void archi586_bootinfo_process(physptr infoaddr) {
                 if (pagecount == 0) {
                     continue;
                 }
-                tty_printf(
+                co_printf(
                     "register memory: %08x ~ %08x (%u pages)\n",
                     addr, addr + len - 1, pagecount);
                 pmm_register(addr, pagecount);
@@ -251,7 +251,7 @@ void archi586_bootinfo_process(physptr infoaddr) {
         }
     }
     if (info.flags & MULTIBOOT_INFO_FRAMEBUFFER_INFO) {
-        tty_printf("framebuffer address is %p\n", info.framebuffer_addr);
+        co_printf("framebuffer address is %p\n", info.framebuffer_addr);
         if (info.framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_INDEXED) {
             uint8_t *colors = heap_alloc(
                 info.framebuffer_palette_num_colors * 3, 0);
@@ -295,18 +295,18 @@ void archi586_bootinfo_process(physptr infoaddr) {
         } else if (
             info.framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_EGA_TEXT)
         {
-            tty_printf("text mode %dx%d\n", info.framebuffer_width, info.framebuffer_height);
+            co_printf("text mode %dx%d\n", info.framebuffer_width, info.framebuffer_height);
             assert(info.framebuffer_bpp == 16);
             archi586_vgatty_init(
                 info.framebuffer_addr,
                 info.framebuffer_width,
                 info.framebuffer_height,
                 info.framebuffer_pitch);
-            tty_printf("initialized text mode console\n");
+            co_printf("initialized text mode console\n");
         } else {
-            tty_printf("unknown framebuffer type %d with size %dx%d\n", info.framebuffer_type, info.framebuffer_width, info.framebuffer_height);
+            co_printf("unknown framebuffer type %d with size %dx%d\n", info.framebuffer_type, info.framebuffer_width, info.framebuffer_height);
         }
     } else {
-        tty_printf("no framebuffer info! not initializing video\n");
+        co_printf("no framebuffer info! not initializing video\n");
     }
 }

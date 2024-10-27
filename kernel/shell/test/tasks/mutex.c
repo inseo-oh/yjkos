@@ -1,6 +1,6 @@
 #include "../test.h"
 #include <kernel/arch/interrupts.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/tasks/mutex.h>
 #include <kernel/tasks/sched.h>
 #include <kernel/tasks/thread.h>
@@ -36,7 +36,7 @@ static void testthread(void *arg) {
         int oldcnt = ctx->cnt;
         sched_schedule();
         if (ctx->cnt != oldcnt) {
-            tty_printf(
+            co_printf(
                 "shared var suddenly changed! expected: %d, got: %d\n",
                 oldcnt, ctx->cnt);
         }
@@ -55,17 +55,17 @@ static bool do_threadsync(void) {
     for (int i = 0; i < TEST_THREADCOUNT; i++) {
         threads[i] = thread_create(
             1024*16, testthread, &ctx);
-        tty_printf("created thread %p\n", threads[i]);
+        co_printf("created thread %p\n", threads[i]);
     }
     bool failed = false;
     for (int i = 0; i < TEST_THREADCOUNT; i++) {
         if (threads[i] == NULL) {
-            tty_printf("not enough memory to spawn threads\n");
+            co_printf("not enough memory to spawn threads\n");
             goto out;
         }
         int ret = sched_queue(threads[i]);
         if (ret < 0) {
-            tty_printf("failed to queue thread (error %d)\n", ret);
+            co_printf("failed to queue thread (error %d)\n", ret);
             thread_delete(threads[i]);
             threads[i] = NULL;
             failed = true;
@@ -77,17 +77,17 @@ static bool do_threadsync(void) {
     while(1) {
         MUTEX_LOCK(&ctx.mtx);
         bool done = (TEST_COUNTTARGET * TEST_THREADCOUNT) <= ctx.cnt;
-        tty_printf("\r%d", ctx.cnt);
+        co_printf("\r%d", ctx.cnt);
         mutex_unlock(&ctx.mtx);
         sched_schedule();
         if (done) {
             break;
         }
     }
-    tty_printf("\n", ctx.cnt);
+    co_printf("\n", ctx.cnt);
     result = true;
 out:
-    tty_printf("shutting down...\n");
+    co_printf("shutting down...\n");
     for (int i = 0; i < TEST_THREADCOUNT; i++) {
         if (threads[i] != NULL) {
             threads[i]->shutdown = true;

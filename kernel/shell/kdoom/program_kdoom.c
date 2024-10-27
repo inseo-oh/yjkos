@@ -1,5 +1,5 @@
 #include "../shell.h"
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 
 #ifdef YJKERNEL_ENABLE_KDOOM
 #include "thirdparty/PureDOOM.h"
@@ -259,7 +259,7 @@ static int program_main(int argc, char *argv[]) {
 static int program_main(int argc, char *argv[]) {
     (void)argc;
     (void)argv;
-    tty_printf("ERROR: YJKERNEL_ENABLE_KDOOM was disabled during compilation\n");
+    co_printf("ERROR: YJKERNEL_ENABLE_KDOOM was disabled during compilation\n");
     return 1;
 }
 

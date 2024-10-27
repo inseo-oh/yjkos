@@ -2,7 +2,7 @@
 #include <kernel/arch/interrupts.h> 
 #include <kernel/arch/mmu.h> 
 #include <kernel/arch/stacktrace.h> 
-#include <kernel/io/tty.h> 
+#include <kernel/io/co.h> 
 #include <kernel/lib/bitmap.h> 
 #include <kernel/lib/bst.h> 
 #include <kernel/lib/diagnostics.h> 
@@ -365,7 +365,7 @@ WARN_UNUSED_RESULT struct vmobject *vmm_alloc_object(
         // Add modified object back to the tree.
         int ret = add_object_to_tree(self, oldobject);
         if (ret < 0) {
-            tty_printf(
+            co_printf(
                 "vmm: could not add modified vm object back to vmm(error %d)\n",
                 ret);
         }
@@ -442,7 +442,7 @@ WARN_UNUSED_RESULT struct vmobject *vmm_alloc_object_at(
         // Add modified object back to the tree.
         int ret = add_object_to_tree(self, leftobject);
         if (ret < 0) {
-            tty_printf(
+            co_printf(
                 "vmm: could not add modified vm object back to vmm(error %d)\n",
                 ret);
         }
@@ -454,7 +454,7 @@ WARN_UNUSED_RESULT struct vmobject *vmm_alloc_object_at(
         // Add modified object back to the tree.
         int ret = add_object_to_tree(self, rightobject);
         if (ret < 0) {
-            tty_printf(
+            co_printf(
                 "vmm: could not add modified vm object back to vmm(error %d)\n",
                 ret);
         }
@@ -491,7 +491,7 @@ void vmm_free(struct vmobject *object) {
             }
             int ret = arch_mmu_unmap(addr, 1);
             if (ret < 0) {
-                tty_printf(
+                co_printf(
                     "vmm: commited page %#lx doesn't exist?\n", addr);
                 panic("failed to unmap commited pages");
             }
@@ -500,7 +500,7 @@ void vmm_free(struct vmobject *object) {
     // Return object back to the tree
     int ret = add_object_to_tree(object->addressspace, object);
     if (ret < 0) {
-        tty_printf(
+        co_printf(
             "vmm: could not register returned virtual memory(error %d). this may decrease usable virtual memory.\n", ret);
     }
     interrupts_restore(previnterrupts);
@@ -560,7 +560,7 @@ struct addressspace *vmm_addressspace_for(uintptr_t addr) {
         return vmm_get_kernel_addressspace();
     } else if (addr < ARCH_KERNEL_SPACE_BASE) {
         // Userspace address
-        tty_printf("vmm_addressspace_for: userspace addresses are not supported yet\n");
+        co_printf("vmm_addressspace_for: userspace addresses are not supported yet\n");
         return NULL;
     } else {
         // Kernel image, scratch page, etc...
@@ -572,7 +572,7 @@ void vmm_pagefault(
     uintptr_t addr, bool was_present, bool was_write, bool was_user,
     void *trapframe) {
     if (CONFIG_PRINT_PAGE_FAULTS) {
-        tty_printf(
+        co_printf(
             "[PF] addr=%#lx, was_present=%d, was_write=%d, was_user=%d\n",
             addr, was_present, was_write, was_user);
     }
@@ -588,13 +588,13 @@ void vmm_pagefault(
         return;
     }
     if (was_present) {
-        tty_printf(
+        co_printf(
             "privilege violation: attempted to %s on page at %#lx\n",
             was_write ? "read" : "write", addr);
         goto realfault;
     }
     if (page_base == 0) {
-        tty_printf(
+        co_printf(
             "NULL dereference: attempted to %s on page at %#lx\n",
             was_write ? "read" : "write", addr);
         goto realfault;
@@ -615,7 +615,7 @@ void vmm_pagefault(
         ARCH_PAGESIZE;
     if (!bitmap_isbitset(&uobject->bitmap, pageindex)) {
         // Already commited page...?
-        tty_printf("non-present page %#lx(base: %#lx) but it's already commited. WTF?\n", addr, page_base);
+        co_printf("non-present page %#lx(base: %#lx) but it's already commited. WTF?\n", addr, page_base);
         panic("non-present page on already commited page");
     }
     // Uncommited page
@@ -632,7 +632,7 @@ void vmm_pagefault(
     }
     ret = arch_mmu_map(page_base, physaddr, 1, uobject->object->mapflags, uobject->object->addressspace->is_user);
     if (ret < 0) {
-        tty_printf("arch_mmu_map failed (error %d)\n", ret);
+        co_printf("arch_mmu_map failed (error %d)\n", ret);
         panic("failed to map allocated memory");
     }
     if (bitmap_findfirstsetbit(&uobject->bitmap, 0) < 0) {
@@ -641,7 +641,7 @@ void vmm_pagefault(
     }
     return;
 nonpresent:
-    tty_printf("attempted to %s on non-present page at %#lx\n", was_write ? "read" : "write", addr);
+    co_printf("attempted to %s on non-present page at %#lx\n", was_write ? "read" : "write", addr);
 realfault:
     arch_stacktrace_for_trapframe(trapframe);
     panic("fatal memory access fault");
@@ -682,7 +682,7 @@ bool vmm_random_test(void) {
             void *expectedvalue = &ptr[j];
             void *gotvalue = ptr[j];
             if (ptr[j] != gotvalue) {
-                tty_printf(
+                co_printf(
                     "value mismatch at %p(allocation %zu, base %p, offset %zu): expected %p, got %p\n",
                     &ptr[j], i, ptr, j, expectedvalue, gotvalue);
                 goto testfail;
@@ -694,6 +694,6 @@ bool vmm_random_test(void) {
     }
     return true;
 testfail:
-    tty_printf("vmm: random test failed\n");
+    co_printf("vmm: random test failed\n");
     return false;
 }

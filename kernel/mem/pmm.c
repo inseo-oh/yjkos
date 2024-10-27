@@ -1,7 +1,7 @@
 #include <assert.h>
 #include <kernel/arch/interrupts.h>
 #include <kernel/arch/mmu.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/bitmap.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/miscmath.h>
@@ -201,7 +201,7 @@ static void freefrompool(struct pagepool *pool, physptr ptr, size_t pagecount) {
         // Mark it as available
         long bitindex = bitindex_for_pagepoolblock(currentlevel, currentblockindex);
         if (bitmap_isbitset(&pool->bitmap, bitindex)) {
-            tty_printf("double free detected\n");
+            co_printf("double free detected\n");
             goto die;
         }
 
@@ -248,15 +248,15 @@ static bool testpagepool(struct pagepool *pool) {
             physptr allocptr = allocfrompool(
                 pool, &resultpagecount);
             if (allocptr == PHYSICALPTR_NULL) {
-                tty_printf("could not allocate pages(allocation %zu, page count %zu)\n", i, currentpagecount);
+                co_printf("could not allocate pages(allocation %zu, page count %zu)\n", i, currentpagecount);
                 goto testfail;
             }
             if (resultpagecount != currentpagecount) {
-                tty_printf("expected %zu pages, got %zu pages(allocation %zu)\n", currentpagecount, resultpagecount, i);
+                co_printf("expected %zu pages, got %zu pages(allocation %zu)\n", currentpagecount, resultpagecount, i);
                 goto testfail;
             }
             if (expectedptr != allocptr) {
-                tty_printf("expected address %p pages, got %p(allocation %zu)\n", expectedptr, allocptr, i);
+                co_printf("expected address %p pages, got %p(allocation %zu)\n", expectedptr, allocptr, i);
                 goto testfail;
             }
         }
@@ -275,7 +275,7 @@ static bool testpagepool(struct pagepool *pool) {
                 physptr expectedvalue = srcaddr;
                 physptr gotvalue = ppeek32(srcaddr, false);
                 if (expectedvalue  != gotvalue) {
-                    tty_printf("value mismatch at %p(allocation %zu, base %p, offset %zu): expected %p, got %p\n", srcaddr, i, allocptr, j, expectedvalue, gotvalue);
+                    co_printf("value mismatch at %p(allocation %zu, base %p, offset %zu): expected %p, got %p\n", srcaddr, i, allocptr, j, expectedvalue, gotvalue);
                     goto testfail;
                 }
             }
@@ -289,12 +289,12 @@ static bool testpagepool(struct pagepool *pool) {
         currentalloccount *= 2;
         continue;
     testfail:
-        tty_printf("-               level: %zu\n", currentlevel);
-        tty_printf("-       current_level: %zu\n", currentlevel);
-        tty_printf("-  current_page_count: %zu\n", currentpagecount);
-        tty_printf("- current_alloc_count: %zu\n", currentalloccount);
-        tty_printf("-  current_alloc_size: %zu\n", currentallocsize);
-        tty_printf("pmm: sequential test failed\n");
+        co_printf("-               level: %zu\n", currentlevel);
+        co_printf("-       current_level: %zu\n", currentlevel);
+        co_printf("-  current_page_count: %zu\n", currentpagecount);
+        co_printf("- current_alloc_count: %zu\n", currentalloccount);
+        co_printf("-  current_alloc_size: %zu\n", currentallocsize);
+        co_printf("pmm: sequential test failed\n");
         return false;
     }
     return true;
@@ -319,11 +319,11 @@ void pmm_register(physptr base, size_t pagecount) {
         size_t metadatasize = bitmapsize + sizeof(struct pagepool);
         struct pagepool *pool = heap_alloc(metadatasize, HEAP_FLAG_ZEROMEMORY);
         if (pool == NULL) {
-            tty_printf("pmm: unable to alloate metadata memory for managing %d pages\n", poolpagecount);
+            co_printf("pmm: unable to alloate metadata memory for managing %d pages\n", poolpagecount);
             continue;
         }
         if (CONFIG_PRINT_POOL_INIT) {
-            tty_printf("pmm: initializing %zuk pool at %#x\n", (poolpagecount * ARCH_PAGESIZE) / 1024, current_baseaddress);
+            co_printf("pmm: initializing %zuk pool at %#x\n", (poolpagecount * ARCH_PAGESIZE) / 1024, current_baseaddress);
         }
         pool->nextpool = s_firstpool;
         pool->bitmap.words = pool->bitmapdata;
@@ -335,7 +335,7 @@ void pmm_register(physptr base, size_t pagecount) {
         bitmap_setbit(&pool->bitmap, 0);
         remaining_pagecount -= poolpagecount;
         if (CONFIG_TEST_POOL) {
-            tty_printf("pmm: testing the new page pool at %p\n", (void *)current_baseaddress);
+            co_printf("pmm: testing the new page pool at %p\n", (void *)current_baseaddress);
             if (!testpagepool(pool)) {
                 panic("pmm: page pool test failed");
             }
@@ -438,7 +438,7 @@ bool pmm_pagepool_test_random(void) {
             physptr expectedvalue = srcaddr;
             physptr gotvalue = ppeek32(srcaddr, false);
             if (gotvalue != expectedvalue) {
-                tty_printf("value mismatch at %p(allocation %zu, base %p, offset %zu): expected %p, got %p\n", srcaddr, i, allocptrs[i], j, expectedvalue, gotvalue);
+                co_printf("value mismatch at %p(allocation %zu, base %p, offset %zu): expected %p, got %p\n", srcaddr, i, allocptrs[i], j, expectedvalue, gotvalue);
                 goto testfail;
             }
         }
@@ -448,7 +448,7 @@ bool pmm_pagepool_test_random(void) {
     }
     return true;
 testfail:
-    tty_printf("pmm: random test failed\n");
+    co_printf("pmm: random test failed\n");
     return false;
 }
 

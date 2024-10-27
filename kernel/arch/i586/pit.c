@@ -1,7 +1,7 @@
 #include "ioport.h"
 #include "pic.h"
 #include "pit.h"
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/tasks/sched.h>
 #include <kernel/ticktime.h>
 #include <kernel/trapmanager.h>

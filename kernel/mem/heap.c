@@ -1,6 +1,6 @@
 #include <kernel/arch/interrupts.h>
 #include <kernel/arch/mmu.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/bitmap.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
@@ -74,7 +74,7 @@ void __heap_checkoverflow(struct sourcelocation srcloc) {
         bool corrupted = false;
         struct allocheader *alloc = allocnode->data;
         if (alloc == NULL) {
-            tty_printf("heap: list node pointer is null\n");
+            co_printf("heap: list node pointer is null\n");
             corrupted = true;
             goto checkend;
         }
@@ -82,14 +82,14 @@ void __heap_checkoverflow(struct sourcelocation srcloc) {
         int ret = arch_mmu_virttophys(
             &physaddr, (uintptr_t)alloc);
         if (ret < 0) {
-            tty_printf("heap: bad alloc ptr(error %d)\n", ret);
+            co_printf("heap: bad alloc ptr(error %d)\n", ret);
             corrupted = true;
             goto checkend;
         }
         uint8_t *poision = &((uint8_t *)alloc->data)[alloc->size];
         for (size_t i = 0; i < sizeof(POISONVALUES); i++) {
             if (poision[i] != POISONVALUES[i]) {
-                tty_printf(
+                co_printf(
                     "heap: bad poision value at offset %zu: expected %02x, got %02x\n",
                     i, POISONVALUES[i], poision[i]);
                 corrupted = true;
@@ -97,8 +97,8 @@ void __heap_checkoverflow(struct sourcelocation srcloc) {
         }
     checkend:
         if (corrupted) {
-            tty_printf("heap: allocation at %p(node: %p) is corrupted\n", alloc, allocnode);
-            tty_printf(
+            co_printf("heap: allocation at %p(node: %p) is corrupted\n", alloc, allocnode);
+            co_printf(
                 "heap: checked at %s:%d <%s>\n",
                 srcloc.filename, srcloc.line, srcloc.function);
             die = true;
@@ -168,7 +168,7 @@ static bool testheap(struct poolheader *self) {
     size_t allocblockcount = 1;
     uintptr_t poolstartaddr = (uintptr_t)self->blockpool;
     uintptr_t poolendaddr = poolstartaddr + ((BLOCK_SIZE * self->blockcount) - 1);
-    tty_printf("sequential memory test start(%p~%p, size %zu)\n", (void *)poolstartaddr, (void *)(poolendaddr - 1), poolendaddr - poolstartaddr);
+    co_printf("sequential memory test start(%p~%p, size %zu)\n", (void *)poolstartaddr, (void *)(poolendaddr - 1), poolendaddr - poolstartaddr);
 
     while(1) {
         size_t bytecount = bytecount_for_blockcount(allocblockcount);
@@ -177,7 +177,7 @@ static bool testheap(struct poolheader *self) {
             break;
         }
         if (CONFIG_SEQUENTIAL_TEST_VERBOSE) {
-            tty_printf("* Testing %u x %u blocks: ", alloccount, allocblockcount);
+            co_printf("* Testing %u x %u blocks: ", alloccount, allocblockcount);
         }
         assert(bytecount != 0);
 
@@ -186,9 +186,9 @@ static bool testheap(struct poolheader *self) {
             uintptr_t expectedblockaddr = (uintptr_t)self->blockpool + sizeof(struct allocheader);
             if (CONFIG_SEQUENTIAL_TEST_VERBOSE) {
                 if (type == 0) {
-                    tty_printf("[allocate&fill]");
+                    co_printf("[allocate&fill]");
                 } else {
-                    tty_printf(" [basic re-check]");
+                    co_printf(" [basic re-check]");
                 }
             }
             for (size_t i = 0; i < alloccount; i++) {
@@ -197,7 +197,7 @@ static bool testheap(struct poolheader *self) {
                     alloc = allocfrompool(self, bytecount);
                     if (expectedblockaddr != (uintptr_t)alloc) {
                         arch_interrupts_disable();
-                        tty_printf("unexpected address\n");
+                        co_printf("unexpected address\n");
                         goto testfailed2;
                     }
                 } else {
@@ -205,35 +205,35 @@ static bool testheap(struct poolheader *self) {
                 }
                 if(!isaligned((uintptr_t)alloc, alignof(max_align_t))) {
                     arch_interrupts_disable();
-                    tty_printf("misaligned allocation\n");
+                    co_printf("misaligned allocation\n");
                     goto testfailed2;
                 }
 
                 if (poolendaddr < (uintptr_t)alloc) {
                     arch_interrupts_disable();
-                    tty_printf("address beyond end of the heap\n");
+                    co_printf("address beyond end of the heap\n");
                     goto testfailed2;
                 }
                 struct allocheader *allocheader = allocheaderof(alloc);
                 if (allocheader->pool != self) {
                     arch_interrupts_disable();
-                    tty_printf("bad pool pointer\n");
+                    co_printf("bad pool pointer\n");
                     goto testfailed2_withallocheader;
                 }
                 if (allocheader->blockcount != allocblockcount) {
                     arch_interrupts_disable();
-                    tty_printf("incorrect block count\n");
+                    co_printf("incorrect block count\n");
                     goto testfailed2_withallocheader;
                 }
                 if (allocheader->data != (void *)alloc) {
                     arch_interrupts_disable();
-                    tty_printf("incorrect data start\n");
+                    co_printf("incorrect data start\n");
                     goto testfailed2_withallocheader;
                 }
                 // If it's not type 0, we already overwrote memory with other values, so don't check for initial pattern.
                 if (type == 0 && (*((uint32_t *)alloc) != 0x90909090)) {
                     arch_interrupts_disable();
-                    tty_printf("incorrect initial pattern (got %p)\n", *((uint32_t *)alloc));
+                    co_printf("incorrect initial pattern (got %p)\n", *((uint32_t *)alloc));
                     goto testfailed2_withallocheader;
                 }
                 if (type == 0) {
@@ -244,32 +244,32 @@ static bool testheap(struct poolheader *self) {
                 expectedblockaddr += BLOCK_SIZE * allocblockcount;
                 continue;
             testfailed2_withallocheader:
-                tty_printf(" - alloc header:\n");
-                tty_printf(" +-- region pointer: %p\n", allocheader->pool);
-                tty_printf(" +-- block count:    %u\n", allocheader->blockcount);
-                tty_printf(" +-- data start:     %p\n", allocheader->data);
+                co_printf(" - alloc header:\n");
+                co_printf(" +-- region pointer: %p\n", allocheader->pool);
+                co_printf(" +-- block count:    %u\n", allocheader->blockcount);
+                co_printf(" +-- data start:     %p\n", allocheader->data);
             testfailed2:
-                tty_printf("- alloc pointer:     %p\n", (void *)alloc);
-                tty_printf("- expected pointer:  %p\n", (void *)expectedblockaddr);
-                tty_printf("- alloc index:       %u/%u\n", i, (alloccount - 1));
+                co_printf("- alloc pointer:     %p\n", (void *)alloc);
+                co_printf("- expected pointer:  %p\n", (void *)expectedblockaddr);
+                co_printf("- alloc index:       %u/%u\n", i, (alloccount - 1));
                 goto testfailed1;    
             }
         }
 
         if (CONFIG_SEQUENTIAL_TEST_VERBOSE) {
-            tty_printf(" [compare]");
+            co_printf(" [compare]");
         }
         uintptr_t blockaddr = (uintptr_t)self->blockpool + sizeof(struct allocheader);
         for (size_t i = 0; i < alloccount; i++) {
             uint8_t *alloc = (uint8_t *)blockaddr;
             for (size_t j = 0; j < bytecount; j++) {
                 if (alloc[j] != (i & 0xff)) {
-                    tty_printf("corrupted data\n");
-                    tty_printf("- allocated at:      %p\n", (void *)blockaddr);
-                    tty_printf("- alloc index:       %u/%u\n", i, (alloccount - 1));
-                    tty_printf("- byte offset:       %u/%u\n", j, bytecount - 1);
-                    tty_printf("- expected:          %u\n", i);
-                    tty_printf("- got:               %u\n", alloc[j]);
+                    co_printf("corrupted data\n");
+                    co_printf("- allocated at:      %p\n", (void *)blockaddr);
+                    co_printf("- alloc index:       %u/%u\n", i, (alloccount - 1));
+                    co_printf("- byte offset:       %u/%u\n", j, bytecount - 1);
+                    co_printf("- expected:          %u\n", i);
+                    co_printf("- got:               %u\n", alloc[j]);
                     goto testfailed1;
                 }
             }
@@ -277,7 +277,7 @@ static bool testheap(struct poolheader *self) {
         }
 
         if (CONFIG_SEQUENTIAL_TEST_VERBOSE) {
-            tty_printf(" [free]");
+            co_printf(" [free]");
         }
         blockaddr = (uintptr_t)self->blockpool + sizeof(struct allocheader);
         for (size_t i = 0; i < alloccount; i++) {
@@ -285,27 +285,27 @@ static bool testheap(struct poolheader *self) {
             heap_free(alloc);
             for (size_t j = 0; j < bytecount; j++) {
                 if (alloc[j] != 0x6f) {
-                    tty_printf("free pattern(0x6f) not found\n");
-                    tty_printf("- allocated at:      %p\n", (void *)blockaddr);
-                    tty_printf("- alloc index:       %u/%u\n", i, (alloccount - 1));
-                    tty_printf("- byte offset:       %u/%u\n", j, bytecount - 1);
-                    tty_printf("- got:               %u\n", alloc[j]);
+                    co_printf("free pattern(0x6f) not found\n");
+                    co_printf("- allocated at:      %p\n", (void *)blockaddr);
+                    co_printf("- alloc index:       %u/%u\n", i, (alloccount - 1));
+                    co_printf("- byte offset:       %u/%u\n", j, bytecount - 1);
+                    co_printf("- got:               %u\n", alloc[j]);
                     goto testfailed1;
                 }
             }
             blockaddr += BLOCK_SIZE * allocblockcount;
         }
         allocblockcount++;
-        tty_printf(" -> OK!\n");
+        co_printf(" -> OK!\n");
         continue;
     testfailed1:
-        tty_printf("- alloc block count: %u\n", allocblockcount);
-        tty_printf("- alloc byte count:  %u\n", bytecount);
-        tty_printf("- pool start addr:   %p\n", (void *)poolstartaddr);
-        tty_printf("- pool end addr:     %p\n", (void *)poolendaddr);
+        co_printf("- alloc block count: %u\n", allocblockcount);
+        co_printf("- alloc byte count:  %u\n", bytecount);
+        co_printf("- pool start addr:   %p\n", (void *)poolstartaddr);
+        co_printf("- pool end addr:     %p\n", (void *)poolendaddr);
         return false;
     }
-    tty_printf("sequential memory test ok(%p~%p)\n", (void *)poolstartaddr, (void *)(poolendaddr - 1));
+    co_printf("sequential memory test ok(%p~%p)\n", (void *)poolstartaddr, (void *)(poolendaddr - 1));
     return true;
 }
 
@@ -593,7 +593,7 @@ void heap_expand(void) {
         vmm_get_kernel_addressspace(), heapsize,
         MAP_PROT_READ | MAP_PROT_WRITE);
     if (object == NULL) {
-        tty_printf("not enough memory to expand heap\n");
+        co_printf("not enough memory to expand heap\n");
         goto out;
     }
     addmem((void *)object->startaddress,
@@ -634,7 +634,7 @@ bool heap_run_random_test(void) {
             void *expectedvalue = &allocptrs[i][j];
             void *gotvalue = allocptrs[i][j];
             if (allocptrs[i][j] != gotvalue) {
-                tty_printf("value mismatch at %p(allocation %zu, base %p, offset %zu): expected %p, got %p\n", &allocptrs[i][j], i, &allocptrs[i], j, expectedvalue, gotvalue);
+                co_printf("value mismatch at %p(allocation %zu, base %p, offset %zu): expected %p, got %p\n", &allocptrs[i][j], i, &allocptrs[i], j, expectedvalue, gotvalue);
                 goto testfail;
             }
         }

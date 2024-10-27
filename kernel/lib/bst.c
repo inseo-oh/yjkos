@@ -1,5 +1,5 @@
 #include <assert.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/bst.h>
 #include <kernel/panic.h>
 #include <stdint.h>
@@ -52,13 +52,13 @@ static void checksubtree(struct bst_node *root, struct bst_node *parent, bool pr
     if (root->parent != parent) {
         if (parent != NULL) {
             if (root->parent != NULL) {
-                tty_printf("[%#lx] expected parent %#lx, got %#lx\n", root->key, parent->key, root->parent->key);
+                co_printf("[%#lx] expected parent %#lx, got %#lx\n", root->key, parent->key, root->parent->key);
             } else {
-                tty_printf("[%#lx] expected parent %#lx, got no parent\n", root->key, parent->key);
+                co_printf("[%#lx] expected parent %#lx, got no parent\n", root->key, parent->key);
             }
         } else {
             if (parent != NULL) {
-                tty_printf("[%#lx] expected no parent, got %#lx\n", root->key, root->parent->key);
+                co_printf("[%#lx] expected no parent, got %#lx\n", root->key, root->parent->key);
             } else {
                 assert(!"huh?");
             }
@@ -68,9 +68,9 @@ static void checksubtree(struct bst_node *root, struct bst_node *parent, bool pr
     if (!(flags & CHECK_FLAG_NO_HEIGHT)) {
         int32_t expectedheight = heightofsubtree(root);
         if (root->height != expectedheight) {
-            tty_printf("expectedheight %d\n", expectedheight);
-            tty_printf("  root->height %d\n", root->height);
-            tty_printf("[%#lx] expected height %d, got %d\n", root->key, expectedheight, root->height);
+            co_printf("expectedheight %d\n", expectedheight);
+            co_printf("  root->height %d\n", root->height);
+            co_printf("[%#lx] expected height %d, got %d\n", root->key, expectedheight, root->height);
             failed = true;
         }
     }
@@ -78,7 +78,7 @@ static void checksubtree(struct bst_node *root, struct bst_node *parent, bool pr
     if (!(flags & CHECK_FLAG_NO_BF)) {
         int32_t expectedbf = balencefactor(root);
         if (root->bf != expectedbf) {
-            tty_printf("[%#lx] expected BF %d, got %d\n", root->key, expectedbf, root->bf);
+            co_printf("[%#lx] expected BF %d, got %d\n", root->key, expectedbf, root->bf);
             failed = true;
         }
     }

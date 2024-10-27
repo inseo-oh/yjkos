@@ -1,7 +1,7 @@
 #include "vgatty.h"
 #include <kernel/io/kbd.h>
 #include <kernel/io/stream.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/mem/vmm.h>
 #include <kernel/types.h>
@@ -113,7 +113,7 @@ void archi586_vgatty_init_earlydebug(void) {
     s_totalrows = 25;
  
     s_chars = (void *)0xb8000;
-    tty_setdebugconsole(&s_stream);
+    co_setdebug(&s_stream);
 }
 
 void archi586_vgatty_init(
@@ -132,6 +132,6 @@ void archi586_vgatty_init(
             writeattrat( r, c, 0x07);
         }
     }
-    tty_setconsole(&s_stream);
+    co_setprimary(&s_stream);
 }
 

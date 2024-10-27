@@ -6,7 +6,7 @@
 #include <kernel/lib/diagnostics.h>
 #include <kernel/io/iodev.h>
 #include <kernel/io/stream.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/mem/heap.h>
 #include <kernel/ticktime.h>
 #include <kernel/trapmanager.h>
@@ -78,7 +78,7 @@ static WARN_UNUSED_RESULT int waitforrecv(void) {
         }
     }
     if (timeout) {
-        tty_printf("ps2: receive wait timeout\n");
+        co_printf("ps2: receive wait timeout\n");
         return -EIO;
     }
     return 0;
@@ -95,7 +95,7 @@ static WARN_UNUSED_RESULT int waitforsend(void) {
         }
     }
     if (timeout) {
-        tty_printf("ps2: send wait timeout\n");
+        co_printf("ps2: send wait timeout\n");
         return -EIO;
     }
     return 0;
@@ -103,7 +103,7 @@ static WARN_UNUSED_RESULT int waitforsend(void) {
 
 static int recvfromctrl(uint8_t *out) {
     if (CONFIG_COMM_DEBUG) {
-        tty_printf("ps2: receive data from controller\n");
+        co_printf("ps2: receive data from controller\n");
     }
     int ret = waitforrecv();
     if (ret < 0) {
@@ -111,14 +111,14 @@ static int recvfromctrl(uint8_t *out) {
     }
     *out = archi586_in8(DATA_PORT);
     if (CONFIG_COMM_DEBUG) {
-        tty_printf("ps2: recevied data from controller: %#x\n", *out);
+        co_printf("ps2: recevied data from controller: %#x\n", *out);
     }
     return 0;
 }
 
 static int sendtoctrl(uint8_t cmd) {
     if (CONFIG_COMM_DEBUG) {
-        tty_printf("ps2: send command %#x to controller\n", cmd);
+        co_printf("ps2: send command %#x to controller\n", cmd);
     }
     int ret = waitforsend();
     if (ret < 0) {
@@ -130,7 +130,7 @@ static int sendtoctrl(uint8_t cmd) {
 
 static int senddatatoctrl(uint8_t data) {
     if (CONFIG_COMM_DEBUG) {
-        tty_printf("ps2: send data %#x to controller\n", data);
+        co_printf("ps2: send data %#x to controller\n", data);
     }
     int ret = waitforsend();
     if (ret < 0) {
@@ -165,7 +165,7 @@ static void irqhandler(int irqnum, void *data) {
     struct portcontext *port = data;
     uint8_t value = archi586_in8(DATA_PORT);
     if (CONFIG_COMM_DEBUG) {
-        tty_printf("ps2: irq on port %u - data %#x\n", port->portidx, value);
+        co_printf("ps2: irq on port %u - data %#x\n", port->portidx, value);
     }
     ps2port_receivedbyte(&port->ps2port, value);
     archi586_pic_sendeoi(irqnum);
@@ -262,7 +262,7 @@ void archi586_ps2ctrl_init(void) {
         goto fail;
     }
     if (response != 0x55) {
-        tty_printf(
+        co_printf(
             "ps2: controller self test failed(response: %#x)\n",
             response);
         result = -EIO;
@@ -332,7 +332,7 @@ void archi586_ps2ctrl_init(void) {
             goto fail;
         }
     }
-    tty_printf(
+    co_printf(
         "ps2: detected as %s-port controller\n",
         singleport ? "single" : "dual");
 
@@ -347,7 +347,7 @@ void archi586_ps2ctrl_init(void) {
         goto fail;
     }
     if (response != 0x00) {
-        tty_printf(
+        co_printf(
             "ps2: port 0 self test failed(response: %#x)\n", response);
         port0ok = false;
     } else {
@@ -363,7 +363,7 @@ void archi586_ps2ctrl_init(void) {
             goto fail;
         }
         if (response != 0x00) {
-            tty_printf(
+            co_printf(
                 "ps2: port 1 self test failed(response: %#x)\n",
                 response);
             port1ok = false;
@@ -410,7 +410,7 @@ void archi586_ps2ctrl_init(void) {
         }
         int ret = discoveredport(0);
         if (ret < 0) {
-            tty_printf("ps2: failed to register port 0\n");
+            co_printf("ps2: failed to register port 0\n");
         }
     }
     if (port1ok) {
@@ -420,12 +420,12 @@ void archi586_ps2ctrl_init(void) {
         }
         int ret = discoveredport(1);
         if (ret < 0) {
-            tty_printf("ps2: failed to register port 1\n");
+            co_printf("ps2: failed to register port 1\n");
         }
     }
     return;
 fail:
-    tty_printf(
+    co_printf(
         "ps2: error %d occured. aborting controller initialization\n",
         result);
 }

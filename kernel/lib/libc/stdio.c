@@ -5,7 +5,7 @@
 #include <string.h>
 #include <limits.h>
 
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/io/stream.h>
 #include <kernel/lib/diagnostics.h>
 #include <sys/types.h>

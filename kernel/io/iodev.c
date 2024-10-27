@@ -1,10 +1,11 @@
 #include <kernel/arch/interrupts.h>
 #include <kernel/io/iodev.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
 #include <kernel/mem/heap.h>
 #include <kernel/panic.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <string.h>
@@ -16,10 +17,10 @@ struct iodevtype {
     _Atomic size_t nextid;
 };
 
-static struct list s_devtypes; // Contains iodevtype nodes.
+static struct list s_iodevtypes;
 
 static struct iodevtype *getiodevtypefor(char const *devtype) {
-    LIST_FOREACH(&s_devtypes, typenode) {
+    LIST_FOREACH(&s_iodevtypes, typenode) {
         struct iodevtype *type = typenode->data;
         if (strcmp(devtype, type->name) == 0) {
             return type;
@@ -28,12 +29,12 @@ static struct iodevtype *getiodevtypefor(char const *devtype) {
     return NULL;
 }
 
-WARN_UNUSED_RESULT bool iodev_register(
+WARN_UNUSED_RESULT int iodev_register(
     struct iodev *dev_out, char const *devtype, void *data)
 {
-    bool result = true;
+    int result = 0;
     bool previnterrupts = arch_interrupts_disable();
-    // Look for existing iodevtype_t
+    // Look for existing iodevtype
     dev_out->devtype = devtype;
     dev_out->data = data;
     struct iodevtype *desttype = getiodevtypefor(devtype);
@@ -46,7 +47,7 @@ WARN_UNUSED_RESULT bool iodev_register(
         }
         type->name = devtype;
         desttype = type;
-        list_insertback(&s_devtypes, &type->node, type);
+        list_insertback(&s_iodevtypes, &type->node, type);
     }
     dev_out->id = desttype->nextid++;
     if (dev_out->id == SIZE_MAX) {
@@ -57,17 +58,17 @@ WARN_UNUSED_RESULT bool iodev_register(
         &desttype->devices, &dev_out->node, dev_out);
     goto out;
 fail_oom:
-    result = false;
+    result = -ENOMEM;
 out:
     interrupts_restore(previnterrupts);
     return result;
 }
 
 void iodev_printf(struct iodev *device, char const *fmt, ...) {
-    tty_printf("%s%d: ", device->devtype, device->id);
+    co_printf("%s%d: ", device->devtype, device->id);
     va_list ap;
     va_start(ap, fmt);
-    tty_vprintf(fmt, ap);
+    co_vprintf(fmt, ap);
     va_end(ap);
 }
 

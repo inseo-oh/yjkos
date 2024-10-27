@@ -1,7 +1,7 @@
 #include "asm/interruptentry.h"
 #include "gdt.h"
 #include "idt.h"
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <stdint.h>
 #include <string.h>
@@ -146,7 +146,7 @@ void archi586_idt_load(void) {
 }
 
 void archi586_idt_test(void) {
-    tty_printf("triggering divide by zero for testing\n");
+    co_printf("triggering divide by zero for testing\n");
     __asm__ volatile(
         "mov $0, %eax\n"
         "mov $0x11111111, %edi\n"

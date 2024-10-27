@@ -1,6 +1,6 @@
 #include "fbtty.h"
 #include "psf.h"
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/io/vt100tty.h>
 #include <kernel/mem/heap.h>
 #include <kernel/raster/fb.h>
@@ -76,7 +76,7 @@ void fbtty_init(void) {
     vt100tty_init(&s_tty, lineinfos, chars, &OPS, columns, rows);
     return;
 oom:
-    tty_printf("fbtty: not enough memory to initialize\n");
+    co_printf("fbtty: not enough memory to initialize\n");
     heap_free(lineinfos);
     heap_free(chars);
     heap_free(s_linetempbuf);

@@ -1,6 +1,6 @@
 #include <kernel/arch/interrupts.h>
 #include <kernel/arch/mmu.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/miscmath.h>
 #include <kernel/lib/pstring.h>
 #include <kernel/types.h>

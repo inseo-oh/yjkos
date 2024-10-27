@@ -7,7 +7,7 @@
 #include <kernel/arch/mmu.h>
 #include <kernel/dev/atadisk.h>
 #include <kernel/dev/pci.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/miscmath.h>
 #include <kernel/lib/pstring.h>
@@ -126,18 +126,18 @@ static uint8_t readstatus(struct bus *self) {
 static void busprintf(struct bus *self, char const *fmt, ...) {
     va_list ap;
 
-    tty_printf("idebus(%x): ", self->iobase);
+    co_printf("idebus(%x): ", self->iobase);
     va_start(ap, fmt);
-    tty_vprintf(fmt, ap);
+    co_vprintf(fmt, ap);
     va_end(ap);
 }
 
 static void driveprintf(struct bus *self, int drive, char const *fmt, ...) {
     va_list ap;
 
-    tty_printf("idebus(%x)drive(%d): ", self->iobase, drive);
+    co_printf("idebus(%x)drive(%d): ", self->iobase, drive);
     va_start(ap, fmt);
-    tty_vprintf(fmt, ap);
+    co_vprintf(fmt, ap);
     va_end(ap);
 }
 

@@ -1,7 +1,7 @@
 #include "asm/contextswitch.h"
 #include <kernel/arch/stacktrace.h>
 #include <kernel/arch/thread.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/miscmath.h>
 #include <kernel/mem/heap.h>
@@ -48,7 +48,7 @@ WARN_UNUSED_RESULT struct arch_thread *arch_thread_create(
         stacksize = alignup(stacksize, sizeof(uint32_t));
     }
     assert((stacksize % sizeof(uint32_t)) == 0);
-    tty_printf(
+    co_printf(
         "creating thread with %uk stack and entry point %p\n",
         stacksize/1024, init_mainfunc);
     struct arch_thread *thread = NULL;
@@ -81,7 +81,7 @@ void arch_thread_destroy(struct arch_thread *thread) {
 
 void arch_thread_switch(struct arch_thread *from, struct arch_thread *to) {
     if (CONFIG_DEBUG_CONTEXT_SWITCH) {
-        tty_printf(
+        co_printf(
             "context switch from=%p, to=%p(esp=%p)\n",
             from, to, to->savedesp);
         arch_stacktrace();
@@ -91,14 +91,14 @@ void arch_thread_switch(struct arch_thread *from, struct arch_thread *to) {
         uint32_t eflags = ((uint32_t *)to->savedesp)[STACK_IDX_EFLAGS];
         uint32_t ebp = ((uint32_t *)to->savedesp)[STACK_IDX_EBP];
         uint32_t eip = ((uint32_t *)to->savedesp)[STACK_IDX_EIP];
-        tty_printf("ebx=%08lx esi=%08lx edi=%08lx\n", ebx, esi, edi);
-        tty_printf("ebp=%08lx eip=%08lx efl=%08lx\n", ebp, eip, eflags);
+        co_printf("ebx=%08lx esi=%08lx edi=%08lx\n", ebx, esi, edi);
+        co_printf("ebp=%08lx eip=%08lx efl=%08lx\n", ebp, eip, eflags);
     }
     assert(from != NULL);
     archi586_contextswitch(
         &from->savedesp, to->savedesp);
     if (CONFIG_DEBUG_CONTEXT_SWITCH) {
-        tty_printf(
+        co_printf(
             "context switch returned! from=%p(esp=%p), to=%p\n",
             from, from->savedesp, to);
         arch_stacktrace();
@@ -108,7 +108,7 @@ void arch_thread_switch(struct arch_thread *from, struct arch_thread *to) {
         uint32_t eflags = ((uint32_t *)to->savedesp)[STACK_IDX_EFLAGS];
         uint32_t ebp = ((uint32_t *)from->savedesp)[STACK_IDX_EBP];
         uint32_t eip = ((uint32_t *)from->savedesp)[STACK_IDX_EIP];
-        tty_printf("ebx=%08lx esi=%08lx edi=%08lx\n", ebx, esi, edi);
-        tty_printf("ebp=%08lx eip=%08lx efl=%08lx\n", ebp, eip, eflags);
+        co_printf("ebx=%08lx esi=%08lx edi=%08lx\n", ebx, esi, edi);
+        co_printf("ebp=%08lx eip=%08lx efl=%08lx\n", ebp, eip, eflags);
     }
 }

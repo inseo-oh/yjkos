@@ -1,7 +1,7 @@
 #include <assert.h>
 #include <kernel/io/disk.h>
 #include <kernel/io/iodev.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
 #include <kernel/lib/miscmath.h>
@@ -183,7 +183,7 @@ WARN_UNUSED_RESULT int pdisk_register(struct pdisk *disk_out, size_t blocksize, 
 void ldisk_discover(void) {
     struct list *devlist = iodev_getlist(IODEV_TYPE_PHYSICAL_DISK);
     if (devlist == NULL || devlist->front == NULL) {
-        tty_printf("ldisk: no physical disks - aborting\n");
+        co_printf("ldisk: no physical disks - aborting\n");
         return;
     }
     LIST_FOREACH(devlist, devnode) {

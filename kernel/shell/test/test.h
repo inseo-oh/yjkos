@@ -1,5 +1,5 @@
 #pragma once
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <stdbool.h>
 
 struct test {

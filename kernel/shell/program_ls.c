@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <kernel/fs/vfs.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/mem/heap.h>
 
@@ -52,7 +52,7 @@ static WARN_UNUSED_RESULT bool getopts(
                 ok = false;
                 break;
             default:
-                tty_printf("NOT IMPLEMENTED: %c flag\n", c);
+                co_printf("NOT IMPLEMENTED: %c flag\n", c);
         }
     }
     return ok;
@@ -90,7 +90,7 @@ static void showdir(
     DIR *dir;
     int ret = vfs_opendir(&dir, path);
     if (ret < 0) {
-        tty_printf(
+        co_printf(
             "%s: failed to open directory %s (error %d)\n",
             progname, path, ret);
         return;
@@ -103,7 +103,7 @@ static void showdir(
         if (ret == -ENOENT) {
             break;
         } else if (ret != 0) {
-            tty_printf(
+            co_printf(
                 "%s: failed to read directory %s (error %d)\n",
                 progname, path, ret);
             break;
@@ -140,7 +140,7 @@ static void showdir(
     goto cont;
 oom:
     vfs_closedir(dir);
-    tty_printf("%s: not enough memory to allocate list\n", progname);
+    co_printf("%s: not enough memory to allocate list\n", progname);
     goto out;
 cont:
     vfs_closedir(dir);
@@ -154,13 +154,13 @@ cont:
         if ((ishorizontal && (COLUMNS - linelen) < len) ||
             (!ishorizontal && i != 0))
         {
-            tty_printf("\n");
+            co_printf("\n");
             linelen = 0;
         }
-        tty_printf("%s", buf);
+        co_printf("%s", buf);
         linelen += len;
     }
-    tty_printf("\n");
+    co_printf("\n");
 out:
     for (size_t i = 0; i < entrieslen; i++) {
         heap_free(entries[i].name);
@@ -180,7 +180,7 @@ static int program_main(int argc, char *argv[]) {
     }
     for (int i = optind; i < argc; i++) {
         if (optind + 1 != argc) {
-            tty_printf("%s:\n", argv[i]);
+            co_printf("%s:\n", argv[i]);
         }
         showdir(argv[0], argv[i], &opts);
     }

@@ -1,6 +1,6 @@
 #include "psf.h"
 #include <kernel/mem/heap.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/miscmath.h>
 #include <kernel/panic.h>
@@ -95,7 +95,7 @@ static void init_psf1(void) {
     if ((mode & 0x01)) {
         numglyph = 512;
     }
-    tty_printf(
+    co_printf(
         "psf: v1 font %ux%u mode %u, numglyph %u\n",
         width, height, mode, numglyph);
     uint32_t bytesperglyph = height;
@@ -103,7 +103,7 @@ static void init_psf1(void) {
         goto unicodetabledone;
     }
     if ((SIZE_MAX / bytesperglyph) < numglyph) {
-        tty_printf(
+        co_printf(
             "psf: glyph table is too large - cannot locate unicode translation table\n");
         goto unicodetabledone;
     }
@@ -114,7 +114,7 @@ static void init_psf1(void) {
     s_bytesperglyph = bytesperglyph;
     s_glyphcount = numglyph;
     if (s_unicodetable == NULL) {
-        tty_printf(
+        co_printf(
             "psf: not enough memory to have unicode translation table\n");
         goto unicodetabledone;
     }
@@ -148,7 +148,7 @@ static void init_psf1(void) {
         s_unicodetable[unicode] = glyph;
     }
     if (hadmultichars) {
-        tty_printf(
+        co_printf(
             "psf: mapping to unicode character sequences is not supported\n");
     }
 unicodetabledone:
@@ -159,7 +159,7 @@ static void init_psf2(void) {
     uint8_t *data = _binary_kernelfont_psf_start;
     uint32_t version       = uint32leat(data + 4);
     if (version != 0) {
-        tty_printf("psf: font version is not 0(got %u) - Not guranteed to work!\n", version);
+        co_printf("psf: font version is not 0(got %u) - Not guranteed to work!\n", version);
     }
     uint32_t headersize    = uint32leat(data + 8);
     uint32_t flags         = uint32leat(data + 12);
@@ -167,7 +167,7 @@ static void init_psf2(void) {
     uint32_t bytesperglyph = uint32leat(data + 20);
     uint32_t height        = uint32leat(data + 24);
     uint32_t width         = uint32leat(data + 28);
-    tty_printf(
+    co_printf(
         "psf: v2 font %ux%u headersize %u, flags %u, numglyph %u\n",
         width, height, headersize, flags, numglyph);
     s_glyphs = data + headersize;
@@ -180,13 +180,13 @@ static void init_psf2(void) {
     }
     // Read unicode translation table
     if ((SIZE_MAX / bytesperglyph) < numglyph) {
-        tty_printf(
+        co_printf(
             "psf: glyph table is too large - cannot locate unicode translation table\n");
         goto unicodetabledone;
     }
     s_unicodetable = heap_calloc(sizeof(*s_unicodetable), UINT16_MAX, HEAP_FLAG_ZEROMEMORY);
     if (s_unicodetable == NULL) {
-        tty_printf(
+        co_printf(
             "psf: not enough memory to have unicode translation table\n");
         goto unicodetabledone;
     }
@@ -230,7 +230,7 @@ static void init_psf2(void) {
         nextchr += byteslen;
         goto unicodedone;
     badcode:
-        tty_printf(
+        co_printf(
             "psf: unicode table entry #%zu - illegal utf-8 sequence\n", glyph);
         unicode = b;
         nextchr++;
@@ -245,7 +245,7 @@ static void init_psf2(void) {
         s_unicodetable[unicode] = glyph;
     }
     if (hadmultichars) {
-        tty_printf(
+        co_printf(
             "psf: mapping to unicode character sequences is not supported\n");
     }
 unicodetabledone:

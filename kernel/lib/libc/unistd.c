@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdbool.h>
 #ifdef YJKERNEL_SOURCE
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #else
 #error TODO
 #endif
@@ -107,7 +107,7 @@ int getopt(int argc, char * const argv[], const char *optstring) {
     goto out;
 error:
     if (printerr) {
-        tty_printf("%s: %s -- '%c'\n", argv[0], errmsg, optopt);
+        co_printf("%s: %s -- '%c'\n", argv[0], errmsg, optopt);
         resultopt = '?';
     }
 out:

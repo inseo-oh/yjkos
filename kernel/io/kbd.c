@@ -2,7 +2,7 @@
 #include <kernel/arch/interrupts.h>
 #include <kernel/io/iodev.h>
 #include <kernel/io/kbd.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
 #include <kernel/lib/queue.h>
@@ -215,7 +215,7 @@ static void enqueueevent(struct kbd_keyevent const *event) {
     int ret = QUEUE_ENQUEUE(eventqueue(), event);
     interrupts_restore(previnterrupts);
     if (ret < 0) {
-        tty_printf(
+        co_printf(
             "kbd: failed to enqueue key event (error %d)\n", ret);
     }
 }
@@ -286,7 +286,7 @@ void kbd_keypressed(enum kbd_key key) {
     s_keysdown[key] = true;
     if (keytoreport != KBD_KEY_INVALID) {
         if (CONFIG_PRINT_KEYS) {
-            tty_printf("[KEY_DOWN] PKEY=%03d RKEY=%03d CHAR=[%c]\n", key, keytoreport, chr);
+            co_printf("[KEY_DOWN] PKEY=%03d RKEY=%03d CHAR=[%c]\n", key, keytoreport, chr);
         }
         struct kbd_keyevent event;
         event.chr = chr;
@@ -344,7 +344,7 @@ void kbd_keyreleased(enum kbd_key key) {
     s_keysdown[key] = false;
     if (keytoreport != KBD_KEY_INVALID) {
         if (CONFIG_PRINT_KEYS) {
-            tty_printf("[ KEY_UP ] PKEY=%03d RKEY=%03d CHAR=[%c]\n", key, keytoreport, chr);
+            co_printf("[ KEY_UP ] PKEY=%03d RKEY=%03d CHAR=[%c]\n", key, keytoreport, chr);
         }
         struct kbd_keyevent event;
         event.chr = chr;

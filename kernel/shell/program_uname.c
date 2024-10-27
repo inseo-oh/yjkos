@@ -6,7 +6,7 @@
 #include <string.h>
 #include <kernel/version.h>
 #include <kernel/fs/vfs.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/mem/heap.h>
 
@@ -72,41 +72,41 @@ static int program_main(int argc, char *argv[]) {
         // No options were given
         opts.sysname = true;
     } else if (optind < argc) {
-        tty_printf("%s: Extra operand %s", argv[0], argv[optind]);
+        co_printf("%s: Extra operand %s", argv[0], argv[optind]);
         return 1;
     }
     if (opts.sysname) {
-        tty_printf("YJKOS");
+        co_printf("YJKOS");
         if (opts.node || opts.release || opts.version || opts.machine) {
-            tty_printf(" ");
+            co_printf(" ");
         }
     }
     if (opts.node) {
-        tty_printf("localhost");
+        co_printf("localhost");
         if (opts.release || opts.version || opts.machine) {
-            tty_printf(" ");
+            co_printf(" ");
         }
     }
     if (opts.release) {
-        tty_printf(YJKOS_RELEASE);
+        co_printf(YJKOS_RELEASE);
         if (opts.version || opts.machine) {
-            tty_printf(" ");
+            co_printf(" ");
         }
     }
     if (opts.version) {
-        tty_printf(YJKOS_VERSION);
+        co_printf(YJKOS_VERSION);
         if (opts.machine) {
-            tty_printf(" ");
+            co_printf(" ");
         }
     }
     if (opts.machine) {
 #if YJKERNEL_ARCH_I586
-        tty_printf("i586");
+        co_printf("i586");
 #else
         #error Unknown arch
 #endif
     }
-    tty_printf("\n");
+    co_printf("\n");
 
     return 0;
 }

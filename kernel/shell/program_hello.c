@@ -1,10 +1,10 @@
 #include "shell.h"
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 
 static int program_main(int argc, char *argv[]) {
     (void)argc;
     (void)argv;
-    tty_printf("Hello, world!\n");
+    co_printf("Hello, world!\n");
     return 0;
 }
 

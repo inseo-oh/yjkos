@@ -2,7 +2,7 @@
 #include <kernel/fs/vfs.h>
 #include <kernel/io/disk.h>
 #include <kernel/io/iodev.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
 #include <kernel/mem/heap.h>
@@ -251,10 +251,10 @@ void vfs_registerfstype(struct vfs_fstype *out, char const *name, struct vfs_fst
 }
 
 void vfs_mountroot(void) {
-    tty_printf("vfs: mounting the first usable filesystem...\n");
+    co_printf("vfs: mounting the first usable filesystem...\n");
     struct list *devlist = iodev_getlist(IODEV_TYPE_LOGICAL_DISK);
     if (devlist == NULL || devlist->front == NULL) {
-        tty_printf("no logical disks. Mounting dummyfs as root\n");
+        co_printf("no logical disks. Mounting dummyfs as root\n");
         int ret = vfs_mount("dummyfs", NULL, "/");
         MUST_SUCCEED(ret);
         return;

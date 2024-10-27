@@ -1,5 +1,5 @@
 #include "../test.h"
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/bst.h>
 #include <kernel/lib/list.h>
 #include <kernel/panic.h>
@@ -7,7 +7,7 @@
 
 static struct bst_node *assertnonnullnode(struct bst_node *node, char const *assertion, char const *function, char const *file, int line) {
     if (node == NULL) {
-        tty_printf("non-null assertion failed at %s(%s:%d): %s\n", function, file, line, assertion);
+        co_printf("non-null assertion failed at %s(%s:%d): %s\n", function, file, line, assertion);
         panic(NULL);
     }
     return node;

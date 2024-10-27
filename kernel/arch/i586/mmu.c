@@ -3,7 +3,7 @@
 #include "sections.h"
 #include <kernel/arch/interrupts.h>
 #include <kernel/arch/mmu.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/miscmath.h>
 #include <kernel/mem/pmm.h>
@@ -192,7 +192,7 @@ WARN_UNUSED_RESULT int arch_mmu_map(
 fail:
     if (pdcreated) {
         // TODO: Clean-up unused PD entries
-        tty_printf("todo: clean-up unused pd entries\n");
+        co_printf("todo: clean-up unused pd entries\n");
     } 
 out:
     return result;

@@ -2,16 +2,16 @@
 #include "exceptions.h"
 #include <kernel/arch/hcf.h>
 #include <kernel/arch/stacktrace.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/mem/vmm.h>
 #include <kernel/trapmanager.h>
 #include <stddef.h>
 #include <stdint.h>
 
 static void dumptrapframe(struct trapframe *self) {
-    tty_printf("eax=%08lx ebx=%08lx ecx=%08lx edx=%08lx esi=%08lx edi=%08lx\n", self->eax, self->ebx, self->ecx, self->edx, self->esi, self->edi);
-    tty_printf("ebp=%08lx eip=%08lx efl=%08lx cs =%08lx ds =%08lx es =%08lx\n", self->ebp, self->eip, self->eflags, self->cs, self->ds, self->es);
-    tty_printf("fs =%08lx gs =%08lx\n", self->fs, self->gs);
+    co_printf("eax=%08lx ebx=%08lx ecx=%08lx edx=%08lx esi=%08lx edi=%08lx\n", self->eax, self->ebx, self->ecx, self->edx, self->esi, self->edi);
+    co_printf("ebp=%08lx eip=%08lx efl=%08lx cs =%08lx ds =%08lx es =%08lx\n", self->ebp, self->eip, self->eflags, self->cs, self->ds, self->es);
+    co_printf("fs =%08lx gs =%08lx\n", self->fs, self->gs);
     arch_stacktrace_for_trapframe(self);
 }
 
@@ -19,7 +19,7 @@ static void defaulthandler(int trapnum, void *trapframe, void *data) {
     (void)data;
 
     struct trapframe *frame = trapframe;
-    tty_printf("fatal exception %d occured (error code %#x)\n", trapnum, frame->errcode);
+    co_printf("fatal exception %d occured (error code %#x)\n", trapnum, frame->errcode);
     dumptrapframe(frame);
     arch_hcf();
 }

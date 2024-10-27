@@ -5,7 +5,7 @@
 #include <kernel/io/iodev.h>
 #include <kernel/io/kbd.h>
 #include <kernel/io/stream.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
 #include <kernel/mem/heap.h>

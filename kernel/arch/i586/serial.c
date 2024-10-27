@@ -5,7 +5,7 @@
 #include <kernel/arch/iodelay.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/io/stream.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/trapmanager.h>
 #include <kernel/types.h>
 #include <errno.h>
@@ -156,7 +156,7 @@ static int runloopbacktest(struct archi586_serial *self) {
     writereg(self, REG_MCR, oldmcr | MCR_FLAG_LOOPBACK);
     uint8_t new_mcr = readreg(self, REG_MCR);
     if (!(new_mcr & MCR_FLAG_LOOPBACK)) {
-        tty_printf(
+        co_printf(
             "serial: failed to write to MCR\n");
         return -EIO;
     }
@@ -165,7 +165,7 @@ static int runloopbacktest(struct archi586_serial *self) {
     uint32_t waited_counter = 0;
     while (!(readreg(self, REG_LSR) & LSR_FLAG_DATA_READY)) {
         if (1000000 < waited_counter) {
-            tty_printf(
+            co_printf(
                 "serial: loopback response timeout\n");
             return -EIO;
         }
@@ -175,7 +175,7 @@ static int runloopbacktest(struct archi586_serial *self) {
     uint8_t got = readdata(self);
     bool test_ok = got == expected;
     if (!test_ok) {
-        tty_printf(
+        co_printf(
             "serial: loopback test failed: expected %#x, got %#x\n",
             expected, got);
         writereg(self, REG_MCR, oldmcr);

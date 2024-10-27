@@ -16,13 +16,8 @@ struct iodev {
     void *data;
 };
 
-/*
- * `devtype` must be static string.
- *
- * Returns false on allocation failure.
- */
-// 
-WARN_UNUSED_RESULT bool iodev_register(
+// `devtype` must be static string.
+WARN_UNUSED_RESULT int iodev_register(
     struct iodev *dev_out, char const *devtype, void *data);
 void iodev_printf(struct iodev *device, char const *fmt, ...);
 struct list *iodev_getlist(char const *devtype);

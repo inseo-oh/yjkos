@@ -1,6 +1,6 @@
 #include "shell.h"
 #include <assert.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
 #include <kernel/lib/smatcher.h>
@@ -117,17 +117,17 @@ static void cmd_destroy(union shellcmd *cmd) {
 static void cmd_dump(union shellcmd const *cmd) {
     switch(cmd->kind) {
         case CMDKIND_RUNPROGRAM:
-            tty_printf("[cmd_dump] RUNPROGRAM\n");
-            tty_printf("[cmd_dump]  - argc %d\n", cmd->runprogram.argc);
+            co_printf("[cmd_dump] RUNPROGRAM\n");
+            co_printf("[cmd_dump]  - argc %d\n", cmd->runprogram.argc);
             for (int i = 0; i < cmd->runprogram.argc; i++) {
-                tty_printf("[cmd_dump]  - argv[%d] - [%s]\n", i, cmd->runprogram.argv[i]);
+                co_printf("[cmd_dump]  - argv[%d] - [%s]\n", i, cmd->runprogram.argv[i]);
             }
             break;
         case CMDKIND_EMPTY:
-            tty_printf("[cmd_dump] EMPTY\n");
+            co_printf("[cmd_dump] EMPTY\n");
             break;
         default:
-            tty_printf("[cmd_dump] UNKNOWN CMD\n");
+            co_printf("[cmd_dump] UNKNOWN CMD\n");
     }
 }
 
@@ -145,7 +145,7 @@ static int cmd_exec(union shellcmd const *cmd) {
                 }
             }
             if (program_to_run == NULL) {
-                tty_printf("%s: command not found\n", cmd->runprogram.argv[0]);
+                co_printf("%s: command not found\n", cmd->runprogram.argv[0]);
                 return 127;
             }
             optind = 1;
@@ -191,23 +191,23 @@ void shell_repl(void) {
     while(1) {
         size_t cursorpos = 0;
         cmdline[0] = '\0';
-        tty_printf("kernel> ");
+        co_printf("kernel> ");
 
         while(1) {
-            char c = tty_getchar();
+            char c = co_getchar();
             if (c == CON_BACKSPACE || c == CON_DELETE) {
                 if (cursorpos != 0) {
                     cursorpos--;
-                    tty_printf("\b");
+                    co_printf("\b");
                 }
             } else if ((c == '\r') || (c == '\n')) {
                 cmdline[cursorpos] = '\0';
-                tty_printf("\n");
+                co_printf("\n");
                 break;
             } else {
                 if (cursorpos < (SHELL_MAX_CMDLINE_LEN - 1)) {
                     cmdline[cursorpos] = c;
-                    tty_printf("%c", c);
+                    co_printf("%c", c);
                     cursorpos++;
                 }
             }
@@ -215,7 +215,7 @@ void shell_repl(void) {
 
         int ret = shell_execcmd(cmdline);
         if (ret != 0) {
-            tty_printf("command error %d\n", ret);
+            co_printf("command error %d\n", ret);
         }
     }
 }

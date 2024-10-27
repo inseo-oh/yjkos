@@ -1,5 +1,5 @@
 #include <kernel/arch/interrupts.h>
-#include <kernel/io/tty.h>
+#include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
 #include <kernel/panic.h>
@@ -46,11 +46,11 @@ void trapmanager_trap(int trapnum, void *trapframe) {
         HANDLERS_COUNT = sizeof(s_traps)/sizeof(*s_traps),
     };
     if (HANDLERS_COUNT <= trapnum) {
-        tty_printf("trap %d is outside of valid trap range(0~%d)\n", trapnum, HANDLERS_COUNT - 1);
+        co_printf("trap %d is outside of valid trap range(0~%d)\n", trapnum, HANDLERS_COUNT - 1);
         return;
     }
     if (!s_traps[trapnum].front) {
-        tty_printf("no trap handler registered for trap %d\n", trapnum);
+        co_printf("no trap handler registered for trap %d\n", trapnum);
         return;
     }
     LIST_FOREACH(&s_traps[trapnum], handlernode) {
@@ -58,7 +58,7 @@ void trapmanager_trap(int trapnum, void *trapframe) {
         uint32_t expectedchecksum = calculatechecksum(handler);
         uint32_t gotchecksum = handler->checksum;
         if (expectedchecksum != gotchecksum) {
-            tty_printf("bad trap handler checksum in trap %d: expected %#x, got %#x\n", trapnum, expectedchecksum, gotchecksum);
+            co_printf("bad trap handler checksum in trap %d: expected %#x, got %#x\n", trapnum, expectedchecksum, gotchecksum);
         } else {
             handler->callback(trapnum, trapframe, handler->data);
         }
