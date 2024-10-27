@@ -39,11 +39,19 @@ struct keymapentry {
 };
 
 // KEY_CHAR_WITH_CAPSLOCK implies KEY_CHAR_WITH_SHIFT as well.
-#define KEY_NOCHAR()                                  { .keyalt = 0,                .chr = 0,      .chralt = 0,         .flags = 0                                        }
-#define KEY_CHAR(_chr)                                { .keyalt = 0,                .chr = (_chr), .chralt = (_chr),    .flags = 0                                        }
-#define KEY_CHAR_WITH_SHIFT(_chr, _chralt)            { .keyalt = 0,                .chr = (_chr), .chralt = (_chralt), .flags = KEYMAP_FLAG_SHIFT                        }
-#define KEY_CHAR_WITH_CAPSLOCK(_chr, _chralt)         { .keyalt = 0,                .chr = (_chr), .chralt = (_chralt), .flags = KEYMAP_FLAG_SHIFT | KEYMAP_FLAG_CAPSLOCK }
-#define KEY_CHAR_WITH_NUMLOCK(_numlock_off_k, _chr)   { .keyalt = (_numlock_off_k), .chr = (_chr), .chralt = (_chr),    .flags = KEYMAP_FLAG_NUMLOCK                      }
+#define KEY_NOCHAR()\
+    { .keyalt = 0, .chr = 0, .chralt = 0, .flags = 0 }
+#define KEY_CHAR(_chr)\
+    { .keyalt = 0, .chr = (_chr), .chralt = (_chr), .flags = 0 }
+#define KEY_CHAR_WITH_SHIFT(_chr, _chralt) {\
+    .keyalt = 0, .chr = (_chr), .chralt = (_chralt),\
+    .flags = KEYMAP_FLAG_SHIFT }
+#define KEY_CHAR_WITH_CAPSLOCK(_chr, _chralt)\
+    { .keyalt = 0, .chr = (_chr), .chralt = (_chralt),\
+    .flags = KEYMAP_FLAG_SHIFT | KEYMAP_FLAG_CAPSLOCK }
+#define KEY_CHAR_WITH_NUMLOCK(_numlock_off_k, _chr) \
+    { .keyalt = (_numlock_off_k), .chr = (_chr), .chralt = (_chr),\
+    .flags = KEYMAP_FLAG_NUMLOCK }
 
 static struct keymapentry const KEYMAP[] = {
     [KBD_KEY_ESCAPE] = KEY_NOCHAR(),
@@ -213,7 +221,10 @@ static void enqueueevent(struct kbd_keyevent const *event) {
 }
 
 bool kbd_pullevent(struct kbd_keyevent *out) {
-    return QUEUE_DEQUEUE(out, eventqueue());
+    bool previnterrupts = arch_interrupts_disable();
+    bool result =  QUEUE_DEQUEUE(out, eventqueue());
+    interrupts_restore(previnterrupts);
+    return result;
 }
 
 void kbd_keypressed(enum kbd_key key) {
