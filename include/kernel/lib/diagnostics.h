@@ -16,3 +16,15 @@
     assert(0 <= (_x));      \
     (void)(_x);             \
 }
+
+struct sourcelocation {
+    char const *filename;
+    char const *function;
+    int line;
+};
+
+#define SOURCELOCATION_CURRENT() (struct sourcelocation){\
+    .filename = __FILE__,\
+    .function = __func__,\
+    .line     = __LINE__,\
+}
