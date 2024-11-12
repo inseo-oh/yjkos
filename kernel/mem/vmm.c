@@ -558,14 +558,15 @@ struct addressspace *vmm_addressspace_for(uintptr_t addr) {
     if ((ARCH_KERNEL_VM_START <= addr) && (addr <= ARCH_KERNEL_VM_END)) {
         // Kernel VM
         return vmm_get_kernel_addressspace();
-    } else if (addr < ARCH_KERNEL_SPACE_BASE) {
+    }
+    if (addr < ARCH_KERNEL_SPACE_BASE) {
         // Userspace address
-        co_printf("vmm_addressspace_for: userspace addresses are not supported yet\n");
-        return NULL;
-    } else {
-        // Kernel image, scratch page, etc...
+        co_printf(
+            "vmm_addressspace_for: userspace addresses are not supported yet\n");
         return NULL;
     }
+    // Kernel image, scratch page, etc...
+    return NULL;
 }
 
 void vmm_pagefault(
@@ -577,10 +578,10 @@ void vmm_pagefault(
             addr, was_present, was_write, was_user);
     }
     uintptr_t page_base = aligndown(addr, ARCH_PAGESIZE);
-    physptr physaddr;
+    physptr physaddr = 0;
     int ret = arch_mmu_emulate(
         &physaddr, addr,
-        MAP_PROT_READ | (was_write ? MAP_PROT_WRITE : 0),
+        MAP_PROT_READ | (was_write ? MAP_PROT_WRITE : 0U),
         was_user);
     if (ret == 0) {
         // It's a valid access, but TLB was out of sync.
@@ -611,8 +612,8 @@ void vmm_pagefault(
         // Not part of an uncommited object.
         goto nonpresent;
     }
-    size_t pageindex = (page_base - uobject->object->startaddress) /
-        ARCH_PAGESIZE;
+    long pageindex =
+        (long)((page_base - uobject->object->startaddress) / ARCH_PAGESIZE);
     if (!bitmap_isbitset(&uobject->bitmap, pageindex)) {
         // Already commited page...?
         co_printf("non-present page %#lx(base: %#lx) but it's already commited. WTF?\n", addr, page_base);

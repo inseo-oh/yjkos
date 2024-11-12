@@ -38,10 +38,10 @@ static bool const CONFIG_SERIAL_DEBUG = true;
 
 //-----------------------------------------------------------------------------
 
-static struct archi586_serial s_serial0;
+static struct archi586_serial s_serial0, s_serial1;
 static bool s_serial0ready = false;
 
-static void initserial(void) {
+static void initserial0(void) {
     int ret = archi586_serial_init(
         &s_serial0, 0x3f8, 115200, 4);
     if (ret < 0) {
@@ -55,9 +55,31 @@ static void initserial(void) {
         return;
     }
     s_serial0.cr_to_crlf = true;
-    co_setdebug(&s_serial0.stream);
+    co_setdebug(&s_serial0.tty.stream);
     co_printf("serial0 is ready\n");
     s_serial0ready = true;
+}
+static void initserial1(void) {
+    int ret = archi586_serial_init(
+        &s_serial1, 0x2f8, 115200, 3);
+    if (ret < 0) {
+        co_printf(
+            "failed to initialize serial1 (error %d)\n", ret);
+        return;
+    }
+    ret = archi586_serial_config(&s_serial1, 115200);
+    if (ret < 0) {
+        co_printf("failed to configure serial1 (error %d)\n", ret);
+        return;
+    }
+    s_serial1.cr_to_crlf = true;
+    archi586_serial_useirq(&s_serial1);
+    ret = archi586_serial_initiodev(&s_serial1);
+    if (ret < 0) {
+        co_printf("failed to register serial1 (error %d)\n", ret);
+        return;
+    }
+    co_printf("serial1 is ready\n");
 }
 
 NORETURN void archi586_kernelinit(uint32_t mbmagic, physptr mbinfoaddr) {
@@ -65,14 +87,16 @@ NORETURN void archi586_kernelinit(uint32_t mbmagic, physptr mbinfoaddr) {
         archi586_vgatty_init_earlydebug();
     }
     if (CONFIG_SERIAL_DEBUG) {
-        initserial();
+        initserial0();
     }
 
     archi586_mmu_init();
     archi586_mmu_writeprotect_kerneltext();
-    // CR0.WP should've been enabled during early boot process, but if it isn't, the
-    // CPU probably doesn't support the feature.
-    if (!(archi586_readcr0() & (1 << 16))) {
+    /*
+     * CR0.WP should've been enabled during early boot process, but if it 
+     * isn't, the CPU probably doesn't support the feature.
+     */
+    if (!(archi586_readcr0() & (1U << 16U))) {
         co_printf(
             "warning: CR0.WP dowsn't seem to work. write-protect will not work in ring-0 Mode.\n");
     }
@@ -93,14 +117,13 @@ NORETURN void archi586_kernelinit(uint32_t mbmagic, physptr mbinfoaddr) {
     archi586_pic_init();
     archi586_pit_init();
 
-    co_printf("enable interrupts...");
     arch_interrupts_enable();
-    co_printf("ok!\n");
     archi586_ps2ctrl_init();
     archi586_idebus_init();
     if (s_serial0ready) {
         archi586_serial_useirq(&s_serial0);
     }
+    initserial1();
     co_printf("enter main kernel initialization\n");
     kernel_init();
 }

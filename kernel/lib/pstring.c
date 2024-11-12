@@ -1,6 +1,5 @@
 #include <kernel/arch/interrupts.h>
 #include <kernel/arch/mmu.h>
-#include <kernel/io/co.h>
 #include <kernel/lib/miscmath.h>
 #include <kernel/lib/pstring.h>
 #include <kernel/types.h>
@@ -22,7 +21,9 @@ void pmemcpy_in(void *dest, physptr src, size_t len, bool nocache) {
             copylen = maxlen;
         }
         arch_mmu_scratchmap(srcpage, nocache);
-        memcpy(dest_byte, (void *)((uintptr_t)ARCH_SCRATCH_MAP_BASE + offset), copylen);
+        memcpy(
+            dest_byte, (char *)ARCH_SCRATCH_MAP_BASE + offset,
+            copylen);
     }
     interrupts_restore(previnterrupts);
 }
@@ -40,7 +41,8 @@ void pmemcpy_out(physptr dest, void const *src, size_t len, bool nocache) {
             copylen = maxlen;
         }
         arch_mmu_scratchmap(destpage, nocache);
-        memcpy((void *)((uintptr_t)ARCH_SCRATCH_MAP_BASE + offset), src_byte, copylen);
+        memcpy(
+            (void *)(ARCH_SCRATCH_MAP_BASE + offset), src_byte, copylen);
     }
     interrupts_restore(previnterrupts);
 }
@@ -57,7 +59,7 @@ void pmemset(physptr dest, int byte, size_t len, bool nocache) {
             copylen = maxlen;
         }
         arch_mmu_scratchmap(destpage, nocache);
-        memset((void *)((uintptr_t)ARCH_SCRATCH_MAP_BASE + offset), byte, copylen);
+        memset((char *)ARCH_SCRATCH_MAP_BASE + offset, byte, copylen);
     }
     interrupts_restore(previnterrupts);
 }

@@ -43,7 +43,7 @@ WARN_UNUSED_RESULT ssize_t ps2port_stream_op_read(
 static WARN_UNUSED_RESULT int sendandwaitack(
     struct ps2port *port, uint8_t cmd
 ) {
-    int ret = stream_putchar(&port->stream, cmd);
+    int ret = stream_put_char(&port->stream, cmd);
     if (ret < 0) {
         return ret;
     }
@@ -137,7 +137,7 @@ static int init_device(struct ps2port *port) {
     bool resetaa = false;
     bool badresponse = false;
     int ret = 0;
-    ret = stream_putchar(&port->stream, (uint8_t)PS2_CMD_RESET);
+    ret = stream_put_char(&port->stream, (uint8_t)PS2_CMD_RESET);
     if (ret < 0) {
         goto fail_bad_ret;
     }

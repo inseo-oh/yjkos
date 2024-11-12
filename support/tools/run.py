@@ -42,7 +42,7 @@ qemuargs = [
     qemuexe,
     "-m", "64M",
     "-serial", "mon:stdio",
-    # "-serial", "tcp:192.168.219.105:4000", # Don't worry it's a local IP address in network :D
+    "-serial", "tcp:0.0.0.0:6001,server,nowait",
     "-net", "none",
 ]
 

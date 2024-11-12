@@ -71,7 +71,7 @@ static void* dmalloc(int size) {
     size_t finalsize = size * 2;
     void *ptr = heap_alloc(finalsize, 0);
     if (ptr == NULL) {
-        tty_printf("[kdoom] not enough memory (Requested %d bytes)\n", size);
+        co_printf("[kdoom] not enough memory (Requested %d bytes)\n", size);
     }
     return ptr;
 }
@@ -82,11 +82,11 @@ static void dfree(void* ptr) {
 }
 
 static void dprint(const char* str) {
-    tty_printf("%s", str);
+    co_printf("%s", str);
 }
 
 static void dexit(int exitcode) {
-    tty_printf("[kdoom] exited with code %d. Halting system.\n", exitcode);
+    co_printf("[kdoom] exited with code %d. Halting system.\n", exitcode);
     arch_hcf();
     while(1) {}
 }
@@ -106,12 +106,12 @@ static void* dopen(const char* filename, const char* mode) {
     struct fd *fd;
     int ret = vfs_openfile(&fd, filename, 0);
     if (ret < 0) {
-        tty_printf(
+        co_printf(
             "[kdoom] failed to open file %s (error %d)\n",
             filename, ret);
         return NULL;
     }
-    tty_printf("[kdoom] opened file %s (fd %p)\n", filename, fd);
+    co_printf("[kdoom] opened file %s (fd %p)\n", filename, fd);
     (void)mode;
     return fd;
 }
@@ -127,7 +127,7 @@ static int dread(void* handle, void *buf, int count) {
     size_t len = count;
     ssize_t ret = vfs_readfile(handle, buf, len);
     if (ret < 0) {
-        tty_printf("[kdoom] failed to read file %p\n", handle);
+        co_printf("[kdoom] failed to read file %p\n", handle);
         // idk if returning -1 is correct behavior
         return -1;
     }
@@ -159,7 +159,7 @@ static int dseek(void* handle, int offset, doom_seek_t origin) {
     }
     int ret = vfs_seekfile(handle, offset, whence);
     if (ret < 0) {
-        tty_printf("[kdoom] failed to seek file %p\n", handle);
+        co_printf("[kdoom] failed to seek file %p\n", handle);
         // idk if returning -1 is correct behavior
         return -1;
     }
@@ -239,14 +239,8 @@ static int program_main(int argc, char *argv[]) {
         }
         fb_drawimage(newfb, SCREENWIDTH, SCREENHEIGHT, SCREENWIDTH, 0, 0);
         fb_drawrect(188, 16, 0, 0, makecolor(255, 255, 255));
-        char textbuf[] = "FPS: xx";
-        if (fps < 100) {
-            textbuf[5] = fps / 10 + '0';
-            textbuf[6] = fps % 10 + '0';
-        } else {
-            textbuf[5] = '-';
-            textbuf[6] = '-';
-        }
+        char textbuf[16];
+        snprintf(textbuf, sizeof(textbuf), "FPS: %d", fps);
         fb_drawtext(textbuf, 0, 0, makecolor(0, 0, 0));
         fb_update();
         framecount++;

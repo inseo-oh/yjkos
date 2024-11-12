@@ -12,7 +12,7 @@ static bool do_randalloc(void) {
 
 static bool do_badalloc(void) {
     bool previnterrupts = arch_interrupts_disable();
-    size_t pagecount = ~0;
+    size_t pagecount = ~0U;
     TEST_EXPECT(pmm_alloc(&pagecount) == PHYSICALPTR_NULL);
     interrupts_restore(previnterrupts);
     return true;

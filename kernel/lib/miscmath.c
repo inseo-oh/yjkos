@@ -24,15 +24,17 @@ size_t sizetoblocks(size_t size, size_t blocksize) {
     assert(blocksize != 0);
     if ((size % blocksize) == 0) {
         return size / blocksize;
-    } else {
-        return size / blocksize + 1;
     }
+    return size / blocksize + 1;
 }
 
 uint16_t uint16leat(uint8_t const *ptr) {
-    return ((uint32_t)ptr[1] << 8) | (uint32_t)ptr[0];
+    return ((uint32_t)ptr[1] << 8U) | (uint32_t)ptr[0];
 }
 
 uint32_t uint32leat(uint8_t const *ptr) {
-    return ((uint32_t)ptr[3] << 24) | ((uint32_t)ptr[2] << 16) | ((uint32_t)ptr[1] << 8) | (uint32_t)ptr[0];
+    return ((uint32_t)ptr[3] << 24U) |
+           ((uint32_t)ptr[2] << 16U) |
+           ((uint32_t)ptr[1] << 8U)  |
+           (uint32_t)ptr[0];
 }

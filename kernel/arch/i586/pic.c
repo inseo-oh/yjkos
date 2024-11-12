@@ -110,7 +110,7 @@ static void irqhandler(int trapnum, void *trapframe, void *data) {
         return;
     }
     LIST_FOREACH(&s_irqs[irqnum], handlernode) {
-        struct archi586_pic_irqhandler *handler = handlernode->data;
+        struct archi586_pic_irq_handler *handler = handlernode->data;
         assert(handler != NULL);
         handler->callback(irqnum, handler->data);
     }
@@ -141,7 +141,7 @@ void archi586_pic_init(void) {
     setirqmask(~(1 << 2));
 }
 
-void archi586_pic_registerhandler(struct archi586_pic_irqhandler *out, int irqnum, void (*callback)(int irqnum, void *data), void *data) {
+void archi586_pic_registerhandler(struct archi586_pic_irq_handler *out, int irqnum, void (*callback)(int irqnum, void *data), void *data) {
     bool previnterrupts = arch_interrupts_disable();
     out->callback = callback;
     out->data = data;

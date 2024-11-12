@@ -2,7 +2,6 @@
 #include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
-#include <kernel/panic.h>
 #include <kernel/trapmanager.h>
 #include <stdint.h>
 #include <string.h>
@@ -15,12 +14,12 @@ static uint32_t calculatechecksum(struct traphandler const *handler) {
     memcpy(&temp, handler, sizeof(temp));
     temp.checksum = 0;
     STATIC_ASSERT_TEST(sizeof(*handler) % sizeof(uint32_t) == 0);
-    uint32_t *v = (void *)&temp;
+    uint32_t *val = (void *)&temp;
     uint32_t sum = 0;
     for (size_t i = 0; i < (sizeof(*handler) / sizeof(uint32_t)); i++) {
-        sum += v[i];
+        sum += val[i];
     }
-    return ((uint32_t)~0) - sum;
+    return ((uint32_t)~0U) - sum;
 }
 
 void trapmanager_register(struct traphandler *out, int trapnum, void (*callback)(int trapnum, void *trapframe, void *data), void *data) {

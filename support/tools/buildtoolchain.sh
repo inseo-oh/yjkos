@@ -53,7 +53,7 @@ mkdir -p $BUILD_DIR
 mkdir -p $MARKERS
 
 MAKEJOBS=$(echo $MAKEFLAGS |
-    awk '{ match($0, "-j([0-9]+)", arr); print arr[1] }')
+    gawk '{ match($0, "-j([0-9]+)", arr); print arr[1] }')
 if [ -z $MAKEJOBS ]; then
     MAKEJOBS=1
 fi
@@ -250,7 +250,7 @@ fi
 if [ ! -f $MARKERS/grub.compile ]; then
     rm -f $MARKERS/grub.install
     gmake all -j $MAKEJOBS \
-        | awk '{ print "[grub.configure] "$0 }'
+        | awk '{ print "[grub.compile] "$0 }'
     touch $MARKERS/grub.compile
 fi
 if [ ! -f $MARKERS/grub.install ]; then

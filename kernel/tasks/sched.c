@@ -5,13 +5,16 @@
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
 #include <kernel/mem/heap.h>
-#include <kernel/panic.h>
 #include <kernel/tasks/mutex.h>
 #include <kernel/tasks/sched.h>
 #include <kernel/tasks/thread.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
+enum {
+    BOOT_THREAD_PRIORITY = 20
+};
 
 /*
  * Each queue has associated priority, and when selecting the next thread we 
@@ -24,76 +27,98 @@
  * priority queues are selected less than higher priority ones.
  */
 static struct list s_queues;
-static struct sched_queue *s_currentqueuenode;
+static struct sched_queue *s_current_queue_node;
 static struct thread *s_runningthread;
 static struct list s_mutexwaitthreads;
 
-static WARN_UNUSED_RESULT struct sched_queue *getqueue(int8_t priority) {
-    struct list_node *insertafter = NULL;
-    struct sched_queue *resultqueue = NULL;
-    bool shouldinsertfront = false;
-    if (s_queues.front != NULL) {
-        struct list_node *queuenode = s_queues.front;
-        struct sched_queue *queue = queuenode->data;
-        assert(queue);
-        if (priority < queue->priority) {
-            shouldinsertfront = true;
-        }
-    }
-    if (!shouldinsertfront) {
-        LIST_FOREACH(&s_queues, queuenode) {
-            struct sched_queue *queue = queuenode->data;
-            assert(queue);
-            struct list_node *nextququenode = queuenode->next;
-            // Found the queue
-            if (queue->priority == priority) {
-                resultqueue = queue;
-                break;
-            }
-            // No more queue
-            if (nextququenode == NULL) {
-                insertafter = queuenode;
-                break;
-            }
-            struct sched_queue *nextqueue = nextququenode->data;
-            assert(nextqueue);
-            // Given priority is between current and next queue's priority.
-            if ((queue->priority < priority) &&
-                (priority < nextqueue->priority))
-            {
-                insertafter = queuenode;
-                break;
-            }
-        }
-    }
+// If insert_after is NULL, queue will be inserted at front.
+static WARN_UNUSED_RESULT struct sched_queue *alloc_queue(
+    struct sched_queue *insert_after, int8_t priority)
+{
+    struct sched_queue *resultqueue = heap_alloc(
+        sizeof(*resultqueue), HEAP_FLAG_ZEROMEMORY);
     if (resultqueue == NULL) {
-        resultqueue = heap_alloc(
-            sizeof(*resultqueue), HEAP_FLAG_ZEROMEMORY);
-        if (resultqueue != NULL) {
-            resultqueue->priority = priority;
-            if (insertafter == NULL) {
-                list_insertfront(
-                    &s_queues, &resultqueue->node,
-                    resultqueue);
-            } else {
-                list_insertafter(
-                    &s_queues, insertafter,
-                    &resultqueue->node, resultqueue);
-            }
-        }
+        return NULL;
+    }
+    resultqueue->priority = priority;
+    if (insert_after == NULL) {
+        list_insertfront(
+            &s_queues, &resultqueue->node,
+            resultqueue);
+    } else {
+        list_insertafter(
+            &s_queues, &insert_after->node,
+            &resultqueue->node, resultqueue);
     }
     return resultqueue;
 }
 
-static struct sched_queue *picknextqueue(void) {
+static WARN_UNUSED_RESULT struct sched_queue *get_queue(int8_t priority) {
+    struct list_node *insert_after = NULL;
+    struct sched_queue *result_queue = NULL;
+    bool should_insert_front = false;
+    struct sched_queue *queue = list_data_or_null(s_queues.front);
+    if (queue != NULL) {
+        if (priority < queue->priority) {
+            should_insert_front = true;
+        }
+    }
+    if (!should_insert_front) {
+        LIST_FOREACH(&s_queues, queue_node) {
+            struct sched_queue *queue = queue_node->data;
+            assert(queue);
+            struct sched_queue *next_queue =
+                list_data_or_null(queue_node->next);
+            // Found the queue
+            if (queue->priority == priority) {
+                result_queue = queue;
+                break;
+            }
+            // No more queue
+            if (next_queue == NULL) {
+                insert_after = queue_node;
+                break;
+            }
+            // Given priority is between current and next queue's priority.
+            if ((queue->priority < priority) &&
+                (priority < next_queue->priority))
+            {
+                insert_after = queue_node;
+                break;
+            }
+        }
+    }
+    if (result_queue != NULL) {
+        return result_queue;
+    }
+    return alloc_queue(
+        list_data_or_null(insert_after), priority);
+}
+
+static void reset_queues(void) {
+    /*
+     * We have to reset the scheduler either because we are scheduling for
+     * the first time, or every queue ran out of opportunities.
+     */
+    // Reset opportunities.
+    size_t opportunities = 1;
+    LIST_FOREACH(&s_queues, queuenode) {
+        struct sched_queue *queue = queuenode->data;
+        assert(queue);
+        queue->opportunities = opportunities;
+        opportunities++;
+    }
+}
+
+static struct sched_queue *pick_next_queue(void) {
     struct list_node *node = NULL;
-    if (s_currentqueuenode != NULL) {
-        node = &s_currentqueuenode->node;
+    if (s_current_queue_node != NULL) {
+        node = &s_current_queue_node->node;
     }
     for (size_t i = 0; i < 2; i++) {
         for (; node != NULL; node = node->next) {
-            if ((s_currentqueuenode != NULL) &&
-                (&s_currentqueuenode->node == node))
+            if ((s_current_queue_node != NULL) &&
+                (&s_current_queue_node->node == node))
             {
                 continue;
             }
@@ -110,28 +135,46 @@ static struct sched_queue *picknextqueue(void) {
     }
 
     if (node == NULL) {
-        /*
-         * We have to reset the scheduler either because we are scheduling for
-         * the first time, or every queue ran out of opportunities.
-         */
         node = s_queues.front;
         if (node == NULL) {
             return NULL;
         }
-        // Reset opportunities.
-        size_t opportunities = 1;
-        LIST_FOREACH(&s_queues, queuenode) {
-            struct sched_queue *queue = queuenode->data;
-            assert(queue);
-            queue->opportunities = opportunities;
-            opportunities++;
-        }
+        reset_queues();
     }
     struct sched_queue *queue = node->data;
     assert(queue);
     queue->opportunities--;
-    s_currentqueuenode = queue;
+    s_current_queue_node = queue;
     return queue;
+}
+
+static struct thread *pick_next_task_from_mutex_waitlist(void) {
+    struct thread *result = NULL;
+
+    LIST_FOREACH(&s_mutexwaitthreads, threadnode) {
+        struct thread *thread = threadnode->data;
+        assert(thread->waitingmutex != NULL);
+        if (__mutex_trylock(
+            thread->waitingmutex,
+            thread->desired_locksource))
+        {
+            list_removenode(
+                &s_mutexwaitthreads, &thread->sched_listnode);
+            result = thread;
+            if (result->shutdown) {
+                co_printf(
+                    "sched: thread is about to shutdown - unlocking mutex\n");
+                mutex_unlock(thread->waitingmutex);
+            }
+            thread->waitingmutex = NULL;
+            /*
+             * Since the list was mutated inside loop, we must get out of 
+             * here
+             */
+            break;
+        }
+    }
+    return result;
 }
 
 static struct thread *picknexttask(void) {
@@ -139,42 +182,20 @@ static struct thread *picknexttask(void) {
     struct thread *result = NULL;
 
     while (1) {
-        LIST_FOREACH(&s_mutexwaitthreads, threadnode) {
-            struct thread *thread = threadnode->data;
-            assert(thread->waitingmutex != NULL);
-            if (__mutex_trylock(
-                thread->waitingmutex,
-                thread->desired_locksource.filename,
-                thread->desired_locksource.func,
-                thread->desired_locksource.line))
-            {
-                list_removenode(
-                    &s_mutexwaitthreads, &thread->sched_listnode);
-                result = thread;
-                if (result->shutdown) {
-                    co_printf(
-                        "sched: thread is about to shutdown - unlocking mutex\n");
-                    mutex_unlock(thread->waitingmutex);
+        result = pick_next_task_from_mutex_waitlist();
+        if (result == NULL) {
+            do {
+                struct sched_queue *queue = pick_next_queue();
+                if (queue == NULL) {
+                    break;
                 }
-                thread->waitingmutex = NULL;
-                /*
-                 * Since the list was mutated inside loop, we must get out of 
-                 * here
-                 */
-                break;
-            }
-        } 
-        if (result == NULL) do {
-            struct sched_queue *queue = picknextqueue();
-            if (queue == NULL) {
-                break;
-            }
-            struct list_node *node = list_removeback(&queue->threads);
-            if (node == NULL) {
-                break;
-            }
-            result = node->data;
-        } while(0);
+                struct list_node *node = list_removeback(&queue->threads);
+                if (node == NULL) {
+                    break;
+                }
+                result = node->data;
+            } while(0);
+        }
         if ((result == NULL) || (!result->shutdown)) {
             break;
         }
@@ -200,7 +221,7 @@ void sched_printqueues(void) {
 }
 
 void sched_waitmutex(
-    struct mutex *mutex, struct mutex_locksource const *locksource)
+    struct mutex *mutex, struct sourcelocation const *locksource)
 {
     assert(mutex->locked);
     bool previnterrupts = arch_interrupts_disable();
@@ -214,13 +235,14 @@ void sched_waitmutex(
         co_printf(
             "mutex is currently locked by %s:%d (%s)\n",
             mutex->locksource.filename, mutex->locksource.line,
-            mutex->locksource.func);
+            mutex->locksource.function);
         co_printf(
             "lock requested by %s:%d (%s)\n",
             locksource->filename, locksource->line,
-            locksource->func);
+            locksource->function);
         sched_printqueues();
-        while(1);
+        while(1) {
+        }
         goto out;
     }
     assert(s_runningthread != NULL);
@@ -240,7 +262,7 @@ out:
 WARN_UNUSED_RESULT int sched_queue(struct thread *thread) {
     int ret = 0;
     bool previnterrupts = arch_interrupts_disable();
-    struct sched_queue *queue = getqueue(thread->priority);
+    struct sched_queue *queue = get_queue(thread->priority);
     if (queue == NULL) {
         ret = -ENOMEM;
         goto out;
@@ -292,5 +314,5 @@ void sched_initbootthread(void) {
     s_runningthread = thread_create(
         0, NULL, NULL);
     assert(s_runningthread != NULL);
-    s_runningthread->priority = 20;
+    s_runningthread->priority = BOOT_THREAD_PRIORITY;
 }

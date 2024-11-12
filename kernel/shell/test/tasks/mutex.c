@@ -54,7 +54,8 @@ static bool do_threadsync(void) {
     ctx.cnt = 0;
     for (int i = 0; i < TEST_THREADCOUNT; i++) {
         threads[i] = thread_create(
-            1024*16, testthread, &ctx);
+            THREAD_STACK_SIZE, testthread,
+            &ctx);
         co_printf("created thread %p\n", threads[i]);
     }
     bool failed = false;

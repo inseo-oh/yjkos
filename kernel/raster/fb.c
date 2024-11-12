@@ -1,5 +1,6 @@
 #include "psf.h"
 #include "fbtty.h"
+#include <assert.h>
 #include <kernel/arch/tsc.h>
 #include <kernel/io/co.h>
 #include <kernel/lib/bitmap.h>
@@ -9,9 +10,8 @@
 #include <kernel/panic.h>
 #include <kernel/raster/fb.h>
 #include <kernel/types.h>
-#include <assert.h>
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 
 //------------------------------- Configuration -------------------------------
@@ -24,14 +24,15 @@ static bool const CONFIG_SHOW_DAMAGE = false;
 //-----------------------------------------------------------------------------
 
 fb_color makecolor(uint8_t red, uint8_t green, uint8_t blue) {
-    return (((fb_color)(red >> 3)) << 10) |
-           (((fb_color)(green >> 3)) << 5) |
-           ((fb_color)(blue >> 3));
+    return (((fb_color)(red >> 3U)) << 10U) |
+           (((fb_color)(green >> 3U)) << 5U) |
+           ((fb_color)(blue >> 3U));
 }
 
 fb_color black(void) {
     return makecolor(0, 0, 0);
 }
+
 fb_color white(void) {
     return makecolor(255, 255, 255);
 }
@@ -43,7 +44,7 @@ static int32_t s_damagelasty = -1;
 
 static fb_color *s_backbuffer;
 
-static void includedamage(int32_t from, int32_t to) {
+static void include_damage(int32_t from, int32_t to) {
     if ((s_damagefirsty == -1) || (from < s_damagefirsty)) {
         s_damagefirsty = from;
     }
@@ -59,8 +60,8 @@ void fb_drawpixel(int32_t x, int32_t y, fb_color color) {
         return;
     }
     size_t baseoffset = (y * s_width) + x;
-    ((fb_color *)s_backbuffer)[baseoffset] = color;
-    includedamage(y, y);
+    (s_backbuffer)[baseoffset] = color;
+    include_damage(y, y);
 }
 
 void fb_drawimage(
@@ -74,7 +75,7 @@ void fb_drawimage(
         srcline += pixelsperline;
         destline += s_width;
     }
-    includedamage(desty, desty + height - 1);
+    include_damage(desty, desty + height - 1);
 }
 
 void fb_drawrect(
@@ -89,7 +90,7 @@ void fb_drawrect(
         }
         destline += s_width;
     }
-    includedamage(desty, desty + height - 1);
+    include_damage(desty, desty + height - 1);
 }
 
 void fb_drawtext(char *text, int32_t destx, int32_t desty, fb_color color) {
@@ -99,13 +100,13 @@ void fb_drawtext(char *text, int32_t destx, int32_t desty, fb_color color) {
         uint8_t const *glyph = psf_getglyph(*nextchar);
         uint8_t const *srcline = glyph;
         fb_color *destline = &s_backbuffer[baseoffset];
-        for (size_t l = 0; l < psf_getheight(); l++) {
+        for (int l = 0; l < psf_getheight(); l++) {
             uint8_t const *srcpixel = srcline;
             fb_color *destpixel = destline;
             uint8_t mask = 0x80;
             for (
-                size_t c = 0; c < psf_getwidth();
-                c++, mask >>= 1, destpixel++)
+                int c = 0; c < psf_getwidth();
+                c++, mask >>= 1U, destpixel++)
             {
                 if (*srcpixel == 0) {
                     mask = 0x7f;
@@ -126,15 +127,15 @@ void fb_drawtext(char *text, int32_t destx, int32_t desty, fb_color color) {
         }
         baseoffset += psf_getwidth();
     }
-    includedamage(desty, desty + psf_getheight() - 1);
+    include_damage(desty, desty + psf_getheight() - 1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 static union {
     struct {
-        int8_t   redfieldpos,  greenfieldpos,  bluefieldpos;
-        uint32_t redmasksize,  greenmasksize,  bluemasksize;
+        int8_t redfieldpos,  greenfieldpos,  bluefieldpos;
+        int8_t redmasksize,  greenmasksize,  bluemasksize;
     } rgb;
     struct {
         uint8_t *palette;
@@ -147,28 +148,28 @@ static int32_t s_fbpitch;
 
 
 static uint32_t makenativecolor_rgb(fb_color rgb) {
-    uint32_t red   = (((rgb >> 10) & 0x1f) * 255) / 0x1f;
-    uint32_t green = (((rgb >> 5) & 0x1f) * 255) / 0x1f;
-    uint32_t blue  = ((rgb & 0x1f) * 255) / 0x1f;
+    uint32_t red   = (((rgb >> 10U) & 0x1fU) * 255) / 0x1f;
+    uint32_t green = (((rgb >> 5U) & 0x1fU) * 255) / 0x1f;
+    uint32_t blue  = ((rgb & 0x1fU) * 255) / 0x1f;
     uint32_t redshiftcount = 8 - s_colorinfo.rgb.redmasksize;
     uint32_t greenshiftcount = 8 - s_colorinfo.rgb.greenmasksize;
     uint32_t blueshiftcount = 8 - s_colorinfo.rgb.bluemasksize;
-    int8_t redfieldpos = s_colorinfo.rgb.redfieldpos;
-    int8_t greenfieldpos = s_colorinfo.rgb.greenfieldpos;
-    int8_t bluefieldpos = s_colorinfo.rgb.bluefieldpos;
-    return (((uint32_t)red)   >> redshiftcount)   << redfieldpos |
-           (((uint32_t)green) >> greenshiftcount) << greenfieldpos |
-           (((uint32_t)blue)  >> blueshiftcount)  << bluefieldpos;
+    uint8_t redfieldpos = s_colorinfo.rgb.redfieldpos;
+    uint8_t greenfieldpos = s_colorinfo.rgb.greenfieldpos;
+    uint8_t bluefieldpos = s_colorinfo.rgb.bluefieldpos;
+    return ((red)   >> redshiftcount)   << redfieldpos |
+           ((green) >> greenshiftcount) << greenfieldpos |
+           ((blue)  >> blueshiftcount)  << bluefieldpos;
 }
 
 static uint32_t makenativecolor_indexed(fb_color rgb) {
     static int s_lastavg = -1;
     static int s_lastcolor = -1;
 
-    int red   = ((rgb >> 10) & 0x1f) << 3;
-    int green = ((rgb >> 5) & 0x1f) << 3;
-    int blue  = (rgb & 0x1f) << 3;
-    int avgcolor = (red + green + blue) / 3;
+    uint red   = ((rgb >> 10U) & 0x1fU) << 3U;
+    uint green = ((rgb >> 5U) & 0x1fU) << 3U;
+    uint blue  = (rgb & 0x1fU) << 3U;
+    int avgcolor = (int)((red + green + blue) / 3);
     if (s_lastavg == avgcolor) {
         return s_lastcolor;
     }
@@ -261,7 +262,7 @@ static void update24(void) {
 
     fb_color *srcpixel = &s_backbuffer[s_damagefirsty * s_width];
     uint8_t *destline = &((uint8_t *)s_fbbase)[s_damagefirsty * s_fbpitch];
-    int32_t lastcolor = -1;
+    uint32_t lastcolor = -1;
     uint32_t lastnativecolor = -1;
 
     for (int32_t srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
@@ -270,17 +271,17 @@ static void update24(void) {
             int32_t srcx = 0; srcx < s_width;
             srcx++, srcpixel++, destpixel += 3)
         {
-            int32_t color = *srcpixel;
+            uint32_t color = *srcpixel;
             if (color == lastcolor) {
                 destpixel[0] = lastnativecolor;
-                destpixel[1] = lastnativecolor >> 8;
-                destpixel[2] = lastnativecolor >> 16;
+                destpixel[1] = lastnativecolor >> 8U;
+                destpixel[2] = lastnativecolor >> 16U;
             } else {
                 lastnativecolor = makenativecolor_rgb(color);
                 lastcolor = color;
                 destpixel[0] = lastnativecolor;
-                destpixel[1] = lastnativecolor >> 8;
-                destpixel[2] = lastnativecolor >> 16;
+                destpixel[1] = lastnativecolor >> 8U;
+                destpixel[2] = lastnativecolor >> 16U;
             }
         }
         destline += s_fbpitch;
@@ -377,7 +378,7 @@ static void update1(void) {
     }
     fb_color *srcpixel = &s_backbuffer[s_damagefirsty * s_width];
     uint8_t *destline = &((uint8_t *)s_fbbase)[s_damagefirsty * s_fbpitch];
-    int32_t lastcolor = -1;
+    uint32_t lastcolor = -1;
     uint32_t lastnativecolor = -1;
 
     if (CONFIG_SHOW_DAMAGE) {
@@ -393,22 +394,22 @@ static void update1(void) {
     for (int32_t srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
         uint8_t temppixeldata = 0;
         for (int32_t x = 0; x < s_width; x++, srcpixel++) {
-            int32_t color = *srcpixel;
+            uint32_t color = *srcpixel;
             uint32_t resultcolor;
             if (color == lastcolor) {
                 resultcolor = lastnativecolor;
             } else {
-                int red   = ((color >> 10) & 0x1f) << 3;
-                int green = ((color >> 5) & 0x1f) << 3;
-                int blue  = (color & 0x1f) << 3;
-                int avg = (red + green + blue) / 3;
+                uint red   = ((color >> 10U) & 0x1fU) << 3U;
+                uint green = ((color >> 5U) & 0x1fU) << 3U;
+                uint blue  = (color & 0x1fU) << 3U;
+                uint avg = (red + green + blue) / 3;
                 lastnativecolor = 128 <= avg;
                 lastcolor = color;
                 resultcolor = lastnativecolor;
             }
-            temppixeldata <<= 1;
+            temppixeldata <<= 1U;
             if (resultcolor) {
-                temppixeldata |= 1;
+                temppixeldata |= 1U;
             }
             if ((x + 1) % 8 == 0) {
                 destline[x / 8] = temppixeldata;

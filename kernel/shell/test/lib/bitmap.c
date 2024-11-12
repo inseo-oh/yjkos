@@ -1,13 +1,14 @@
 #include "../test.h"
 #include <kernel/lib/bitmap.h>
+#include <kernel/types.h>
 
 static bool do_makebitmask(void) {
     TEST_EXPECT(makebitmask(0, 0) == 0);
     TEST_EXPECT(makebitmask(1, 0) == 0);
-    TEST_EXPECT(makebitmask(1, 1) == (0x1 << 1));
-    TEST_EXPECT(makebitmask(2, 2) == (0x3 << 2));
-    TEST_EXPECT(makebitmask(12, 3) == (0x7 << 12));
-    TEST_EXPECT(makebitmask(29, 3) == (0x7UL << 29));
+    TEST_EXPECT(makebitmask(1, 1) == (0x1U << 1U));
+    TEST_EXPECT(makebitmask(2, 2) == (0x3U << 2U));
+    TEST_EXPECT(makebitmask(12, 3) == (0x7U << 12U));
+    TEST_EXPECT(makebitmask(29, 3) == (0x7UL << 29U));
     return true;
 }
 
@@ -162,9 +163,11 @@ static struct test const TESTS[] = {
     { .name = "clearbits",             .fn = do_clearbits             },
 };
 
+
 const struct testgroup TESTGROUP_BITMAP = {
     .name = "bitmap",
     .tests = TESTS,
     .testslen = sizeof(TESTS)/sizeof(*TESTS),
 };
+
 

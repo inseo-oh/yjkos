@@ -4,18 +4,18 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-static uint const WORD_ALL_ONES = ~0;
+static uint const WORD_ALL_ONES = ~0U;
 
 static long findfirstsetbit(uint word, long startpos) {
     if ((startpos < 0) || ((long)BITS_PER_WORD <= startpos)) {
         return -1;
     }
-    uint shifted = word >> startpos;
+    uint shifted = word >> (uint)startpos;
     if (shifted == 0) {
         return -1;
     }
     long index = startpos;
-    for (; (shifted & 1) == 0; shifted >>= 1, index++) {
+    for (; (shifted & 1U) == 0; shifted >>= 1U, index++) {
         if (index == (BITS_PER_WORD - 1)) {
             return -1;
         }
@@ -30,12 +30,12 @@ static long findlastcontiguousbit(uint word, long startpos) {
     if (word == WORD_ALL_ONES) {
         return BITS_PER_WORD - 1;
     }
-    uint shifted = word >> startpos;
-    if ((shifted & 0x1) == 0) {
+    uint shifted = word >> (uint)startpos;
+    if ((shifted & 0x1U) == 0) {
         return -1;
     }
     long index = startpos;
-    for (; (shifted & 1) != 0; shifted >>= 1, index++) {}
+    for (; (shifted & 1U) != 0; shifted >>= 1U, index++) {}
     return index - 1;
 }
 
@@ -55,11 +55,14 @@ long bitmap_findfirstsetbit(struct bitmap *self, long startpos) {
         return -1;
     }
     size_t startwordidx = startpos / BITS_PER_WORD;
-    size_t bitoffset = startpos % BITS_PER_WORD;
-    for (size_t wordidx = startwordidx; wordidx < self->wordcount; wordidx++, bitoffset = 0) {
+    long bitoffset = startpos % (long)BITS_PER_WORD;
+    for (
+        size_t wordidx = startwordidx; wordidx < self->wordcount;
+        wordidx++, bitoffset = 0)
+    {
         long idx = findfirstsetbit(self->words[wordidx], bitoffset);
         if (0 <= idx) {
-            return (wordidx * BITS_PER_WORD) + idx;
+            return (long)(wordidx * BITS_PER_WORD) + idx;
         }
     }
     return -1;
@@ -70,24 +73,27 @@ long bitmap_findlastcontiguousbit(struct bitmap *self, long startpos) {
         return -1;
     }
     size_t startwordidx = startpos / BITS_PER_WORD;
-    size_t bitoffset = startpos % BITS_PER_WORD;
+    long bitoffset = startpos % (long)BITS_PER_WORD;
     if (self->wordcount <= startwordidx) {
         return -1;
     }
-    for (size_t wordidx = startwordidx; wordidx < self->wordcount; wordidx++, bitoffset = 0) {
+    for (size_t wordidx = startwordidx; wordidx < self->wordcount;
+        wordidx++, bitoffset = 0)
+    {
         long idx = findlastcontiguousbit(self->words[wordidx], bitoffset);
         if (idx < 0) {
             return -1;
-        } else if (
+        }
+        if (
             // We found 1 before the MSB
             (idx != (BITS_PER_WORD - 1)) ||
             // We found 1 at MSB, and it doesn't continue on the next word.
-            ((idx == (BITS_PER_WORD - 1)) && ((wordidx + 1) < self->wordcount) && ((self->words[wordidx + 1] & 0x1) == 0))
+            ((idx == (BITS_PER_WORD - 1)) && ((wordidx + 1) < self->wordcount) && ((self->words[wordidx + 1] & 0x1U) == 0))
         ) {
-            return (wordidx * BITS_PER_WORD) + idx;
+            return (long)(wordidx * BITS_PER_WORD) + idx;
         }
     }
-    return (self->wordcount * BITS_PER_WORD) - 1;
+    return (long)(self->wordcount * BITS_PER_WORD) - 1;
 }
 
 long bitmap_findsetbits(struct bitmap *self, long startpos, size_t minlen) {

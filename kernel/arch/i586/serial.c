@@ -6,6 +6,7 @@
 #include <kernel/lib/diagnostics.h>
 #include <kernel/io/stream.h>
 #include <kernel/io/co.h>
+#include <kernel/io/tty.h>
 #include <kernel/trapmanager.h>
 #include <kernel/types.h>
 #include <errno.h>
@@ -248,8 +249,8 @@ WARN_UNUSED_RESULT int archi586_serial_init(
     uint8_t irq)
 {
     memset(out, 0, sizeof(*out));
-    out->stream.data = out;
-    out->stream.ops = &OPS;
+    out->tty.stream.data = out;
+    out->tty.stream.ops = &OPS;
     out->baseaddr = baseaddr;
     out->masterclock = masterclock;
     out->irq = irq;
@@ -287,4 +288,6 @@ void archi586_serial_useirq(struct archi586_serial *self) {
     self->useirq = true;
 }
 
-
+WARN_UNUSED_RESULT int archi586_serial_initiodev(struct archi586_serial *self) {
+    return tty_register(&self->tty, self);
+}

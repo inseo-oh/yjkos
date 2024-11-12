@@ -1,6 +1,6 @@
 #include "../test.h"
-#include <unistd.h>
 #include <string.h>
+#include <unistd.h>
 
 static bool do_getopt(void) {
     opterr = 0;

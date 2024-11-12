@@ -10,7 +10,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-static WARN_UNUSED_RESULT size_t measuredec_unsigned(uint32_t i) {
+static WARN_UNUSED_RESULT size_t measure_dec_unsigned(uint32_t i) {
     size_t len = 0;
     ulong divisor = 1;
     {
@@ -26,18 +26,19 @@ static WARN_UNUSED_RESULT size_t measuredec_unsigned(uint32_t i) {
     return len;
 }
 
-static WARN_UNUSED_RESULT size_t measuredec_signed(int64_t i) {
+static WARN_UNUSED_RESULT size_t measure_dec_signed(int64_t i) {
     size_t len = 0;
     if (i < 0) {
         len++;
         i = -i;
     }
-    return len + measuredec_unsigned(i);
+    return len + measure_dec_unsigned(i);
 }
 
-static WARN_UNUSED_RESULT ssize_t printdec_unsigned(
-    struct stream *self, uint64_t i) {
-    size_t writtencount = 0;
+static WARN_UNUSED_RESULT ssize_t print_dec_unsigned(
+    struct stream *self, uint64_t i)
+{
+    size_t written_count = 0;
     ulong divisor = 1;
     {
         ulong current = i;
@@ -48,32 +49,33 @@ static WARN_UNUSED_RESULT ssize_t printdec_unsigned(
     }
     for (; divisor; divisor /= 10) {
         int digit = (i / divisor) % 10;
-        int result = stream_putchar(self, '0' + digit);
+        int result = stream_put_char(self, '0' + digit);
         if (result < 0) {
             return result;
         }
-        writtencount++;
+        written_count++;
     }
-    return writtencount;
+    return (ssize_t)written_count;
 }
 
-static WARN_UNUSED_RESULT ssize_t printdec_signed(
-    struct stream *self, int64_t i) {
-    size_t writtencount = 0;
+static WARN_UNUSED_RESULT ssize_t print_dec_signed(
+    struct stream *self, int64_t i)
+{
+    size_t written_count = 0;
     if (i < 0) {
-        int result = stream_putchar(self, '-');
+        int result = stream_put_char(self, '-');
         if (result < 0) {
             return result;
         }
-        writtencount++;
+        written_count++;
         i = -i;
     }
-    ssize_t result = printdec_unsigned(self, i);
+    ssize_t result = print_dec_unsigned(self, i);
     if (result < 0) {
         return result;
     }
-    writtencount += result;
-    return writtencount;
+    written_count += result;
+    return (ssize_t)written_count;
 }
 
 static size_t measurehex(ulong i) {
@@ -92,10 +94,10 @@ static size_t measurehex(ulong i) {
     return len;
 }
 
-static WARN_UNUSED_RESULT ssize_t printhex(struct stream *self,
+static WARN_UNUSED_RESULT ssize_t print_hex(struct stream *self,
     ulong i, bool uppercase
 ) {
-    size_t writtencount = 0;
+    size_t written_count = 0;
     char a = uppercase ? 'A' : 'a';
     ulong divisor = 1;
     {
@@ -109,19 +111,19 @@ static WARN_UNUSED_RESULT ssize_t printhex(struct stream *self,
         int digit = (i / divisor) % 16;
         int result;
         if (digit < 10) {
-            result = stream_putchar(self, '0' + digit);
+            result = stream_put_char(self, '0' + digit);
         } else {
-            result = stream_putchar(self, a + (digit - 10));
+            result = stream_put_char(self, a + (digit - 10));
         }
         if (result < 0) {
             return result;
         }
-        writtencount++;
+        written_count++;
     }
-    return writtencount;
+    return (ssize_t)written_count;
 }
 
-WARN_UNUSED_RESULT int stream_putchar(struct stream *self, char c) {
+WARN_UNUSED_RESULT int stream_put_char(struct stream *self, int c) {
     ssize_t result = self->ops->write(self, &c, 1);
     if (result < 0) {
         return result;
@@ -132,23 +134,23 @@ WARN_UNUSED_RESULT int stream_putchar(struct stream *self, char c) {
 
 WARN_UNUSED_RESULT ssize_t stream_putstr(struct stream *self, char const *s) {
     if (!s) {
-        return stream_putstr(self, "<null>");
+        s = "<null>";
     }
-    size_t writtencount = 0;
+    size_t written_count = 0;
     for (
         char const *nextchar = s; *nextchar != '\0';
-        nextchar++, writtencount++
+        nextchar++, written_count++
     ) {
-        int result = stream_putchar(self, *nextchar);
+        int result = stream_put_char(self, *nextchar);
         if (result < 0) {
             return result;
         }
     }
-    return writtencount;
+    return (ssize_t)written_count;
 }
 
-static uint8_t const FMTFLAG_ALTERNATEFORM    = 1 << 0;
-static uint8_t const FMTFLAG_MINWIDTH_PRESENT = 1 << 1;
+static uint8_t const FMTFLAG_ALTERNATEFORM    = 1U << 0U;
+static uint8_t const FMTFLAG_MINWIDTH_PRESENT = 1U << 1U;
 
 enum lenmod {
     LENMOD_INT,
@@ -161,15 +163,17 @@ enum lenmod {
     LENMOD_PTRDIFF,
 };
 
-WARN_UNUSED_RESULT ssize_t stream_vprintf(
-    struct stream *self, char const *fmt, va_list ap
+WARN_UNUSED_RESULT ssize_t
+stream_vprintf( // NOLINT(readability-function-cognitive-complexity)
+    struct stream *self, char const *fmt,
+    va_list ap // NOLINT(readability-non-const-parameter)
 ) {
     uint8_t flags;
     char padchar;
     enum lenmod lenmod;
     uint32_t minwidth;
     size_t measureresult;
-    size_t writtencount = 0;
+    size_t written_count = 0;
     ssize_t ret;
 
 percentorchar:
@@ -184,11 +188,11 @@ percentorchar:
         padchar = ' ';
         goto fmtflag;
     }
-    ret = stream_putchar(self, fmt[0]);
+    ret = stream_put_char(self, fmt[0]);
     if (ret < 0) {
         return ret;
     }
-    writtencount++;
+    written_count++;
     fmt++;
     goto percentorchar;
 fmtflag:
@@ -205,6 +209,8 @@ fmtflag:
             padchar = '0';
             goto fmtflag;
         // TODO: -, <space>, +, 
+        default:
+            break;
     }
     goto fmtminwidth;
 fmtminwidth:
@@ -258,6 +264,8 @@ fmtlenmod:
             fmt++;
             lenmod = LENMOD_SIZE;
             break;
+        default:
+            break;
     }
     goto doformat;
 doformat:
@@ -265,13 +273,19 @@ doformat:
         goto end;
     }
     switch(fmt[0]) {
+        /*
+         * NOLINT is used here because clang-tidy sees multiple types as the 
+         * same underlying type, but those are platform-dependent types.
+         * So it makes sense to ignore it here.
+         */
+        // NOLINTBEGIN(bugprone-branch-clone)
         case 'c': {
             char c = va_arg(ap, int);
-            ret = stream_putchar(self, c);
+            ret = stream_put_char(self, c);
             if (ret < 0) {
                 return ret;
             }
-            writtencount++;
+            written_count++;
             break;
         }
         case 's': {
@@ -280,7 +294,7 @@ doformat:
             if (ret < 0) {
                 return ret;
             }
-            writtencount += ret;
+            written_count += ret;
             break;
         }
         case 'd': {
@@ -303,25 +317,25 @@ doformat:
                 case LENMOD_INTMAX:
                     val = va_arg(ap, uintmax_t);
                     break;
-              case LENMOD_PTRDIFF:
-                    val = va_arg(ap, ptrdiff_t);
-                    break;
+                case LENMOD_PTRDIFF:
+                        val = va_arg(ap, ptrdiff_t);
+                        break;
             }
             if (flags & FMTFLAG_MINWIDTH_PRESENT) {
-                measureresult = measuredec_signed(val);
+                measureresult = measure_dec_signed(val);
                 for (size_t i = measureresult; i < minwidth; i++) {
-                    ret = stream_putchar(self, padchar);
+                    ret = stream_put_char(self, padchar);
                     if (ret < 0) {
                         return ret;
                     }
-                    writtencount += ret;
+                    written_count += ret;
                 }
             }
-            ret = printdec_signed(self, val);
+            ret = print_dec_signed(self, val);
             if (ret < 0) {
                 return ret;
             }
-            writtencount += ret;
+            written_count += ret;
             break;
         }
         case 'u': {
@@ -349,20 +363,20 @@ doformat:
                     break;
             }
             if (flags & FMTFLAG_MINWIDTH_PRESENT) {
-                measureresult = measuredec_unsigned(val);
+                measureresult = measure_dec_unsigned(val);
                 for (size_t i = measureresult; i < minwidth; i++) {
-                    ret = stream_putchar(self, padchar);
+                    ret = stream_put_char(self, padchar);
                     if (ret < 0) {
                         return ret;
                     }
-                    writtencount += ret;
+                    written_count += ret;
                 }
             }
-            ret = printdec_unsigned(self, val);
+            ret = print_dec_unsigned(self, val);
             if (ret < 0) {
                 return ret;
             }
-            writtencount += ret;
+            written_count += ret;
             break;
         }
         case 'x':
@@ -404,22 +418,22 @@ doformat:
                 if (ret < 0) {
                     return ret;
                 }
-                writtencount += ret;
+                written_count += ret;
             }
             if (flags & FMTFLAG_MINWIDTH_PRESENT) {
                 for (size_t i = measureresult; i < minwidth; i++) {
-                    ret = stream_putchar(self, padchar);
+                    ret = stream_put_char(self, padchar);
                     if (ret < 0) {
                         return ret;
                     }
-                    writtencount += ret;
+                    written_count += ret;
                 }
             }
-            ret = printhex(self, val, isuppercase);
+            ret = print_hex(self, val, isuppercase);
             if (ret < 0) {
                 return ret;
             }
-            writtencount += ret;
+            written_count += ret;
             break;
         }
         case 'p': {
@@ -428,26 +442,27 @@ doformat:
             if (ret < 0) {
                 return ret;
             }
-            writtencount += ret;
-            ret = printhex(self, (uintptr_t)p, false);
+            written_count += ret;
+            ret = print_hex(self, (uintptr_t)p, false);
             if (ret < 0) {
                 return ret;
             }
-            writtencount += ret;
+            written_count += ret;
             break;
         }
+        // NOLINTEND(bugprone-branch-clone)
         default:
-            ret = stream_putchar(self, fmt[0]);
+            ret = stream_put_char(self, fmt[0]);
             if (ret < 0) {
                 return ret;
             }
-            writtencount += ret;
+            written_count += ret;
             break;
     }
     fmt++;
     goto percentorchar;
 end:
-    return writtencount;
+    return (ssize_t)written_count;
 }
 
 ssize_t stream_printf(struct stream *self, char const *fmt, ...) {
@@ -474,7 +489,8 @@ int stream_waitchar(struct stream *self, ticktime timeout) {
         size = self->ops->read(self, &chr, 1);
         if (size < 0) {
             return size;
-        } else if (size != 0) {
+        }
+        if (size != 0) {
             break;
         }
     }

@@ -1,7 +1,7 @@
 
-#include <unistd.h>
-#include <string.h>
 #include <stdbool.h>
+#include <string.h>
+#include <unistd.h>
 #ifdef YJKERNEL_SOURCE
 #include <kernel/io/co.h>
 #else
@@ -59,14 +59,14 @@ int getopt(int argc, char * const argv[], const char *optstring) {
             }
             continue;
         }
-        resultopt = optchar;
+        resultopt = (int)optchar;
         if (hasargs) {
             if (argopt[1] == '\0') {
                 if ((argc - optind) < 2) {
                     getopt_nextarg();
                     resultopt = ':';
                     errmsg = "option requires an argument";
-                    optopt = optchar;
+                    optopt = (int)optchar;
                     goto error;
                 }
                 optarg = argv[optind + 1];
@@ -78,26 +78,25 @@ int getopt(int argc, char * const argv[], const char *optstring) {
                     getopt_nextarg();
                     resultopt = ':';
                     errmsg = "option requires an argument";
-                    optopt = optchar;
+                    optopt = (int)optchar;
                     goto error;
                 }
                 getopt_nextarg();
             }
             break;
-        } else {
-            s_nextcharidx++;
-            if (argopt[1] == '\0') {
-                getopt_nextarg();
-            }
-            break;
         }
+        s_nextcharidx++;
+        if (argopt[1] == '\0') {
+            getopt_nextarg();
+        }
+        break;
     }
     if (resultopt == '?') {
         if (optind == argc) {
             return -1;
         }
         errmsg = "invalid option";
-        optopt = *argopt;
+        optopt = (unsigned char)*argopt;
         s_nextcharidx++;
         if (argopt[1] == '\0') {
             getopt_nextarg();

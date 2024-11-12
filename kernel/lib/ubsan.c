@@ -52,13 +52,19 @@ static void printtypedescriptor(struct typedescriptor const *desc) {
     }
     switch(desc->typekind) {
         case UBSAN_KIND_INTEGER:
-            co_printf("(int %c%u) %s", (desc->typeinfo & 1) ? 's' : 'u', 1 << (desc->typeinfo >> 1), desc->typename);
+            co_printf(
+                "(int %c%u) %s",
+                (desc->typeinfo & 1U) ? 's' : 'u',
+                1U << (desc->typeinfo >> 1U), desc->typename);
             break;
         case UBSAN_KIND_FLOAT:
             co_printf("(f%u) %s", desc->typeinfo, desc->typename);
             break;
         case UBSAN_KIND_BIGINT:
-            co_printf("(bigint %c%u) %s", (desc->typeinfo & 1) ? 's' : 'u', 1 << (desc->typeinfo >> 1), desc->typename);
+            co_printf(
+                "(bigint %c%u) %s",
+                (desc->typeinfo & 1U) ? 's' : 'u',
+                1U << (desc->typeinfo >> 1U), desc->typename);
             break;
     }
 }

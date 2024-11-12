@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <kernel/lib/list.h>
 #include <stddef.h>
 #include <string.h>
@@ -32,7 +33,10 @@ void list_insertback(struct list *list, struct list_node *node, void *data) {
     }
 }
 
-void list_insertafter(struct list *list, struct list_node *after, struct list_node *node, void *data) {
+void list_insertafter(
+    struct list *list, struct list_node *after, struct list_node *node,
+    void *data)
+{
     node->prev = after;
     node->next = after->next;
     node->data = data;
@@ -45,7 +49,10 @@ void list_insertafter(struct list *list, struct list_node *after, struct list_no
     }
 }
 
-void list_insertbefore(struct list *list, struct list_node *before, struct list_node *node, void *data) {
+void list_insertbefore(
+    struct list *list, struct list_node *before, struct list_node *node,
+    void *data)
+{
     node->next = before;
     node->prev = before->prev;
     node->data = data;
@@ -103,4 +110,12 @@ void list_removenode(struct list *list, struct list_node *node) {
         list->front = NULL;
         list->back = NULL;
     }
+}
+
+void *list_data_or_null(struct list_node *node) {
+    if (node == NULL) {
+        return NULL;
+    }
+    assert(node->data);
+    return node->data;
 }

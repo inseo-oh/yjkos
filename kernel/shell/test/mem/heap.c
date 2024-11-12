@@ -9,7 +9,7 @@ static bool do_randalloc(void) {
 
 static bool do_badalloc(void) {
     TEST_EXPECT(heap_alloc(0, 0) == NULL);
-    TEST_EXPECT(heap_alloc(~0, 0) == NULL);
+    TEST_EXPECT(heap_alloc(~0U, 0) == NULL);
     return true;
 }
 

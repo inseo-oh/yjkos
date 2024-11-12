@@ -1,6 +1,6 @@
+#include <errno.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/queue.h>
-#include <errno.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -27,7 +27,7 @@ WARN_UNUSED_RESULT int __queue_enqueue(
         return -ENOMEM;
     }
     size_t enqueueindex = (self->enqueueindex + 1) % self->cap;
-    memcpy((void *)(((uintptr_t)self->buf) + (self->enqueueindex * itemsize)), data, itemsize);
+    memcpy((((char *)self->buf) + (self->enqueueindex * itemsize)), data, itemsize);
     self->enqueueindex = enqueueindex;
     self->lastwasenqueue = true;
     return 0;
@@ -41,7 +41,9 @@ WARN_UNUSED_RESULT bool __queue_dequeue(
         return false;
     }
     size_t dequeueindex = (self->dequeueindex + 1) % self->cap;
-    memcpy(out_buf, (void *)(((uintptr_t)self->buf) + (self->dequeueindex * itemsize)), itemsize);
+    memcpy(
+        out_buf,
+        ((char *)self->buf) + (self->dequeueindex * itemsize),itemsize);
     self->dequeueindex = dequeueindex;
     self->lastwasenqueue = false;
     return true;
@@ -52,5 +54,5 @@ WARN_UNUSED_RESULT void *queue_peek(struct queue const *self, size_t itemsize) {
     if (queue_isempty(self)) {
         return NULL;
     }
-    return (void *)(((uintptr_t)self->buf) + (self->dequeueindex * itemsize));
+    return ((char *)self->buf) + (self->dequeueindex * itemsize);
 }

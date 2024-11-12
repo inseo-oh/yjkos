@@ -1,8 +1,8 @@
 #include <assert.h>
 #include <kernel/arch/interrupts.h>
+#include <kernel/io/co.h>
 #include <kernel/io/iodev.h>
 #include <kernel/io/kbd.h>
-#include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
 #include <kernel/lib/queue.h>
@@ -20,17 +20,16 @@ static bool const CONFIG_PRINT_KEYS = false;
 
 // NOTE: Use eventqueue() instead, which initializes the queue if it wasn't.
 static struct queue s_eventqueue;
-static struct kbd_keyevent s_eventqueue_buf[500]; // 500 should be more than enough
+// 500 should be more than enough
+static struct kbd_keyevent s_eventqueue_buf[500];
 static struct list s_keyboardlist;
 static uint16_t s_flags;
 // TODO: Use bitmap instead?
 static bool s_keysdown[KBD_KEY_COUNT];
 
-enum {
-    KEYMAP_FLAG_SHIFT    = 1 << 0,
-    KEYMAP_FLAG_CAPSLOCK = 1 << 1,
-    KEYMAP_FLAG_NUMLOCK  = 1 << 2,
-};
+#define KEYMAP_FLAG_SHIFT    1U << 0U
+#define KEYMAP_FLAG_CAPSLOCK 1U << 1U
+#define KEYMAP_FLAG_NUMLOCK  1U << 2U
 
 struct keymapentry {
     enum kbd_key keyalt;

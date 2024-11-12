@@ -1,13 +1,11 @@
 #include "shell.h"
-#include <dirent.h>
+#include <kernel/fs/vfs.h>
+#include <kernel/io/co.h>
+#include <kernel/lib/diagnostics.h>
 #include <stdint.h>
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <kernel/fs/vfs.h>
-#include <kernel/io/co.h>
-#include <kernel/lib/diagnostics.h>
-#include <kernel/mem/heap.h>
 
 // https://pubs.opengroup.org/onlinepubs/9799919799/utilities/ls.html
 
@@ -33,6 +31,8 @@ static WARN_UNUSED_RESULT bool getopts(
             case ':':
                 ok = false;
                 break;
+            default:
+                assert(false);
         }
     }
     return ok;
@@ -42,7 +42,7 @@ static void showfile(
     char const *progname, char const *path, struct opts const *opts)
 {
     (void)opts;
-    struct fd *fd;
+    struct fd *fd = NULL;
     ssize_t ret = vfs_openfile(&fd, path, 0);
     if (ret < 0) {
         co_printf(
@@ -55,7 +55,8 @@ static void showfile(
         ret = vfs_readfile(fd, buf, sizeof(buf));
         if (ret == 0) {
             break;
-        } else if (ret < 0) {
+        }
+        if (ret < 0) {
             co_printf(
                 "%s: failed to read file %s (error %d)\n",
                 progname, path, ret);

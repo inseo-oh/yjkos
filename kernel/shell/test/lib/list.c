@@ -138,7 +138,7 @@ static bool do_insertbefore(void) {
 static bool do_removefront(void) {
     struct list lst;
     struct list_node nodes[3];
-    struct list_node *removednode;
+    struct list_node *removednode = NULL;
 
     memset(nodes, 0x55, sizeof(nodes));
     list_init(&lst);
@@ -176,7 +176,7 @@ static bool do_removefront(void) {
 static bool do_removeback(void) {
     struct list lst;
     struct list_node nodes[3];
-    struct list_node *removednode;
+    struct list_node *removednode = NULL;
 
     memset(nodes, 0x55, sizeof(nodes));
     list_init(&lst);

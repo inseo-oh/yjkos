@@ -23,6 +23,7 @@ struct vt100tty_ops {
     void (*scroll)(struct vt100tty *self, int scrolllen);
 };
 
+// TODO: Update to work with new TTY subsystem.
 struct vt100tty {
     struct stream stream;
     struct vt100tty_lineinfo *lineinfos;

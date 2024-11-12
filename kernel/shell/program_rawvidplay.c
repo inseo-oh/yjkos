@@ -1,9 +1,9 @@
 #include "shell.h"
 #include <assert.h>
 #include <kernel/fs/vfs.h>
-#include <kernel/io/stream.h>
 #include <kernel/io/co.h>
 #include <kernel/raster/fb.h>
+#include <stddef.h>
 
 enum {
     FRAME_SIZE = 640 * 480 * 2
@@ -15,7 +15,7 @@ static int program_main(int argc, char *argv[]) {
         co_printf("usage: rawvidplay <rawvideo file>\n");
         return 1;
     }
-    struct fd *fd;
+    struct fd *fd = NULL;
     int ret = vfs_openfile(&fd, argv[1], 0);
     if (ret < 0) {
         co_printf("can't open file\n");

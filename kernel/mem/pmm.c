@@ -4,7 +4,6 @@
 #include <kernel/io/co.h>
 #include <kernel/lib/bitmap.h>
 #include <kernel/lib/diagnostics.h>
-#include <kernel/lib/miscmath.h>
 #include <kernel/lib/pstring.h>
 #include <kernel/mem/heap.h>
 #include <kernel/mem/pmm.h>
@@ -87,10 +86,12 @@ static void calculate_pagepoolsizes(size_t *pagecount_out, size_t *levelcount_ou
     *bitcount_out = bitcount;
 }
 
-static void bitindicesrange_for_level(long *start_out, long *end_out, size_t level) {
-    size_t blockinlevel = 1;
+static void bitindicesrange_for_level(
+    long *start_out, long *end_out, size_t level)
+{
     size_t currentlevel = 0;
-    size_t bitoffset = 0;
+    long blockinlevel = 1;
+    long bitoffset = 0;
     while (currentlevel < level) {
         bitoffset += blockinlevel;
         blockinlevel *= 2;
@@ -100,15 +101,17 @@ static void bitindicesrange_for_level(long *start_out, long *end_out, size_t lev
     *end_out = bitoffset + blockinlevel - 1;
 }
 
-static long bitindex_for_pagepoolblock(size_t level, size_t block) {
-    long start, end;
+static long bitindex_for_pagepool_block(size_t level, size_t block) {
+    long start = 0;
+    long end = 0;
     bitindicesrange_for_level(&start, &end, level);
     size_t blocksinlevel = end - start + 1;
     assert(block < blocksinlevel);
-    return start + block;
+    return start + (long)block;
 }
 
-static size_t blocksize_to_pagepoollevel(struct pagepool const *pool, size_t size) {
+static size_t blocksize_to_pagepool_level(
+    struct pagepool const *pool, size_t size) {
     size_t sizeperblock = pool->pagecount;
     size_t currentlevel = 0;
     while (size < sizeperblock) {
@@ -137,36 +140,37 @@ static physptr allocfrompool(struct pagepool *pool, size_t *pagecount_inout) {
         goto fail_oom;
     }
     *pagecount_inout = blocksize;
-    size_t wantedlevel = blocksize_to_pagepoollevel(pool, blocksize);
-    size_t foundlevel = wantedlevel;
-    size_t foundblockindex;
+    size_t wanted_level = blocksize_to_pagepool_level(pool, blocksize);
+    size_t found_level = wanted_level;
+    size_t found_blockindex = 0;
     while(1) {
-        long bitstart, bitend;
-        bitindicesrange_for_level(&bitstart, &bitend, foundlevel);
+        long bitstart = 0;
+        long bitend = 0;
+        bitindicesrange_for_level(&bitstart, &bitend, found_level);
         long foundat = bitmap_findsetbits(&pool->bitmap, bitstart, 1);
         if (0 <= foundat && foundat <= bitend) {
             // Found block
-            foundblockindex = foundat - bitstart;
+            found_blockindex = foundat - bitstart;
             break;
         }
-        if (foundlevel == 0) {
+        if (found_level == 0) {
             goto fail_oom;
         }
-        foundlevel--;
+        found_level--;
     }
     // If we found block at lower level, split blocks until we reach there.
-    size_t currentblockindex = foundblockindex;
-    for (size_t currentlevel = foundlevel; currentlevel < wantedlevel; currentlevel++, currentblockindex *= 2) {
+    size_t currentblockindex = found_blockindex;
+    for (size_t currentlevel = found_level; currentlevel < wanted_level; currentlevel++, currentblockindex *= 2) {
         // Mark current one as unavilable.
-        long bitindex = bitindex_for_pagepoolblock(currentlevel, currentblockindex);
+        long bitindex = bitindex_for_pagepool_block(currentlevel, currentblockindex);
         bitmap_clearbit(&pool->bitmap, bitindex);
         // Mark upper block's second block as available.
         // (First block will be marked as unavailable next time, so don't touch that)
-        bitindex = bitindex_for_pagepoolblock(currentlevel + 1, (currentblockindex * 2) + 1);
+        bitindex = bitindex_for_pagepool_block(currentlevel + 1, (currentblockindex * 2) + 1);
         bitmap_setbit(&pool->bitmap, bitindex);
     }
     // Mark resulting block as unavailable
-    long bitindex = bitindex_for_pagepoolblock(wantedlevel, currentblockindex);
+    long bitindex = bitindex_for_pagepool_block(wanted_level, currentblockindex);
     bitmap_clearbit(&pool->bitmap,bitindex);
     result = pool->baseaddr + (blocksize * currentblockindex * ARCH_PAGESIZE);
     goto out;
@@ -195,11 +199,11 @@ static void freefrompool(struct pagepool *pool, physptr ptr, size_t pagecount) {
     }
 
     size_t currentblockindex = (ptr - pool->baseaddr) / (blocksize * ARCH_PAGESIZE);
-    size_t currentlevel = blocksize_to_pagepoollevel(pool, blocksize);
+    size_t currentlevel = blocksize_to_pagepool_level(pool, blocksize);
     assert(((ptr - pool->baseaddr) % (blocksize * ARCH_PAGESIZE)) == 0);
     while (1) {
         // Mark it as available
-        long bitindex = bitindex_for_pagepoolblock(currentlevel, currentblockindex);
+        long bitindex = bitindex_for_pagepool_block(currentlevel, currentblockindex);
         if (bitmap_isbitset(&pool->bitmap, bitindex)) {
             co_printf("double free detected\n");
             goto die;
@@ -211,19 +215,19 @@ static void freefrompool(struct pagepool *pool, physptr ptr, size_t pagecount) {
             break;
         }
         // See if neighbor block is also available
-        size_t neighborbitindex;
+        long neighbor_bit_index = 0;
         if ((currentblockindex % 2) == 0) {
-            neighborbitindex = bitindex + 1;
+            neighbor_bit_index = bitindex + 1;
         } else {
-            neighborbitindex = bitindex - 1;
+            neighbor_bit_index = bitindex - 1;
         }
-        if (!bitmap_isbitset(&pool->bitmap, neighborbitindex)) {
+        if (!bitmap_isbitset(&pool->bitmap, neighbor_bit_index)) {
             // Neighbor is in use; No further action is needed.
             break;
         }
         // Combine with neighbor block, and move to lower level.
         bitmap_clearbit(&pool->bitmap,bitindex);
-        bitmap_clearbit(&pool->bitmap,neighborbitindex);
+        bitmap_clearbit(&pool->bitmap,neighbor_bit_index);
         currentlevel--;
         currentblockindex /= 2;
     }
@@ -232,7 +236,7 @@ die:
     panic("pmm: bad free");
 }
 
-static bool testpagepool(struct pagepool *pool) {
+static bool test_pagepool(struct pagepool *pool) {
     size_t currentlevel = 0;
     size_t currentpagecount = pool->pagecount;
     size_t currentalloccount = 1;
@@ -302,7 +306,7 @@ static bool testpagepool(struct pagepool *pool) {
 
 void pmm_testpagepools(void) {
     for (struct pagepool *pool = s_firstpool; pool != NULL; pool = pool->nextpool) {
-        testpagepool(pool);
+        test_pagepool(pool);
     }
 }
 
@@ -312,7 +316,9 @@ void pmm_register(physptr base, size_t pagecount) {
     uintptr_t current_baseaddress = base;
     size_t remaining_pagecount = pagecount;
     while(remaining_pagecount != 0) {
-        size_t poolpagecount = 0, levelcount = 0, bitcount = 0;
+        size_t poolpagecount = 0;
+        size_t levelcount = 0;
+        size_t bitcount = 0;
         calculate_pagepoolsizes(&poolpagecount, &levelcount, &bitcount, remaining_pagecount);
         size_t wordcount = bitmap_neededwordcount(bitcount);
         size_t bitmapsize = wordcount * sizeof(uint);
@@ -335,8 +341,9 @@ void pmm_register(physptr base, size_t pagecount) {
         bitmap_setbit(&pool->bitmap, 0);
         remaining_pagecount -= poolpagecount;
         if (CONFIG_TEST_POOL) {
-            co_printf("pmm: testing the new page pool at %p\n", (void *)current_baseaddress);
-            if (!testpagepool(pool)) {
+            co_printf(
+                "pmm: testing the new page pool at %#lx\n", current_baseaddress);
+            if (!test_pagepool(pool)) {
                 panic("pmm: page pool test failed");
             }
         }

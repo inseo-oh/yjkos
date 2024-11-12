@@ -1,0 +1,25 @@
+Checks: [
+    '*',
+    '-altera-*',
+    '-llvmlibc-*',
+    '-cppcoreguidelines-avoid-non-const-global-variables',
+    "-cppcoreguidelines-interfaces-global-init",
+    "-cppcoreguidelines-avoid-magic-numbers",
+    "-readability-magic-numbers",
+    "-bugprone-easily-swappable-parameters",
+    "-google-readability-todo",
+    "-concurrency-mt-unsafe",
+    "-readability-identifier-length",
+    "-cppcoreguidelines-init-variables",
+    "-hicpp-no-assembler",
+    # We are fine with rand()
+    "-cert-msc30-c", "-cert-msc50-cpp",
+    # It is safe to use reserved identifiers, because we are who implementing
+    # the system.
+    '-bugprone-reserved-identifier', "-cert-dcl37-c", "-cert-dcl51-cpp",
+    # TODO: implement safer replacement for memcpy, memset, etc...
+    "-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling"
+]
+
+CheckOptions:
+    readability-function-cognitive-complexity.IgnoreMacros: 'true'

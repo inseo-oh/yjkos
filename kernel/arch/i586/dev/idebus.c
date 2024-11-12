@@ -25,38 +25,41 @@
 #include <string.h>
 #include <errno.h>
 
-static uint16_t const PRD_FLAG_LAST_ENTRY_IN_PRDT = 1 << 15;
+#define PRD_FLAG_LAST_ENTRY_IN_PRDT (1 << 15)
 
 // Physical Region Descriptor
 struct prd {
-    uint32_t bufferphysbase;
+    uint32_t buffer_physaddr;
     uint16_t len;   // 0 = 64K
-    uint16_t flags; // All bits are reserved(should be 0) except for top bit(PRD_FLAG_LAST_ENTRY_IN_PRDT)
+    uint16_t flags; /*
+                     * All bits are reserved(should be 0) except for top bit
+                     * (PRD_FLAG_LAST_ENTRY_IN_PRDT)
+                     */
 };
 
-// shared_t data between two IDE buses in a controller
+// shared data between two IDE buses in a controller
 struct shared {
     struct bus *buses[2];
-    _Atomic bool dmalockflag;
-    bool dmalockneeded : 1;
+    _Atomic bool dma_lock_flag;
+    bool dma_lock_needed : 1;
 };
 
 struct bus {
-    physptr prdtphysbase;
-    size_t prdcount;
+    struct archi586_pic_irq_handler irq_handler;
+    physptr prdt_physbase;
     struct prd *prdt;
     struct shared *shared;
-    void *dmabuffer;
-    struct archi586_pic_irqhandler irqhandler;
-    uint16_t iobase;
-    uint16_t ctrlbase;
-    uint16_t busmastrerbase;
+    size_t prd_count;
+    void *dma_buffer;
+    uint16_t io_iobase;
+    uint16_t ctrl_iobase;
+    uint16_t busmastrer_iobase;
     pcipath pcipath;
-    int8_t lastselecteddrive; // -1: No device was selected before
-    _Atomic bool buslockflag;
-    _Atomic bool gotirq;
-    bool isdmaread        : 1;
-    bool busmasterenabled : 1;
+    int8_t last_selected_drive; // -1: No device was selected before
+    _Atomic bool bus_lock_flag;
+    _Atomic bool got_irq;
+    bool is_dma_read       : 1;
+    bool busmaster_enabled : 1;
 };
 
 struct disk {
@@ -78,163 +81,161 @@ enum ioreg {
     IOREG_COMMAND        = 7, // write
 };
 
-static uint8_t const DRIVE_AND_HEAD_FLAG_DRV = 1 << 4;
-static uint8_t const DRIVE_AND_HEAD_FLAG_LBA = 1 << 6;
+#define DRIVE_AND_HEAD_FLAG_DRV     (1 << 4)
+#define DRIVE_AND_HEAD_FLAG_LBA     (1 << 6)
 
-static uint8_t const DRVICE_CONTROL_FLAG_NIEN = 1 << 1;
-static uint8_t const DRVICE_CONTROL_FLAG_SRST = 1 << 2;
-static uint8_t const DRVICE_CONTROL_FLAG_HOB  = 1 << 7;
-
-static void ioout8(struct bus *self, enum ioreg reg, uint8_t data) {
-    archi586_out8(self->iobase + reg, data);
+static void io_out8(struct bus *self, enum ioreg reg, uint8_t data) {
+    archi586_out8(self->io_iobase + reg, data);
 }
-static void ioout16(struct bus *self, enum ioreg reg, uint16_t data) {
-    archi586_out16(self->iobase + reg, data);
+static void io_out16(struct bus *self, enum ioreg reg, uint16_t data) {
+    archi586_out16(self->io_iobase + reg, data);
 }
-static uint8_t ioin8(struct bus *self, enum ioreg reg) {
-    return archi586_in8(self->iobase + reg);
+static uint8_t io_in8(struct bus *self, enum ioreg reg) {
+    return archi586_in8(self->io_iobase + reg);
 }
-static uint16_t ioin16(struct bus *self, enum ioreg reg) {
-    return archi586_in16(self->iobase + reg);
+static uint16_t io_in16(struct bus *self, enum ioreg reg) {
+    return archi586_in16(self->io_iobase + reg);
 }
-static void ioin16rep(struct bus *self, enum ioreg reg, void *buf, size_t len) {
-    archi586_in16rep(self->iobase + reg, buf, len);
+static void io_in16_rep(
+    struct bus *self, enum ioreg reg, void *buf, size_t len)
+{
+    archi586_in16_rep(self->io_iobase + reg, buf, len);
 }
 
 enum ctrlreg {
-    CTRLREG_ALTERNATESTATUS = 0, // read
-    CTRLREG_DEVICECONTROL   = 0, // write
+    CTRLREG_ALTERNATE_STATUS = 0, // read
+    CTRLREG_DEVICE_CONTROL   = 0, // write
 };
 
-static void ctrlout8(struct bus *self, enum ctrlreg reg, uint8_t data) {
-    archi586_out8(self->ctrlbase + reg, data);
-}
-static void ctrlout16(struct bus *self, enum ioreg reg, uint16_t data) {
-    archi586_out16(self->ctrlbase + reg, data);
-}
-static uint8_t ctrlin8(struct bus *self, enum ctrlreg reg) {
-    return archi586_in8(self->ctrlbase + reg);
-}
-static uint16_t ctrlin16(struct bus *self, enum ctrlreg reg) {
-    return archi586_in16(self->ctrlbase + reg);
+#define DRVICE_CONTROL_FLAG_NIEN    (1 << 1)
+#define DRVICE_CONTROL_FLAG_SRST    (1 << 2)
+#define DRVICE_CONTROL_FLAG_HOB     (1 << 7)
+
+static void ctrl_out8(struct bus *self, enum ctrlreg reg, uint8_t data) {
+    archi586_out8(self->ctrl_iobase + reg, data);
 }
 
-static uint8_t readstatus(struct bus *self) {
-    return ctrlin8(self, CTRLREG_ALTERNATESTATUS);
+static uint8_t ctrl_in8(struct bus *self, enum ctrlreg reg) {
+    return archi586_in8(self->ctrl_iobase + reg);
 }
 
-static void busprintf(struct bus *self, char const *fmt, ...) {
+static uint8_t read_status(struct bus *self) {
+    return ctrl_in8(self, CTRLREG_ALTERNATE_STATUS);
+}
+
+static void bus_printf(struct bus *self, char const *fmt, ...) {
     va_list ap;
 
-    co_printf("idebus(%x): ", self->iobase);
+    co_printf("idebus(%x): ", self->io_iobase);
     va_start(ap, fmt);
     co_vprintf(fmt, ap);
     va_end(ap);
 }
 
-static void driveprintf(struct bus *self, int drive, char const *fmt, ...) {
+static void drive_printf(struct bus *self, int drive, char const *fmt, ...) {
     va_list ap;
 
-    co_printf("idebus(%x)drive(%d): ", self->iobase, drive);
+    co_printf("idebus(%x)drive(%d): ", self->io_iobase, drive);
     va_start(ap, fmt);
     co_vprintf(fmt, ap);
     va_end(ap);
 }
 
-static void resetbus(struct bus *self) {
-    uint8_t regvalue = ctrlin8(self, CTRLREG_DEVICECONTROL);
-    regvalue &= ~(DRVICE_CONTROL_FLAG_NIEN | DRVICE_CONTROL_FLAG_HOB);
-    regvalue |= DRVICE_CONTROL_FLAG_SRST;
-    ctrlout8(self, CTRLREG_DEVICECONTROL, regvalue);
+static void reset_bus(struct bus *self) {
+    uint8_t regval = ctrl_in8(self, CTRLREG_DEVICE_CONTROL);
+    regval &= ~(DRVICE_CONTROL_FLAG_NIEN | DRVICE_CONTROL_FLAG_HOB);
+    regval |= DRVICE_CONTROL_FLAG_SRST;
+    ctrl_out8(self, CTRLREG_DEVICE_CONTROL, regval);
     arch_iodelay();
-    regvalue &= ~DRVICE_CONTROL_FLAG_SRST;
-    ctrlout8(self, CTRLREG_DEVICECONTROL, regvalue);
+    regval &= ~DRVICE_CONTROL_FLAG_SRST;
+    ctrl_out8(self, CTRLREG_DEVICE_CONTROL, regval);
 }
 
-static void selectdrive(struct bus *self, int8_t drive) {
+static void select_drive(struct bus *self, int8_t drive) {
     assert((0 == drive) || (1 == drive));
-    uint8_t regvalue = ioin8(self, IOREG_DRIVE_AND_HEAD);
+    uint8_t regval = io_in8(self, IOREG_DRIVE_AND_HEAD);
     if (drive == 0) {
-        regvalue &= ~DRIVE_AND_HEAD_FLAG_DRV;
+        regval &= ~DRIVE_AND_HEAD_FLAG_DRV;
     } else {
-        regvalue |= DRIVE_AND_HEAD_FLAG_DRV;
+        regval |= DRIVE_AND_HEAD_FLAG_DRV;
     }
-    regvalue |= DRIVE_AND_HEAD_FLAG_LBA;
-    ioout8(self, IOREG_DRIVE_AND_HEAD, regvalue);
-    if (self->lastselecteddrive != drive) {
+    regval |= DRIVE_AND_HEAD_FLAG_LBA;
+    io_out8(self, IOREG_DRIVE_AND_HEAD, regval);
+    if (self->last_selected_drive != drive) {
         for (size_t i = 0; i < 14; i++) {
-            readstatus(self);
+            read_status(self);
         }
-        self->lastselecteddrive = drive;
+        self->last_selected_drive = drive;
     }
 }
 
-static void atadisk_op_softreset(struct atadisk *self) {
+static void atadisk_op_soft_reset(struct atadisk *self) {
     struct disk *disk = self->data;
-    resetbus(disk->bus);
+    reset_bus(disk->bus);
 }
-static void atadisk_op_selectdisk(struct atadisk *self) {
+
+static void atadisk_op_select_disk(struct atadisk *self) {
     struct disk *disk = self->data;
-    selectdrive(disk->bus, disk->driveid);
+    select_drive(disk->bus, disk->driveid);
 }
-static uint8_t atadisk_op_readstatus(struct atadisk *self) {
+static uint8_t atadisk_op_read_status(struct atadisk *self) {
     struct disk *disk = self->data;
-    return readstatus(disk->bus);
+    return read_status(disk->bus);
 }
-static void atadisk_op_setfeaturesparam(struct atadisk *self, uint16_t data) {
+static void atadisk_op_set_features_param(struct atadisk *self, uint16_t data) {
     struct disk *disk = self->data;
-    ioout8(disk->bus, IOREG_FEATURES, data);
+    io_out8(disk->bus, IOREG_FEATURES, data);
 }
-static void atadisk_op_setcountparam(struct atadisk *self, uint16_t data) {
+static void atadisk_op_set_count_param(struct atadisk *self, uint16_t data) {
     struct disk *disk = self->data;
-    ioout8(disk->bus, IOREG_SECTORCOUNT, data);
+    io_out8(disk->bus, IOREG_SECTORCOUNT, data);
 }
-static void atadisk_op_setlbaparam(struct atadisk *self, uint32_t data) {
+static void atadisk_op_set_lba_param(struct atadisk *self, uint32_t data) {
     struct disk *disk = self->data;
-    ioout8(disk->bus, IOREG_LBA_LO, data);
-    ioout8(disk->bus, IOREG_LBA_MID, data >> 8);
-    ioout8(disk->bus, IOREG_LBA_HI, data >> 16);
-    uint8_t regvalue = ioin8(disk->bus, IOREG_DRIVE_AND_HEAD);
+    io_out8(disk->bus, IOREG_LBA_LO, data);
+    io_out8(disk->bus, IOREG_LBA_MID, data >> 8);
+    io_out8(disk->bus, IOREG_LBA_HI, data >> 16);
+    uint8_t regvalue = io_in8(disk->bus, IOREG_DRIVE_AND_HEAD);
     regvalue = (regvalue & ~0x0F) | ((data >> 24) & 0x0F);
-    ioout8(disk->bus, IOREG_DRIVE_AND_HEAD, regvalue);
+    io_out8(disk->bus, IOREG_DRIVE_AND_HEAD, regvalue);
 }
-static void atadisk_op_setdeviceparam(struct atadisk *self, uint8_t data) {
+static void atadisk_op_set_device_param(struct atadisk *self, uint8_t data) {
     struct disk *disk = self->data;
-    uint8_t regvalue = ioin8(disk->bus, IOREG_DRIVE_AND_HEAD);
+    uint8_t regvalue = io_in8(disk->bus, IOREG_DRIVE_AND_HEAD);
     // Note that we preserve lower 3-bit, which contains upper 4-bit of LBA.
     // (ACS-3 calls these bits as "reserved", and maybe this is the reason?)
     regvalue = (data & ~0x0F) | (regvalue & 0x0F);
-    ioout8(disk->bus, IOREG_DRIVE_AND_HEAD, regvalue);
+    io_out8(disk->bus, IOREG_DRIVE_AND_HEAD, regvalue);
 }
-static uint32_t atadisk_op_getlbaoutput(struct atadisk *self) {
+static uint32_t atadisk_op_get_lba_output(struct atadisk *self) {
     struct disk *disk = self->data;
-    uint32_t lbalo  = ioin8(disk->bus, IOREG_LBA_LO);
-    uint32_t lbamid = ioin8(disk->bus, IOREG_LBA_MID);
-    uint32_t lbahi  = ioin8(disk->bus, IOREG_LBA_HI);
-    uint32_t lbatop4bit = ioin8(disk->bus, IOREG_DRIVE_AND_HEAD) & 0x0F;
+    uint32_t lbalo  = io_in8(disk->bus, IOREG_LBA_LO);
+    uint32_t lbamid = io_in8(disk->bus, IOREG_LBA_MID);
+    uint32_t lbahi  = io_in8(disk->bus, IOREG_LBA_HI);
+    uint32_t lbatop4bit = io_in8(disk->bus, IOREG_DRIVE_AND_HEAD) & 0x0F;
     return (lbatop4bit << 24) | (lbahi << 16) | (lbamid << 8) | lbalo;
 }
 
-static void atadisk_op_issuecmd(struct atadisk *self, enum ata_cmd cmd) {
+static void atadisk_op_issue_cmd(struct atadisk *self, enum ata_cmd cmd) {
     struct disk *disk = self->data;
-    ioout8(disk->bus, IOREG_COMMAND, cmd);
+    io_out8(disk->bus, IOREG_COMMAND, cmd);
 }
-static bool atadisk_op_getirqflag(struct atadisk *self) {
+static bool atadisk_op_get_irq_flag(struct atadisk *self) {
     struct disk *disk = self->data;
-    return disk->bus->gotirq;
+    return disk->bus->got_irq;
 }
-static void atadisk_op_clearirqflag(struct atadisk *self) {
+static void atadisk_op_clear_irq_flag(struct atadisk *self) {
     struct disk *disk = self->data;
-    disk->bus->gotirq = false;
+    disk->bus->got_irq = false;
 }
-static void atadisk_op_readdata(struct ata_databuf *out, struct atadisk *self) {
+static void atadisk_op_read_data(struct ata_databuf *out, struct atadisk *self) {
     struct disk *disk = self->data;
-    ioin16rep(disk->bus, IOREG_DATA, out->data, sizeof(out->data)/sizeof(*out->data));
+    io_in16_rep(disk->bus, IOREG_DATA, out->data, sizeof(out->data)/sizeof(*out->data));
 }
-static void atadisk_op_writedata(struct atadisk *self, struct ata_databuf *buffer) {
+static void atadisk_op_write_data(struct atadisk *self, struct ata_databuf *buffer) {
     struct disk *disk = self->data;
     for (size_t i = 0; i < 256; i++) {
-        ioout16(disk->bus, IOREG_DATA, buffer->data[i]);
+        io_out16(disk->bus, IOREG_DATA, buffer->data[i]);
         arch_iodelay();
     }
 }
@@ -246,20 +247,20 @@ enum busmasterreg {
 }; 
 
 static void busmasterout8(struct bus *self, enum busmasterreg reg, uint8_t data) {
-    assert(self->busmasterenabled);
-    archi586_out8(self->busmastrerbase + reg, data);
+    assert(self->busmaster_enabled);
+    archi586_out8(self->busmastrer_iobase + reg, data);
 }
 static void busmasterout32(struct bus *self, enum busmasterreg reg, uint32_t data) {
-    assert(self->busmasterenabled);
-    archi586_out32(self->busmastrerbase + reg, data);
+    assert(self->busmaster_enabled);
+    archi586_out32(self->busmastrer_iobase + reg, data);
 }
 static uint8_t busmasterin8(struct bus *self, enum busmasterreg reg) {
-    assert(self->busmasterenabled);
-    return archi586_in8(self->busmastrerbase + reg);
+    assert(self->busmaster_enabled);
+    return archi586_in8(self->busmastrer_iobase + reg);
 }
 static uint32_t busmasterin32(struct bus *self, enum busmasterreg reg) {
-    assert(self->busmasterenabled);
-    return archi586_in32(self->busmastrerbase + reg);
+    assert(self->busmaster_enabled);
+    return archi586_in32(self->busmastrer_iobase + reg);
 }
 
 static uint8_t BUSMASTER_CMDFLAG_START = 1 << 0;
@@ -273,11 +274,11 @@ enum {
 static bool atadisk_op_dma_beginsession(struct atadisk *self) {
     struct disk *disk = self->data;
     struct bus *bus = disk->bus;
-    if (!bus->busmasterenabled) {
+    if (!bus->busmaster_enabled) {
         // No DMA support
         return false;
     }
-    if (!bus->shared->dmalockneeded) {
+    if (!bus->shared->dma_lock_needed) {
         // No DMA lock is used - We are good to go.
         return true;
     }
@@ -285,7 +286,7 @@ static bool atadisk_op_dma_beginsession(struct atadisk *self) {
     // So we must lock the DMA, and if we can't, we have to fall back to PIO.
     bool expected = false;
     bool desired = true;
-    if (!atomic_compare_exchange_strong_explicit(&bus->shared->dmalockflag, &expected, desired, memory_order_acquire, memory_order_relaxed)) {
+    if (!atomic_compare_exchange_strong_explicit(&bus->shared->dma_lock_flag, &expected, desired, memory_order_acquire, memory_order_relaxed)) {
         // Someone else is using DMA
         return false;
     }
@@ -295,12 +296,12 @@ static bool atadisk_op_dma_beginsession(struct atadisk *self) {
 static void atadisk_op_dma_endsession(struct atadisk *self) {
     struct disk *disk = self->data;
     struct bus *bus = disk->bus;
-    assert(bus->busmasterenabled);
-    if (!bus->shared->dmalockneeded) {
+    assert(bus->busmaster_enabled);
+    if (!bus->shared->dma_lock_needed) {
         return;
     }
     bool desired = false;
-    atomic_store_explicit(&bus->shared->dmalockflag, desired, memory_order_release);
+    atomic_store_explicit(&bus->shared->dma_lock_flag, desired, memory_order_release);
 }
 
 static void atadisk_op_lock(struct atadisk *self) {
@@ -308,28 +309,28 @@ static void atadisk_op_lock(struct atadisk *self) {
     struct bus *bus = disk->bus;
     bool expected = false;
     bool desired = true;
-    while (!atomic_compare_exchange_strong_explicit(&bus->buslockflag, &expected, desired, memory_order_acquire, memory_order_relaxed)) {}
+    while (!atomic_compare_exchange_strong_explicit(&bus->bus_lock_flag, &expected, desired, memory_order_acquire, memory_order_relaxed)) {}
 }
 
 static void atadisk_op_unlock(struct atadisk *self) {
     struct disk *disk = self->data;
     struct bus *bus = disk->bus;
     bool desired = false;
-    atomic_store_explicit(&bus->buslockflag, desired, memory_order_release);
+    atomic_store_explicit(&bus->bus_lock_flag, desired, memory_order_release);
 }
 
-static WARN_UNUSED_RESULT int atadisk_op_dma_inittransfter(
+static WARN_UNUSED_RESULT int atadisk_op_dma_init_transfter(
     struct atadisk *self, void *buffer, size_t len, bool isread)
 {
     struct disk *disk = self->data;
     struct bus *bus = disk->bus;
-    assert(bus->busmasterenabled);
+    assert(bus->busmaster_enabled);
     assert(len <= MAX_DMA_TRANSFER_SIZE_NEEDED);
-    bus->dmabuffer = buffer;
-    bus->isdmaread = isread;
+    bus->dma_buffer = buffer;
+    bus->is_dma_read = isread;
     size_t remainingsize = len;
     for (size_t i = 0; remainingsize != 0; i++) {
-        assert(i < bus->prdcount);
+        assert(i < bus->prd_count);
         size_t currentsize = remainingsize;
         if (MAX_TRANSFTER_SIZE_PER_PRD < currentsize) {
             currentsize = MAX_TRANSFTER_SIZE_PER_PRD;
@@ -347,7 +348,7 @@ static WARN_UNUSED_RESULT int atadisk_op_dma_inittransfter(
         }
         if (!isread) {
             pmemcpy_out(
-                bus->prdt[i].bufferphysbase,
+                bus->prdt[i].buffer_physaddr,
                 &((uint8_t *)buffer)[i * MAX_TRANSFTER_SIZE_PER_PRD],
                 currentsize, true);
         }
@@ -355,7 +356,7 @@ static WARN_UNUSED_RESULT int atadisk_op_dma_inittransfter(
     }
     // Setup busmaster registers
     busmasterout32(
-        bus, BUSMASTERREG_PRDTADDR, bus->prdtphysbase);
+        bus, BUSMASTERREG_PRDTADDR, bus->prdt_physbase);
     uint8_t cmdvalue = 0;
     if (isread) {
         cmdvalue |= BUSMASTER_CMDFLAG_READ;
@@ -367,7 +368,7 @@ static WARN_UNUSED_RESULT int atadisk_op_dma_inittransfter(
     return 0;
 }
 
-static WARN_UNUSED_RESULT int atadisk_op_dma_begintransfer(
+static WARN_UNUSED_RESULT int atadisk_op_dma_begin_transfer(
     struct atadisk *self) {
     struct disk *disk = self->data;
     struct bus *bus = disk->bus;
@@ -377,14 +378,14 @@ static WARN_UNUSED_RESULT int atadisk_op_dma_begintransfer(
     return 0;
 }
 
-static enum ata_dmastatus atadisk_op_dma_checktransfer(struct atadisk *self) {
+static enum ata_dmastatus atadisk_op_dma_check_transfer(struct atadisk *self) {
     struct disk *disk = self->data;
     struct bus *bus = disk->bus;
      // We have to read the status after IRQ.
     uint8_t bmstatus = busmasterin8(bus, BUSMASTERREG_STATUS);
     if (bmstatus & (1 << 1)) {
         uint16_t pcistatus = pci_readstatusreg(bus->pcipath);
-        driveprintf(
+        drive_printf(
             bus, disk->driveid,
             "DMA error occured. busmaster status %02x, PCI status %04x\n",
             bmstatus, pcistatus);
@@ -403,17 +404,17 @@ static enum ata_dmastatus atadisk_op_dma_checktransfer(struct atadisk *self) {
     return ATA_DMASTATUS_BUSY;
 }
 
-static void atadisk_op_dma_endtransfer(struct atadisk *self, bool wassuccess) {
+static void atadisk_op_dma_end_transfer(struct atadisk *self, bool wassuccess) {
     struct disk *disk = self->data;
     struct bus *bus = disk->bus;
     busmasterout8(bus, BUSMASTERREG_CMD, busmasterin8(bus, BUSMASTERREG_CMD) & ~BUSMASTER_CMDFLAG_START);
-    if (bus->isdmaread && wassuccess) {
-        for (size_t i = 0; i < bus->prdcount; i++) {
+    if (bus->is_dma_read && wassuccess) {
+        for (size_t i = 0; i < bus->prd_count; i++) {
             size_t size = bus->prdt[i].len;
             if (size == 0) {
                 size = 65536;
             }
-            pmemcpy_in(&((uint8_t *)bus->dmabuffer)[i * MAX_TRANSFTER_SIZE_PER_PRD], bus->prdt[i].bufferphysbase, size, true);
+            pmemcpy_in(&((uint8_t *)bus->dma_buffer)[i * MAX_TRANSFTER_SIZE_PER_PRD], bus->prdt[i].buffer_physaddr, size, true);
             if (bus->prdt[i].flags & PRD_FLAG_LAST_ENTRY_IN_PRDT) {
                 break;
             }
@@ -421,41 +422,41 @@ static void atadisk_op_dma_endtransfer(struct atadisk *self, bool wassuccess) {
     }
 }
 
-static void atadisk_op_dma_deinittransfer(struct atadisk *self) {
+static void atadisk_op_dma_deinit_transfer(struct atadisk *self) {
     struct disk *disk = self->data;
     struct bus *bus = disk->bus;
-    assert(bus->busmasterenabled);
+    assert(bus->busmaster_enabled);
 }
 
 static struct atadisk_ops const OPS = {
-    .dma_beginsession   = atadisk_op_dma_beginsession,
-    .dma_endsession     = atadisk_op_dma_endsession,
-    .lock               = atadisk_op_lock,
-    .unlock             = atadisk_op_unlock,
-    .readstatus         = atadisk_op_readstatus,
-    .selectdisk         = atadisk_op_selectdisk,
-    .setfeaturesparam   = atadisk_op_setfeaturesparam,
-    .setcountparam      = atadisk_op_setcountparam,
-    .setlbaparam        = atadisk_op_setlbaparam,
-    .setdeviceparam     = atadisk_op_setdeviceparam,
-    .getlbaoutput       = atadisk_op_getlbaoutput,
-    .issuecmd           = atadisk_op_issuecmd,
-    .getirqflag         = atadisk_op_getirqflag,
-    .clearirqflag       = atadisk_op_clearirqflag,
-    .readdata           = atadisk_op_readdata,
-    .writedata          = atadisk_op_writedata,
-    .dma_inittransfer   = atadisk_op_dma_inittransfter,
-    .dma_begintransfer  = atadisk_op_dma_begintransfer,
-    .dma_checktransfer  = atadisk_op_dma_checktransfer,
-    .dma_endtransfer    = atadisk_op_dma_endtransfer,
-    .dma_deinittransfer = atadisk_op_dma_deinittransfer,
-    .softreset          = atadisk_op_softreset,
+    .dma_beginsession    = atadisk_op_dma_beginsession,
+    .dma_endsession      = atadisk_op_dma_endsession,
+    .lock                = atadisk_op_lock,
+    .unlock              = atadisk_op_unlock,
+    .read_status         = atadisk_op_read_status,
+    .select_disk         = atadisk_op_select_disk,
+    .set_features_param  = atadisk_op_set_features_param,
+    .set_count_param     = atadisk_op_set_count_param,
+    .set_lba_param       = atadisk_op_set_lba_param,
+    .set_device_param    = atadisk_op_set_device_param,
+    .get_lba_output      = atadisk_op_get_lba_output,
+    .issue_cmd           = atadisk_op_issue_cmd,
+    .get_irq_flag        = atadisk_op_get_irq_flag,
+    .clear_irq_flag      = atadisk_op_clear_irq_flag,
+    .read_data           = atadisk_op_read_data,
+    .write_data          = atadisk_op_write_data,
+    .dma_init_transfer   = atadisk_op_dma_init_transfter,
+    .dma_begin_transfer  = atadisk_op_dma_begin_transfer,
+    .dma_check_transfer  = atadisk_op_dma_check_transfer,
+    .dma_end_transfer    = atadisk_op_dma_end_transfer,
+    .dma_deinit_transfer = atadisk_op_dma_deinit_transfer,
+    .soft_reset          = atadisk_op_soft_reset,
 };
 
-static void irqhandler(int irqnum,  void *data) {
+static void irq_handler(int irqnum,  void *data) {
     struct bus *bus = data;
-    bus->gotirq = true;
-    ioin8(bus, IOREG_STATUS);
+    bus->got_irq = true;
+    io_in8(bus, IOREG_STATUS);
     archi586_pic_sendeoi(irqnum);
 }
 
@@ -472,41 +473,41 @@ static int initcontroller(
     }
     bus->shared = shared;
     bus->pcipath = pcipath;
-    bus->iobase = iobase;
-    bus->ctrlbase = ctrlbase;
-    bus->busmastrerbase = busmastrerbase;
-    bus->lastselecteddrive = -1;
+    bus->io_iobase = iobase;
+    bus->ctrl_iobase = ctrlbase;
+    bus->busmastrer_iobase = busmastrerbase;
+    bus->last_selected_drive = -1;
 
     if (busmasterenabled) {
         // This should be enough to store allocated page counts.
         size_t pagecounts[(MAX_DMA_TRANSFER_SIZE_NEEDED / MAX_TRANSFTER_SIZE_PER_PRD) + 1];
         // Allocate resources needed for busmastering DMA
-        bus->prdcount = sizetoblocks(MAX_DMA_TRANSFER_SIZE_NEEDED, MAX_TRANSFTER_SIZE_PER_PRD);
-        size_t prdtsize = bus->prdcount * sizeof(*bus->prdt);
+        bus->prd_count = sizetoblocks(MAX_DMA_TRANSFER_SIZE_NEEDED, MAX_TRANSFTER_SIZE_PER_PRD);
+        size_t prdtsize = bus->prd_count * sizeof(*bus->prdt);
         assert(prdtsize < MAX_TRANSFTER_SIZE_PER_PRD);
         size_t prdtpagecount = sizetoblocks(prdtsize, ARCH_PAGESIZE);
         bool physallocok = false;
         struct vmobject *prdtvmobject = NULL;
         size_t allocatedprdtcount = 0;
-        bus->prdtphysbase = pmm_alloc( &prdtpagecount);
-        if (bus->prdtphysbase == PHYSICALPTR_NULL) {
+        bus->prdt_physbase = pmm_alloc( &prdtpagecount);
+        if (bus->prdt_physbase == PHYSICALPTR_NULL) {
             goto fail_oom;
         }
         physallocok = true;
         prdtvmobject = vmm_map(
             vmm_get_kernel_addressspace(),
-            bus->prdtphysbase,
+            bus->prdt_physbase,
             prdtpagecount * ARCH_PAGESIZE,
             MAP_PROT_READ | MAP_PROT_WRITE | MAP_PROT_NOCACHE
         );
         if (prdtvmobject == NULL) {
-            busprintf(bus, "not enough memory for busmaster PRDT\n");
+            bus_printf(bus, "not enough memory for busmaster PRDT\n");
             goto fail_oom;
         }
         bus->prdt = (void *)prdtvmobject->startaddress;
         memset(bus->prdt, 0, prdtsize);
         size_t remainingsize = MAX_DMA_TRANSFER_SIZE_NEEDED;
-        for (size_t i = 0; i < bus->prdcount; i++) {
+        for (size_t i = 0; i < bus->prd_count; i++) {
             size_t currentsize = remainingsize;
             if (MAX_TRANSFTER_SIZE_PER_PRD < currentsize) {
                 currentsize = MAX_TRANSFTER_SIZE_PER_PRD;
@@ -516,58 +517,58 @@ static int initcontroller(
              * transfer
              */
             size_t currentpagecount = sizetoblocks(currentsize, ARCH_PAGESIZE);
-            bus->prdt[i].bufferphysbase = pmm_alloc(&currentpagecount);
-            if (bus->prdt[i].bufferphysbase == PHYSICALPTR_NULL) {
+            bus->prdt[i].buffer_physaddr = pmm_alloc(&currentpagecount);
+            if (bus->prdt[i].buffer_physaddr == PHYSICALPTR_NULL) {
                 goto fail_oom;
             }
             pagecounts[i] = currentpagecount;
-            pmemset(bus->prdt[i].bufferphysbase, 0x00, currentsize, true);
+            pmemset(bus->prdt[i].buffer_physaddr, 0x00, currentsize, true);
             allocatedprdtcount++;
             remainingsize -= currentsize;
         }
         goto cont;
     fail_oom:
-        busprintf(
+        bus_printf(
             bus,
             "not enough memory for busmaster PRDT. falling back to PIO-only.\n");
         for (size_t i = 0; i < allocatedprdtcount; i++) {
             pmm_free(
-                bus->prdt[i].bufferphysbase, pagecounts[i]);
+                bus->prdt[i].buffer_physaddr, pagecounts[i]);
         }
         if (prdtvmobject != NULL) {
             vmm_free(prdtvmobject);
         }
         if (physallocok) {
-            pmm_free(bus->prdtphysbase, prdtpagecount);
+            pmm_free(bus->prdt_physbase, prdtpagecount);
         }
         busmasterenabled = false;
     }
 cont:
-    bus->busmasterenabled = busmasterenabled;
+    bus->busmaster_enabled = busmasterenabled;
 
-    uint8_t busstatus = readstatus(bus);
+    uint8_t busstatus = read_status(bus);
     if ((busstatus & 0x7f) == 0x7f) {
-        busprintf(bus,
+        bus_printf(bus,
             "seems to be floating(got status byte %#x)\n", busstatus);
         result = -EIO;
         goto fail;
     }
     // Prepare to receive IRQs
-    archi586_pic_registerhandler(&bus->irqhandler, irq, irqhandler, bus);
+    archi586_pic_registerhandler(&bus->irq_handler, irq, irq_handler, bus);
     shared->buses[channalindex] = bus;
     archi586_pic_unmaskirq(irq);
-    resetbus(bus);
+    reset_bus(bus);
     // Some systems seem to fire IRQ after reset.
     for (uint8_t i = 0; i < 255; i++) {
-        if (bus->gotirq) {
-            bus->gotirq = false;
+        if (bus->got_irq) {
+            bus->got_irq = false;
             break;
         }
         arch_iodelay();
     }
-    busprintf(bus, "probing the bus\n");
+    bus_printf(bus, "probing the bus\n");
     for (int8_t drive = 0; drive < 2; drive++) {
-        selectdrive(bus, drive);
+        select_drive(bus, drive);
         struct disk *disk = heap_alloc(sizeof(*disk), HEAP_FLAG_ZEROMEMORY);
         if (disk == NULL) {
             continue;
@@ -578,18 +579,18 @@ cont:
             &disk->atadisk, &OPS, disk);
         if (ret < 0) {
             if (ret == -ENODEV) {
-                driveprintf(bus, drive,
+                drive_printf(bus, drive,
                     "nothing there or non-accessible\n");
             } else {
-                driveprintf(
+                drive_printf(
                     bus, drive, "failed to initialize disk (error %d)\n", ret);
             }
             heap_free(disk);
             continue;
         }
-        driveprintf(bus, drive, "disk registered\n");
+        drive_printf(bus, drive, "disk registered\n");
     }
-    busprintf(bus, "bus probing complete\n");
+    bus_printf(bus, "bus probing complete\n");
     goto out;
 fail:
     heap_free(bus);
@@ -726,10 +727,13 @@ doinit:
         pci_printf(path, "idebus: not enough memory\n");
         return;
     }
-    shared->dmalockflag = false;
-    // If Simplex Only is set, we need DMA lock to prevent both channels using DMA at the same time.
+    shared->dma_lock_flag = false;
+    /*
+     * If Simplex Only is set, we need DMA lock to prevent both channels using 
+     * DMA at the same time.
+     */
     uint8_t bmstatus = archi586_in8(busmasteriobase + BUSMASTERREG_STATUS);
-    shared->dmalockneeded = bmstatus & (1 << 7);
+    shared->dma_lock_needed = bmstatus & (1 << 7);
     if (channel0enabled) {
         int ret = initcontroller(
             shared, channel0iobase, channel0ctrlbase,

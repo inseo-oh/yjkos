@@ -1,9 +1,9 @@
-#include <stdio.h>
+#include <limits.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
-#include <limits.h>
 
 #include <kernel/io/co.h>
 #include <kernel/io/stream.h>
@@ -31,7 +31,7 @@ static WARN_UNUSED_RESULT ssize_t vsnprintf_stream_op_write(
     stream->dest[writelen] = '\0';
     stream->remaininglen -= writelen;
     stream->dest += writelen;
-    return writelen;
+    return (ssize_t)writelen;
 }
 
 static const struct stream_ops VSNPRINTF_STREAM_OPS = {

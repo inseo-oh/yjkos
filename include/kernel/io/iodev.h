@@ -8,6 +8,7 @@ static char const *const IODEV_TYPE_PHYSICAL_DISK = "pdisk";
 static char const *const IODEV_TYPE_LOGICAL_DISK  = "ldisk";
 static char const *const IODEV_TYPE_PS2PORT       = "ps2port";
 static char const *const IODEV_TYPE_KEYBOARD      = "kbd";
+static char const *const IODEV_TYPE_TTY           = "tty";
 
 struct iodev {
     struct list_node node;

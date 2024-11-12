@@ -3,7 +3,8 @@
 #include <string.h>
 
 static bool do_slice(void) {
-    struct smatcher smatcher, newsmatcher;
+    struct smatcher smatcher;
+    struct smatcher newsmatcher;
     smatcher_init(&smatcher, "hello world people");
     smatcher_slice(&newsmatcher, &smatcher, 6, 10);
     TEST_EXPECT(smatcher_consumestringifmatch(&newsmatcher, "world")  == true);
@@ -15,52 +16,76 @@ static bool do_slice(void) {
 static bool do_consumestringifmatch(void) {
     struct smatcher smatcher;
     smatcher_init_with_len(&smatcher, "hello world people", 11);
-    TEST_EXPECT(smatcher_consumestringifmatch(&smatcher, "hello1") == false);
-    TEST_EXPECT(smatcher_consumestringifmatch(&smatcher, "world")  == false);
-    TEST_EXPECT(smatcher_consumestringifmatch(&smatcher, "hello")  == true);
+    TEST_EXPECT(smatcher_consumestringifmatch(
+        &smatcher, "hello1") == false);
+    TEST_EXPECT(smatcher_consumestringifmatch(
+        &smatcher, "world")  == false);
+    TEST_EXPECT(smatcher_consumestringifmatch(
+        &smatcher, "hello")  == true);
     TEST_EXPECT(smatcher.currentindex == 5);
-    TEST_EXPECT(smatcher_consumestringifmatch(&smatcher, "hello")  == false);
-    TEST_EXPECT(smatcher_consumestringifmatch(&smatcher, "world")  == false);
-    TEST_EXPECT(smatcher_consumestringifmatch(&smatcher, " world") == true);
+    TEST_EXPECT(smatcher_consumestringifmatch(
+        &smatcher, "hello")  == false);
+    TEST_EXPECT(smatcher_consumestringifmatch(
+        &smatcher, "world")  == false);
+    TEST_EXPECT(smatcher_consumestringifmatch(
+        &smatcher, " world") == true);
     TEST_EXPECT(smatcher.currentindex == 11);
-    TEST_EXPECT(smatcher_consumestringifmatch(&smatcher, " people") == false);
+    TEST_EXPECT(smatcher_consumestringifmatch(
+        &smatcher, " people") == false);
 
     return true;
 }
 
 static bool do_consumewordifmatch(void) {
+    // NOLINTBEGIN(-*magic-numbers)
     struct smatcher smatcher;
-    smatcher_init_with_len(&smatcher, "hello worldpeopleguy", 17);
-    TEST_EXPECT(smatcher_consumewordifmatch(&smatcher, "world")  == false);
-    TEST_EXPECT(smatcher_consumewordifmatch(&smatcher, "hello")  == true);
+    smatcher_init_with_len(
+        &smatcher, "hello worldpeopleguy", 17);
+    TEST_EXPECT(smatcher_consumewordifmatch(
+        &smatcher, "world")  == false);
+    TEST_EXPECT(smatcher_consumewordifmatch(
+        &smatcher, "hello")  == true);
     TEST_EXPECT(smatcher.currentindex == 5);
-    TEST_EXPECT(smatcher_consumewordifmatch(&smatcher, "hello")  == false);
-    TEST_EXPECT(smatcher_consumewordifmatch(&smatcher, " world")  == false);
-    TEST_EXPECT(smatcher_consumewordifmatch(&smatcher, " worldpeople") == true);
+    TEST_EXPECT(smatcher_consumewordifmatch(
+        &smatcher, "hello")  == false);
+    TEST_EXPECT(smatcher_consumewordifmatch(
+        &smatcher, " world")  == false);
+    TEST_EXPECT(smatcher_consumewordifmatch(
+        &smatcher, " worldpeople") == true);
     TEST_EXPECT(smatcher.currentindex == 17);
+    // NOLINTEND(-*magic-numbers)
 
     return true;
 }
 
 static bool do_skipwhitespaces(void) {
     struct smatcher smatcher;
-    smatcher_init_with_len(&smatcher, "hello    worldpeople", 14);
-    TEST_EXPECT(smatcher_consumestringifmatch(&smatcher, "hello")  == true);
+    smatcher_init_with_len(
+        &smatcher, "hello    worldpeople", 14);
+    TEST_EXPECT(
+        smatcher_consumestringifmatch(&smatcher, "hello")
+        == true);
     smatcher_skipwhitespaces(&smatcher);
     TEST_EXPECT(smatcher.currentindex == 9);
-    TEST_EXPECT(smatcher_consumestringifmatch(&smatcher, "world")  == true);
+    TEST_EXPECT(
+        smatcher_consumestringifmatch(&smatcher, "world")
+        == true);
     TEST_EXPECT(smatcher.currentindex == 14);
-    TEST_EXPECT(smatcher_consumestringifmatch(&smatcher, "people")  == false);
+    TEST_EXPECT(
+        smatcher_consumestringifmatch(&smatcher, "people")
+        == false);
 
     return true;
 }
 
 static bool do_consumeword(void) {
-    char const *str;
-    size_t len;
+    char const *str = NULL;
+    size_t len = 0;
     struct smatcher smatcher;
-    smatcher_init_with_len(&smatcher, "hello worldpeopleguy", 17);
-    TEST_EXPECT(smatcher_consumeword(&str, &len, &smatcher) == true);
+    smatcher_init_with_len(
+        &smatcher, "hello worldpeopleguy", 17);
+    TEST_EXPECT(smatcher_consumeword(
+        &str, &len, &smatcher) == true);
     TEST_EXPECT(strncmp(str, "hello", len) == 0);
     TEST_EXPECT(smatcher_consumeword(&str, &len, &smatcher) == false);
     smatcher_skipwhitespaces(&smatcher);

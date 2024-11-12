@@ -1,14 +1,14 @@
 #include "shell.h"
 #include <dirent.h>
 #include <errno.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
-#include <unistd.h>
 #include <kernel/fs/vfs.h>
 #include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/mem/heap.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 
 // https://pubs.opengroup.org/onlinepubs/9799919799/utilities/ls.html
 
@@ -77,9 +77,8 @@ static int format(
     if (opts->streamformat) {
         if (islastentry) {
             return snprintf(buf, size, "%s", ent->name);
-        } else {
-            return snprintf(buf, size, "%s, ", ent->name);
         }
+        return snprintf(buf, size, "%s, ", ent->name);
     }
     return snprintf(buf, size, "%s ", ent->name);
 }
@@ -87,7 +86,7 @@ static int format(
 static void showdir(
     char const *progname, char const *path, struct opts const *opts)
 {
-    DIR *dir;
+    DIR *dir = NULL;
     int ret = vfs_opendir(&dir, path);
     if (ret < 0) {
         co_printf(
@@ -102,7 +101,8 @@ static void showdir(
         ret = vfs_readdir(&ent, dir);
         if (ret == -ENOENT) {
             break;
-        } else if (ret != 0) {
+        }
+        if (ret != 0) {
             co_printf(
                 "%s: failed to read directory %s (error %d)\n",
                 progname, path, ret);
@@ -110,7 +110,7 @@ static void showdir(
         }
         bool shouldhide = false;
         if (!opts->all || opts->all_alt) {
-            shouldhide |= strcmp(ent.d_name, ".") == 0 ||
+            shouldhide |= (strcmp(ent.d_name, ".") == 0) ||
                           strcmp(ent.d_name, "..") == 0;
         }
         if (!opts->all && !opts->all_alt) {
@@ -166,7 +166,6 @@ out:
         heap_free(entries[i].name);
     }
     heap_free(entries);
-    return;
 }
 
 static int program_main(int argc, char *argv[]) {

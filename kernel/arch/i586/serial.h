@@ -2,14 +2,15 @@
 #include "pic.h"
 #include <kernel/lib/diagnostics.h>
 #include <kernel/io/stream.h>
+#include <kernel/io/tty.h>
 #include <stdbool.h>
 #include <stdint.h>
 
 struct archi586_serial {
-    struct stream stream;
+    struct archi586_pic_irq_handler irqhandler;
+    struct tty tty;
     int32_t masterclock;
     uint16_t baseaddr;
-    struct archi586_pic_irqhandler irqhandler;
     uint8_t irq;
     _Atomic(bool) txint;
     _Atomic(bool) rxint;
@@ -26,3 +27,4 @@ WARN_UNUSED_RESULT int archi586_serial_init(
 WARN_UNUSED_RESULT int archi586_serial_config(
     struct archi586_serial *self, uint32_t baudrate);
 void archi586_serial_useirq(struct archi586_serial *self);
+WARN_UNUSED_RESULT int archi586_serial_initiodev(struct archi586_serial *self);

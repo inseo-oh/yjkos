@@ -1,10 +1,9 @@
 #include <kernel/arch/interrupts.h>
-#include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/tasks/mutex.h>
 #include <kernel/tasks/sched.h>
-#include <string.h>
 #include <stdatomic.h>
+#include <string.h>
 
 void mutex_init(struct mutex *out) {
     memset(out, 0, sizeof(*out));
@@ -12,7 +11,7 @@ void mutex_init(struct mutex *out) {
 
 WARN_UNUSED_RESULT bool __mutex_trylock(
     struct mutex *self,
-    char const *filename, char const *func, int line)
+    struct sourcelocation loc)
 {
     bool expected = false;
     if (!atomic_compare_exchange_strong_explicit(
@@ -21,36 +20,25 @@ WARN_UNUSED_RESULT bool __mutex_trylock(
     {
         return false;
     }
-    self->locksource.filename = filename;
-    self->locksource.func = func;
-    self->locksource.line = line;
+    memcpy(&self->locksource, &loc, sizeof(self->locksource));
     return true;
 }
 
 void __mutex_lock(
-    struct mutex *self,
-    char const *filename, char const *func, int line)
+    struct mutex *self, struct sourcelocation loc)
 {
     assert(self);
     bool previnterrupts = arch_interrupts_disable();
-    if (!__mutex_trylock(self, filename, func, line)) {
-        struct mutex_locksource source = {
-            .filename = filename,
-            .func = func,
-            .line = line,
-        };
-        sched_waitmutex(self, &source);
-        assert(self);
-        if (!self->locked) {
-            while(1);
-        }
+    if (!__mutex_trylock(self, loc)) {
+        sched_waitmutex(self, &loc);
+        assert(self->locked);
     }
     interrupts_restore(previnterrupts);
 }
 
 void mutex_unlock(struct mutex *self) {
     self->locksource.filename = NULL;
-    self->locksource.func = NULL;
+    self->locksource.function = NULL;
     self->locksource.line = 0;
     atomic_store_explicit(&self->locked, false, memory_order_release);
 }

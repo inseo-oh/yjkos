@@ -1,7 +1,6 @@
 #include "../test.h"
 #include <kernel/io/co.h>
 #include <kernel/lib/bst.h>
-#include <kernel/lib/list.h>
 #include <kernel/panic.h>
 #include <string.h>
 
@@ -14,7 +13,6 @@ static struct bst_node *assertnonnullnode(struct bst_node *node, char const *ass
 }
 
 #define ASSERT_NONNULL_BSTNODE(_x)  assertnonnullnode(_x, #_x, __func__, __FILE__, __LINE__)
-
 
 static bool do_insertnode_unbalenced(void) {
     struct bst bst;

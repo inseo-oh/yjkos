@@ -6,11 +6,11 @@
 #include <stddef.h>
 
 // ACS-3 6.2 Status field
-static uint8_t const ATA_STATUSFLAG_ERR = 1 << 0;
-static uint8_t const ATA_STATUSFLAG_DRQ = 1 << 3;
-static uint8_t const ATA_STATUSFLAG_DF  = 1 << 5;
-static uint8_t const ATA_STATUSFLAG_RDY = 1 << 6;
-static uint8_t const ATA_STATUSFLAG_BSY = 1 << 7;
+#define ATA_STATUSFLAG_ERR 1U << 0U
+#define ATA_STATUSFLAG_DRQ 1U << 3U
+#define ATA_STATUSFLAG_DF  1U << 5U
+#define ATA_STATUSFLAG_RDY 1U << 6U
+#define ATA_STATUSFLAG_BSY 1U << 7U
 
 // ACS-3 6.3 ERROR field
 enum ata_cmd {
@@ -45,19 +45,19 @@ struct atadisk_ops {
     void (*dma_endsession)(struct atadisk *self);
     void (*lock)(struct atadisk *self);
     void (*unlock)(struct atadisk *self);
-    uint8_t (*readstatus)(struct atadisk *self);
-    void (*selectdisk)(struct atadisk *self);
-    void (*setfeaturesparam)(struct atadisk *self, uint16_t data);
-    void (*setcountparam)(struct atadisk *self, uint16_t data);
-    void (*setlbaparam)(struct atadisk *self, uint32_t data);
-    void (*setdeviceparam)(struct atadisk *self, uint8_t data);
-    uint32_t (*getlbaoutput)(struct atadisk *self);
-    void (*issuecmd)(struct atadisk *self, enum ata_cmd cmd);
-    bool (*getirqflag)(struct atadisk *self);
-    void (*clearirqflag)(struct atadisk *self);
-    void (*readdata)(struct ata_databuf *out, struct atadisk *self);
-    void (*writedata)(struct atadisk *self, struct ata_databuf *buffer);
-    void (*softreset)(struct atadisk *self);
+    uint8_t (*read_status)(struct atadisk *self);
+    void (*select_disk)(struct atadisk *self);
+    void (*set_features_param)(struct atadisk *self, uint16_t data);
+    void (*set_count_param)(struct atadisk *self, uint16_t data);
+    void (*set_lba_param)(struct atadisk *self, uint32_t data);
+    void (*set_device_param)(struct atadisk *self, uint8_t data);
+    uint32_t (*get_lba_output)(struct atadisk *self);
+    void (*issue_cmd)(struct atadisk *self, enum ata_cmd cmd);
+    bool (*get_irq_flag)(struct atadisk *self);
+    void (*clear_irq_flag)(struct atadisk *self);
+    void (*read_data)(struct ata_databuf *out, struct atadisk *self);
+    void (*write_data)(struct atadisk *self, struct ata_databuf *buffer);
+    void (*soft_reset)(struct atadisk *self);
 
     // DMA API
     // The order of operation is:
@@ -69,11 +69,11 @@ struct atadisk_ops {
     // 6. [DMA] Deinitialize DMA transfer
     // (Step 5 and 6 are separate, so that DMA can be deinitialized safely if something fails between
     // Step 1 and Step 3)
-    WARN_UNUSED_RESULT int (*dma_inittransfer)(struct atadisk *self, void *buffer, size_t len, bool isread);
-    WARN_UNUSED_RESULT int (*dma_begintransfer)(struct atadisk *self);
-    enum ata_dmastatus (*dma_checktransfer)(struct atadisk *self);
-    void (*dma_endtransfer)(struct atadisk *self, bool wasSuccess);
-    void (*dma_deinittransfer)(struct atadisk *self);
+    WARN_UNUSED_RESULT int (*dma_init_transfer)(struct atadisk *self, void *buffer, size_t len, bool isread);
+    WARN_UNUSED_RESULT int (*dma_begin_transfer)(struct atadisk *self);
+    enum ata_dmastatus (*dma_check_transfer)(struct atadisk *self);
+    void (*dma_end_transfer)(struct atadisk *self, bool wasSuccess);
+    void (*dma_deinit_transfer)(struct atadisk *self);
 };
 struct atadisk {
     struct pdisk physdisk;

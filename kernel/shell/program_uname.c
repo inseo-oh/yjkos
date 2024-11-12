@@ -1,14 +1,10 @@
 #include "shell.h"
-#include <dirent.h>
-#include <stdint.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <string.h>
-#include <kernel/version.h>
-#include <kernel/fs/vfs.h>
 #include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
-#include <kernel/mem/heap.h>
+#include <kernel/version.h>
+#include <stdint.h>
+#include <string.h>
+#include <unistd.h>
 
 // https://pubs.opengroup.org/onlinepubs/9799919799/utilities/ls.html
 
@@ -58,6 +54,8 @@ static WARN_UNUSED_RESULT bool getopts(
             case ':':
                 ok = false;
                 break;
+            default:
+                assert(false);
         }
     }
     return ok;

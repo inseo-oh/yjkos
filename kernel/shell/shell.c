@@ -42,11 +42,14 @@ union shellcmd {
 static struct list s_programs;
 
 // Returns shell exit code (See SHELL_EXITCODE_~)
-WARN_UNUSED_RESULT static int parsecmd(union shellcmd *out, struct smatcher *cmdstr) {
+WARN_UNUSED_RESULT static int parse_cmd(
+    union shellcmd *out, struct smatcher *cmdstr)
+{
     int result = SHELL_EXITCODE_OK;
     size_t oldcurrentindex = cmdstr->currentindex;
     char **argv = NULL;
     int argc = 0;
+    memset(out, 0, sizeof(*out));
     smatcher_skipwhitespaces(cmdstr);
     if (cmdstr->currentindex == cmdstr->len) {
         out->kind = CMDKIND_EMPTY;
@@ -59,8 +62,8 @@ WARN_UNUSED_RESULT static int parsecmd(union shellcmd *out, struct smatcher *cmd
             ) {
                 break;
             }
-            char const *str;
-            size_t len;
+            char const *str = NULL;
+            size_t len = 0;
             bool matchok = smatcher_consumeword(
                 &str, &len, cmdstr);
             (void)matchok;
@@ -68,7 +71,7 @@ WARN_UNUSED_RESULT static int parsecmd(union shellcmd *out, struct smatcher *cmd
             if (argc == INT_MAX) {
                 goto fail_alloc;
             }
-            size_t newargc = argc + 1;
+            int newargc = argc + 1;
             if ((SIZE_MAX / sizeof(void *)) < (size_t)argc) {
                 goto fail_alloc;
             }
@@ -164,11 +167,11 @@ static void registerprogram(struct shell_program *program) {
 }
 
 int shell_execcmd(char const *str) {
-    int ret;
+    int ret = 0;
     union shellcmd cmd;
     struct smatcher linematcher;
     smatcher_init(&linematcher, str);
-    ret = parsecmd(&cmd, &linematcher); 
+    ret = parse_cmd(&cmd, &linematcher); 
     if (ret < 0) {
         return ret;
     }
@@ -176,10 +179,10 @@ int shell_execcmd(char const *str) {
         if (CONFIG_DUMPCMD) {
             cmd_dump(&cmd);
         }
-        int e = cmd_exec(&cmd);
+        ret = cmd_exec(&cmd);
         cmd_destroy(&cmd);
-        if (e != 0) {
-            return e;
+        if (ret != 0) {
+            return ret;
         }
     }
     return 0;
@@ -221,7 +224,7 @@ void shell_repl(void) {
 }
 
 void shell_init(void) {
-#define X(_x)   registerprogram(&_x);
+#define X(_x)   registerprogram(&(_x));
     ENUMERATE_SHELLPROGRAMS(X)
 #undef X
 }

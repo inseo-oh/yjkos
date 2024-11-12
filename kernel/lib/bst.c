@@ -13,8 +13,8 @@ static bool const CONFIG_CHECK_TREE = true;
 //-----------------------------------------------------------------------------
 
 enum {
-    CHECK_FLAG_NO_HEIGHT = 1 << 0,
-    CHECK_FLAG_NO_BF     = 1 << 1,
+    CHECK_FLAG_NO_HEIGHT = 1U << 0U,
+    CHECK_FLAG_NO_BF     = 1U << 1U,
 };
 
 static int32_t heightofsubtree(struct bst_node *subtreeroot) {
@@ -395,7 +395,8 @@ void bst_rotate(struct bst *self, struct bst_node *subtreeroot, enum bst_dir dir
 }
 
 void bst_recalculateheight(struct bst_node *subtreeroot) {
-    checksubtree(subtreeroot, subtreeroot->parent, true, CHECK_FLAG_NO_HEIGHT | CHECK_FLAG_NO_BF);
+    checksubtree(
+        subtreeroot, subtreeroot->parent, true, CHECK_FLAG_NO_HEIGHT | CHECK_FLAG_NO_BF);
     struct bst_node *current = subtreeroot;
 
     while (current != NULL) {

@@ -30,7 +30,7 @@ OBJCOPY       = $(TOOLCHAIN_BINDIR)/$(ARCH_OBJCOPY)
 
 OBJS      = $(addprefix $(OBJDIR)/, $(OBJ_NAMES))
 DEPS      = $(patsubst %.o, %.d, $(OBJS))
-OBJDIRS  = $(sort $(dir $(OBJS)))
+OBJDIRS   = $(sort $(dir $(OBJS)))
 
 CFLAGS  = -Wall -Wextra -Werror -pedantic
 CFLAGS += -I$(PROJECTDIR)/include
@@ -39,7 +39,7 @@ CFLAGS += -ffreestanding -fstack-protector-all
 CFLAGS += -Wno-error=unused-function -Wno-error=unused-const-variable -g 
 CFLAGS += -fsanitize=undefined
 CFLAGS += -DYJKERNEL_SOURCE
-CFLAGS += -flto=auto -O3 -fno-omit-frame-pointer
+# CFLAGS += -flto=auto -O3 -fno-omit-frame-pointer
 
 ifeq ($(KDOOM),1)
 CFLAGS += -DYJKERNEL_ENABLE_KDOOM

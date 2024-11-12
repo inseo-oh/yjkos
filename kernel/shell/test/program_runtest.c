@@ -6,13 +6,14 @@
 #include <unistd.h>
 
 static struct testgroup const * const TESTGROUPS[] = {
-#define X(_x)   &_x,
+#define X(_x)   &(_x),
     ENUMERATE_TESTGROUPS(X)
 #undef X
 };
 
 static bool runtests(struct testgroup const *group) {
-    size_t okcount = 0, failcount = 0;
+    size_t okcount = 0;
+    size_t failcount = 0;
     co_printf("running test group '%s' (%zu tests)\n", group->name, group->testslen);
     for (size_t i = 0; i < group->testslen; i++) {
         co_printf("[test %u / %u] %s\n", i + 1, group->testslen, group->tests[i].name);
@@ -37,7 +38,7 @@ static WARN_UNUSED_RESULT bool getopts(
     struct opts *out, int argc, char *argv[])
 {
     bool ok = true;
-    int c;
+    int c = 0;
     memset(out, 0, sizeof(*out));
     while (1) {
         c = getopt(argc, argv, "hla");
@@ -54,6 +55,9 @@ static WARN_UNUSED_RESULT bool getopts(
             case '?':
             case ':':
                 ok = false;
+                break;
+            default:
+                assert(false);
         }
     }
     return ok;

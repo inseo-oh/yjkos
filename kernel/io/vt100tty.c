@@ -1,12 +1,12 @@
+#include <assert.h>
+#include <kernel/io/co.h>
 #include <kernel/io/kbd.h>
 #include <kernel/io/stream.h>
-#include <kernel/io/co.h>
 #include <kernel/io/vt100tty.h>
 #include <kernel/lib/diagnostics.h>
 #include <stdint.h>
 #include <string.h>
 #include <sys/types.h>
-#include <assert.h>
 
 static struct vt100tty_char *charat(struct vt100tty *self, int row, int column)
 {
@@ -60,10 +60,12 @@ static void writechar(struct vt100tty *self, char chr) {
     if (chr == '\n') {
         advanceline(self, false);
         return;
-    } else if (chr == '\r') {
+    }
+    if (chr == '\r') {
         self->currentcolumn = 0;
         return;
-    } else if (self->columns <= self->currentcolumn) {
+    }
+    if (self->columns <= self->currentcolumn) {
         advanceline(self, true);
     }
     struct vt100tty_char *dest =
@@ -84,7 +86,7 @@ static WARN_UNUSED_RESULT ssize_t stream_op_write(
         uint8_t c = ((uint8_t *)data)[idx];
         writechar(self, c);
     }
-    return size;
+    return (ssize_t)size;
 }
 
 static WARN_UNUSED_RESULT ssize_t stream_op_read(
@@ -109,7 +111,7 @@ static WARN_UNUSED_RESULT ssize_t stream_op_read(
         *((uint8_t *)buf) = event.chr;
         read_len++;
     }
-    return read_len;
+    return (ssize_t)read_len;
 }
 
 static void stream_op_flush(struct stream *stream) {

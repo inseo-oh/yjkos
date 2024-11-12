@@ -6,19 +6,19 @@
 #include <stdint.h>
 
 // Lock key flags
-static uint16_t const KBD_FLAG_LOCK_CAPS   = 1 << 0;
-static uint16_t const KBD_FLAG_LOCK_NUM    = 1 << 1;
-static uint16_t const KBD_FLAG_LOCK_SCROLL = 1 << 2;
+#define KBD_FLAG_LOCK_CAPS   (1U << 0U)
+#define KBD_FLAG_LOCK_NUM    (1U << 1U)
+#define KBD_FLAG_LOCK_SCROLL (1U << 2U)
 
 // Modifier key flags
-static uint16_t const KBD_FLAG_MOD_LSHIFT = 1 << 8;
-static uint16_t const KBD_FLAG_MOD_RSHIFT = 1 << 9;
-static uint16_t const KBD_FLAG_MOD_LCTRL  = 1 << 10;
-static uint16_t const KBD_FLAG_MOD_RCTRL  = 1 << 11;
-static uint16_t const KBD_FLAG_MOD_LALT   = 1 << 12;
-static uint16_t const KBD_FLAG_MOD_RALT   = 1 << 13;
-static uint16_t const KBD_FLAG_MOD_LSUPER = 1 << 14;
-static uint16_t const KBD_FLAG_MOD_RSUPER = 1 << 15;
+#define KBD_FLAG_MOD_LSHIFT 1U << 8U
+#define KBD_FLAG_MOD_RSHIFT 1U << 9U
+#define KBD_FLAG_MOD_LCTRL  1U << 10U
+#define KBD_FLAG_MOD_RCTRL  1U << 11U
+#define KBD_FLAG_MOD_LALT   1U << 12U
+#define KBD_FLAG_MOD_RALT   1U << 13U
+#define KBD_FLAG_MOD_LSUPER 1U << 14U
+#define KBD_FLAG_MOD_RSUPER 1U << 15U
 
 #define KBD_FLAG_MOD_SHIFT (KBD_FLAG_MOD_LSHIFT | KBD_FLAG_MOD_RSHIFT)
 #define KBD_FLAG_MOD_CTRL  (KBD_FLAG_MOD_LCTRL  | KBD_FLAG_MOD_RCTRL )

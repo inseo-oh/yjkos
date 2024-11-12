@@ -5,6 +5,8 @@
 #include <kernel/lib/list.h>
 #include <stdint.h>
 
+#define THREAD_STACK_SIZE   (1024*16)
+
 struct thread {
     /*
      * NOTE: The parent list depends on the context.
@@ -14,7 +16,7 @@ struct thread {
     struct list_node sched_listnode;
     struct arch_thread *arch_thread;
     struct mutex *waitingmutex;
-    struct mutex_locksource desired_locksource;
+    struct sourcelocation desired_locksource;
     int8_t priority;
     bool shutdown : 1;
 };

@@ -1,8 +1,8 @@
 #pragma once
 #include <kernel/types.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #define BITS_PER_WORD            (sizeof(uint) * 8)
 

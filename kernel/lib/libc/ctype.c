@@ -3,8 +3,8 @@
 
 typedef uint8_t charclass_type;
 
-static charclass_type const CCLASS_FLAG_SPACE = 1 << 0;
-static charclass_type const CCLASS_FLAG_DIGIT = 1 << 1;
+static charclass_type const CCLASS_FLAG_SPACE = 1U << 0U;
+static charclass_type const CCLASS_FLAG_DIGIT = 1U << 1U;
 
 static charclass_type const CHARS[128] = {
     ['0'] = CCLASS_FLAG_DIGIT,

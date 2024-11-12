@@ -34,8 +34,8 @@ struct stream {
     void *data;
 };
 
-WARN_UNUSED_RESULT int stream_putchar(
-    struct stream *self, char c);
+WARN_UNUSED_RESULT int stream_put_char(
+    struct stream *self, int c);
 WARN_UNUSED_RESULT ssize_t stream_putstr(
     struct stream *self, char const *s);
 WARN_UNUSED_RESULT ssize_t stream_vprintf(

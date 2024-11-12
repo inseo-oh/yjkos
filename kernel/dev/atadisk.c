@@ -24,15 +24,15 @@ static WARN_UNUSED_RESULT int waitirq(struct atadisk *disk) {
     bool ok = false;
     while ((g_ticktime - starttime) < TIMEOUT) {
         if (STATUS_POLL_PERIOD <= (lastchecktime - g_ticktime)) {
-            uint8_t diskstatus = disk->ops->readstatus(disk);
+            uint8_t diskstatus = disk->ops->read_status(disk);
             if (diskstatus & (ATA_STATUSFLAG_ERR | ATA_STATUSFLAG_DF)) {
                 ret = -EIO;
                 goto fail;
             }
             lastchecktime = g_ticktime;
         }
-        if (disk->ops->getirqflag(disk)) {
-            disk->ops->clearirqflag(disk);
+        if (disk->ops->get_irq_flag(disk)) {
+            disk->ops->clear_irq_flag(disk);
             ok = true;
             break;
         }
@@ -55,7 +55,7 @@ static WARN_UNUSED_RESULT int waitbusyclear(struct atadisk *disk) {
     ticktime starttime = g_ticktime;
     bool ok = false;
     while ((g_ticktime - starttime) < TIMEOUT) {
-        uint8_t diskstatus = disk->ops->readstatus(disk);
+        uint8_t diskstatus = disk->ops->read_status(disk);
         if (!(diskstatus & ATA_STATUSFLAG_BSY)) {
             ok = true;
             break;
@@ -82,7 +82,7 @@ static WARN_UNUSED_RESULT int waitbusyclear_irq(struct atadisk *disk) {
         if (ret < 0) {
             goto fail;
         }
-        if (!(disk->ops->readstatus(disk) & ATA_STATUSFLAG_BSY)) {
+        if (!(disk->ops->read_status(disk) & ATA_STATUSFLAG_BSY)) {
             break;
         }
     }
@@ -97,7 +97,7 @@ static WARN_UNUSED_RESULT int waitdrqset(struct atadisk *disk) {
     ticktime starttime = g_ticktime;
     bool ok = false;
     while ((g_ticktime - starttime) < TIMEOUT) {
-        uint8_t diskstatus = disk->ops->readstatus(disk);
+        uint8_t diskstatus = disk->ops->read_status(disk);
         if (diskstatus & (ATA_STATUSFLAG_ERR | ATA_STATUSFLAG_DF)) {
             ret = -EIO;
             goto fail;
@@ -134,10 +134,10 @@ static WARN_UNUSED_RESULT int identifydevice(
     struct identifyresult *out, struct atadisk *disk)
 {
     int ret = 0;
-    disk->ops->selectdisk(disk);
-    disk->ops->setlbaparam(disk, 0);
-    disk->ops->issuecmd(disk, ATA_CMD_IDENTIFYDEVICE);
-    uint8_t diskstatus = disk->ops->readstatus(disk);
+    disk->ops->select_disk(disk);
+    disk->ops->set_lba_param(disk, 0);
+    disk->ops->issue_cmd(disk, ATA_CMD_IDENTIFYDEVICE);
+    uint8_t diskstatus = disk->ops->read_status(disk);
     if (diskstatus == 0) {
         // Disk is not there
         ret = -ENODEV;
@@ -155,13 +155,13 @@ static WARN_UNUSED_RESULT int identifydevice(
     ticktime starttime = g_ticktime;
     bool ok = false;
     while ((g_ticktime - starttime) < TIMEOUT) {
-        uint32_t lba = disk->ops->getlbaoutput(disk);
+        uint32_t lba = disk->ops->get_lba_output(disk);
         if ((lba & 0xffff00) != 0) {
             // Not an ATA device
             ret = -ENODEV;
             goto fail;
         }
-        uint8_t diskstatus = disk->ops->readstatus(disk);
+        uint8_t diskstatus = disk->ops->read_status(disk);
         if (diskstatus & (ATA_STATUSFLAG_ERR | ATA_STATUSFLAG_DF)) {
             ret = -EIO;
             goto fail;
@@ -176,7 +176,7 @@ static WARN_UNUSED_RESULT int identifydevice(
         goto fail;
     }
     struct ata_databuf buffer;
-    disk->ops->readdata(&buffer, disk);
+    disk->ops->read_data(&buffer, disk);
     memset(out, 0, sizeof(*out));
     extractstring_from_identifydata(out->serial, &buffer, 10, 19);
     extractstring_from_identifydata(out->firmware, &buffer, 23, 26);
@@ -189,8 +189,8 @@ out:
 
 static WARN_UNUSED_RESULT int flushcache(struct atadisk *disk) {
     int ret = 0;
-    disk->ops->selectdisk(disk);
-    disk->ops->issuecmd(disk, ATA_CMD_FLUSHCACHE);
+    disk->ops->select_disk(disk);
+    disk->ops->issue_cmd(disk, ATA_CMD_FLUSHCACHE);
     ret = waitbusyclear(disk);
     if (ret < 0) {
         goto fail;
@@ -219,7 +219,7 @@ static WARN_UNUSED_RESULT int writesectors(struct atadisk *disk, uint32_t lba, s
                 currentsectorcount = ATA_MAX_SECTORS_PER_TRANSFER;
             }
             if (candma) {
-                ret = disk->ops->dma_inittransfer(disk, (uint8_t *)srcbuf, currentsectorcount * ATA_SECTOR_SIZE, false);
+                ret = disk->ops->dma_init_transfer(disk, (uint8_t *)srcbuf, currentsectorcount * ATA_SECTOR_SIZE, false);
                 if (ret < 0) {
                     iodev_printf(
                         &disk->physdisk.iodev,
@@ -228,18 +228,18 @@ static WARN_UNUSED_RESULT int writesectors(struct atadisk *disk, uint32_t lba, s
                 }
                 dmainitialized = true;
             }
-            disk->ops->selectdisk(disk);
-            disk->ops->setfeaturesparam(disk, 0);
+            disk->ops->select_disk(disk);
+            disk->ops->set_features_param(disk, 0);
             if (currentsectorcount == ATA_MAX_SECTORS_PER_TRANSFER) {
-                disk->ops->setcountparam(disk, 0);
+                disk->ops->set_count_param(disk, 0);
             } else {
-                disk->ops->setcountparam(disk, currentsectorcount);
+                disk->ops->set_count_param(disk, currentsectorcount);
             }
-            disk->ops->setlbaparam(disk, currentlba);
+            disk->ops->set_lba_param(disk, currentlba);
             if (candma) {
                 // Use DMA
-                disk->ops->issuecmd(disk, ATA_CMD_WRITEDMA);
-                ret = disk->ops->dma_begintransfer(disk);
+                disk->ops->issue_cmd(disk, ATA_CMD_WRITEDMA);
+                ret = disk->ops->dma_begin_transfer(disk);
                 if (ret < 0) {
                     iodev_printf(&disk->physdisk.iodev, "failed to start DMA transfer\n");
                     goto tryfailed;
@@ -251,7 +251,7 @@ static WARN_UNUSED_RESULT int writesectors(struct atadisk *disk, uint32_t lba, s
                         goto tryfailed;
                     }
                     enum ata_dmastatus dmastatus =
-                        disk->ops->dma_checktransfer(disk);
+                        disk->ops->dma_check_transfer(disk);
                     switch (dmastatus) {
                         case ATA_DMASTATUS_BUSY:
                             continue;
@@ -270,12 +270,12 @@ static WARN_UNUSED_RESULT int writesectors(struct atadisk *disk, uint32_t lba, s
                             goto tryfailed;
                     }
                 }
-                disk->ops->dma_endtransfer(disk, true);
-                disk->ops->dma_deinittransfer(disk);
+                disk->ops->dma_end_transfer(disk, true);
+                disk->ops->dma_deinit_transfer(disk);
                 srcbuf += currentsectorcount * ATA_SECTOR_SIZE;
             } else {
                 // Use PIO
-                disk->ops->issuecmd(disk, ATA_CMD_WRITESECTORS);
+                disk->ops->issue_cmd(disk, ATA_CMD_WRITESECTORS);
                 for (size_t sector = 0; sector < currentsectorcount; sector++) {
                     struct ata_databuf buffer;
                     ret = waitbusyclear(disk);
@@ -290,7 +290,7 @@ static WARN_UNUSED_RESULT int writesectors(struct atadisk *disk, uint32_t lba, s
                         buffer.data[i] = ((uint16_t)srcbuf[1] << 8) | srcbuf[0];
                         srcbuf += 2;
                     }
-                    disk->ops->writedata(disk, &buffer);
+                    disk->ops->write_data(disk, &buffer);
                     ret = waitbusyclear_irq(disk);
                     if (ret < 0) {
                         goto tryfailed;
@@ -315,10 +315,10 @@ static WARN_UNUSED_RESULT int writesectors(struct atadisk *disk, uint32_t lba, s
             break;
         tryfailed:
             if (dmarunning) {
-                disk->ops->dma_endtransfer(disk, false);
+                disk->ops->dma_end_transfer(disk, false);
             }
             if (dmainitialized) {
-                disk->ops->dma_deinittransfer(disk);
+                disk->ops->dma_deinit_transfer(disk);
             }
             if (try == MAX_RETRIES) {
                 goto fail;
@@ -329,7 +329,7 @@ static WARN_UNUSED_RESULT int writesectors(struct atadisk *disk, uint32_t lba, s
             if (!iscrcerror && candma) {
                 // If we are using DMA, reset the disk to take it out of DMA mode, to be safe.
                 iodev_printf(&disk->physdisk.iodev, "resetting disk\n");
-                disk->ops->softreset(disk);
+                disk->ops->soft_reset(disk);
             }
             continue;
         }
@@ -364,7 +364,7 @@ static WARN_UNUSED_RESULT int readsectors(
                 currentsectorcount = ATA_MAX_SECTORS_PER_TRANSFER;
             }
             if (candma) {
-                ret = disk->ops->dma_inittransfer(
+                ret = disk->ops->dma_init_transfer(
                     disk, destbuf, currentsectorcount * ATA_SECTOR_SIZE, true);
                 if (ret < 0) {
                     iodev_printf(
@@ -374,18 +374,18 @@ static WARN_UNUSED_RESULT int readsectors(
                 }
                 dmainitialized = true;
             }
-            disk->ops->selectdisk(disk);
-            disk->ops->setfeaturesparam(disk, 0);
+            disk->ops->select_disk(disk);
+            disk->ops->set_features_param(disk, 0);
             if (currentsectorcount == ATA_MAX_SECTORS_PER_TRANSFER) {
-                disk->ops->setcountparam(disk, 0);
+                disk->ops->set_count_param(disk, 0);
             } else {
-                disk->ops->setcountparam(disk, currentsectorcount);
+                disk->ops->set_count_param(disk, currentsectorcount);
             }
-            disk->ops->setlbaparam(disk, currentlba);
+            disk->ops->set_lba_param(disk, currentlba);
             if (candma) {
                 // Use DMA
-                disk->ops->issuecmd(disk, ATA_CMD_READDMA);
-                ret = disk->ops->dma_begintransfer(disk);
+                disk->ops->issue_cmd(disk, ATA_CMD_READDMA);
+                ret = disk->ops->dma_begin_transfer(disk);
                 if (ret < 0) {
                     iodev_printf(
                         &disk->physdisk.iodev,
@@ -399,7 +399,7 @@ static WARN_UNUSED_RESULT int readsectors(
                         goto tryfailed;
                     }
                     enum ata_dmastatus dmastatus =
-                        disk->ops->dma_checktransfer(disk);
+                        disk->ops->dma_check_transfer(disk);
                     switch (dmastatus) {
                         case ATA_DMASTATUS_BUSY:
                             continue;
@@ -418,12 +418,12 @@ static WARN_UNUSED_RESULT int readsectors(
                             goto tryfailed;
                     }
                 }
-                disk->ops->dma_endtransfer(disk, true);
-                disk->ops->dma_deinittransfer(disk);
+                disk->ops->dma_end_transfer(disk, true);
+                disk->ops->dma_deinit_transfer(disk);
                 destbuf += currentsectorcount * ATA_SECTOR_SIZE;
             } else {
                 // Use PIO
-                disk->ops->issuecmd(disk, ATA_CMD_READSECTORS);
+                disk->ops->issue_cmd(disk, ATA_CMD_READSECTORS);
                 for (size_t sector = 0; sector < currentsectorcount; sector++) {
                     struct ata_databuf buffer;
                     ret = waitbusyclear_irq(disk);
@@ -434,7 +434,7 @@ static WARN_UNUSED_RESULT int readsectors(
                     if (ret < 0) {
                         goto tryfailed;
                     }
-                    disk->ops->readdata(&buffer, disk);
+                    disk->ops->read_data(&buffer, disk);
                     for (size_t i = 0; i < 256; i++) {
                         *(destbuf++) = buffer.data[i];
                         *(destbuf++) = buffer.data[i] >> 8;
@@ -446,10 +446,10 @@ static WARN_UNUSED_RESULT int readsectors(
             break;
         tryfailed:
             if (dmarunning) {
-                disk->ops->dma_endtransfer(disk, false);
+                disk->ops->dma_end_transfer(disk, false);
             }
             if (dmainitialized) {
-                disk->ops->dma_deinittransfer(disk);
+                disk->ops->dma_deinit_transfer(disk);
             }
             if (try == MAX_RETRIES) {
                 goto fail;
@@ -461,7 +461,7 @@ static WARN_UNUSED_RESULT int readsectors(
                 // If we are using DMA, reset the disk to take it out of DMA mode, to be safe.
                 iodev_printf(
                     &disk->physdisk.iodev, "resetting disk\n");
-                disk->ops->softreset(disk);
+                disk->ops->soft_reset(disk);
             }
             continue;
         }

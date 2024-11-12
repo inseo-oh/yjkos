@@ -187,7 +187,7 @@ out:
 WARN_UNUSED_RESULT int vfs_mount(
     char const *fstype, struct ldisk *disk, char const *mountpath)
 {
-    int ret;
+    int ret = -ENODEV;
     if (fstype == NULL) {
         // Try all possible filesystems
         LIST_FOREACH(&s_fstypes, fstypenode) {
@@ -334,7 +334,8 @@ WARN_UNUSED_RESULT int vfs_openfile(
         path, resolvepathcallback_openfile, &context);
     if (ret < 0) {
         return ret;
-    } else if (context.ret < 0) {
+    }
+    if (context.ret < 0) {
         return context.ret;
     }
     *out = context.fdresult;
@@ -368,7 +369,8 @@ int vfs_opendir(DIR **out, char const *path) {
         path, resolvepathcallback_opendirectory, &context);
     if (ret < 0) {
         return ret;
-    } else if (context.ret < 0) {
+    }
+    if (context.ret < 0) {
         return context.ret;
     }
     *out = context.dirresult;

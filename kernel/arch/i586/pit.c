@@ -51,7 +51,7 @@ static void irqhandler(int irqnum, void *data) {
     sched_schedule();
 }
 
-static struct archi586_pic_irqhandler s_irqhandler;
+static struct archi586_pic_irq_handler s_irqhandler;
 
 void archi586_pit_init(void) {
     archi586_pic_maskirq(PIT_IRQ);

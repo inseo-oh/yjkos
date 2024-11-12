@@ -1,12 +1,12 @@
 #include "fbtty.h"
 #include "psf.h"
+#include <assert.h>
 #include <kernel/io/co.h>
 #include <kernel/io/vt100tty.h>
 #include <kernel/mem/heap.h>
 #include <kernel/raster/fb.h>
-#include <assert.h>
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 static struct vt100tty s_tty;
 static char *s_linetempbuf;
@@ -16,23 +16,23 @@ static void vt100tty_op_updatescreen(struct vt100tty *self) {
     int writepos = 0;
     int writelen = 0;
     struct vt100tty_char *src = self->chars;
-    for (int32_t r = 0; r < self->rows; r++) {
-        for (int32_t c = 0; c < self->columns; c++, src++) {
+    for (int32_t row = 0; row < self->rows; row++) {
+        for (int32_t col = 0; col < self->columns; col++, src++) {
             if (src->needsupdate) {
                 if (writelen == 0) {
-                    writepos = c;
+                    writepos = col;
                 }
                 s_linetempbuf[writelen] = src->chr;
                 src->needsupdate = false;
                 writelen++;
             }
             if (
-                (!src->needsupdate || c == (self->columns - 1)) &&
+                (!src->needsupdate || col == (self->columns - 1)) &&
                 (writelen != 0))
             {
                 s_linetempbuf[writelen] = '\0';
                 int destx = writepos * psf_getwidth();
-                int desty = r * psf_getheight();
+                int desty = row * psf_getheight();
                 fb_drawrect(
                     writelen * psf_getwidth(), psf_getheight(),
                     destx, desty, black());

@@ -88,7 +88,7 @@ static void cmdfinished(struct ps2port *port, enum cmdstate finalstate) {
     if (CONFIG_COMMDEBUG) {
         iodev_printf(&ctx->device.iodev, "sending command %#x from queue\n", cmd->cmdbyte);
     }
-    int ret = stream_putchar(&port->stream, cmd->cmdbyte);
+    int ret = stream_put_char(&port->stream, cmd->cmdbyte);
     if (ret < 0) {
         iodev_printf(
             &ctx->device.iodev,
@@ -398,7 +398,7 @@ static WARN_UNUSED_RESULT int ps2_op_bytereceived(
                 if ((0 < cmd->resendcount) && !cmd->noretry) {
                     iodev_printf(&ctx->device.iodev, "received RESEND for command %#x (remaining retries: %d)\n", cmd->cmdbyte, cmd->resendcount);
                     cmd->resendcount--;
-                    int ret = stream_putchar(&port->stream, cmd->cmdbyte);
+                    int ret = stream_put_char(&port->stream, cmd->cmdbyte);
                     if (ret < 0) {
                         iodev_printf(
                             &ctx->device.iodev,
@@ -631,7 +631,7 @@ static WARN_UNUSED_RESULT int requestcmd(
     interrupts_restore(previnterrupts);
     ////////////////////////////////////////////////////////////////////////////
     if (isqueueempty) {
-        ret = stream_putchar(&port->stream, cmdbyte);
+        ret = stream_put_char(&port->stream, cmdbyte);
         if (ret < 0) {
             return ret;
         }

@@ -64,7 +64,7 @@ static uint8_t const STATUS_PARITY_ERR       = 1 << 7;
 struct portcontext {
     struct ps2port ps2port;
     uint8_t portidx;
-    struct archi586_pic_irqhandler irqhandler;
+    struct archi586_pic_irq_handler irqhandler;
 };
 
 static WARN_UNUSED_RESULT int waitforrecv(void) {
