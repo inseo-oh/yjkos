@@ -6,30 +6,29 @@
 #include <stdint.h>
 #include <string.h>
 
-struct gatedescriptor {
+struct gate_descriptor {
     uint16_t offset_b15tob0;
     uint16_t segmentselector;
     uint8_t _reserved0;
     uint8_t flags;
     uint16_t offset_b31tob16;
 };
-STATIC_ASSERT_SIZE(struct gatedescriptor, 8);
+STATIC_ASSERT_SIZE(struct gate_descriptor, 8);
 
-static uint8_t const IDT_FLAG_TYPE_INT32  = 0xe << 0; 
-static uint8_t const IDT_FLAG_TYPE_TRAP32 = 0xf << 0; 
-#define IDT_FLAG_DPL(_n)     ((_n) << 5)
-static uint8_t const IDT_FLAG_DPL0 = IDT_FLAG_DPL(0);
-static uint8_t const IDT_FLAG_DPL1 = IDT_FLAG_DPL(1);
-static uint8_t const IDT_FLAG_DPL2 = IDT_FLAG_DPL(2);
-static uint8_t const IDT_FLAG_DPL3 = IDT_FLAG_DPL(3);
-#undef IDT_FLAG_DPL
-static uint8_t const IDT_FLAG_P = 1 << 7;
+#define IDT_FLAG_TYPE_INT32     (0xeU << 0)
+#define IDT_FLAG_TYPE_TRAP32    (0xfU << 0)
+#define IDT_FLAG_DPL(_n)        ((_n) << 5)
+#define IDT_FLAG_DPL0           IDT_FLAG_DPL(0U)
+#define IDT_FLAG_DPL1           IDT_FLAG_DPL(1U)
+#define IDT_FLAG_DPL2           IDT_FLAG_DPL(2U)
+#define IDT_FLAG_DPL3           IDT_FLAG_DPL(3U)
+#define IDT_FLAG_P              (1U << 7)
 
 struct idt {
-    struct gatedescriptor entries[256];
+    struct gate_descriptor entries[256];
 };
 
-static void initdescriptor(struct gatedescriptor *out, uint32_t offset, uint16_t flags) {
+static void initdescriptor(struct gate_descriptor *out, uint32_t offset, uint16_t flags) {
     memset(out, 0, sizeof(*out));
     out->offset_b15tob0 = offset;
     out->segmentselector = ARCHI586_GDT_KERNEL_CS;

@@ -10,7 +10,7 @@
 
 void pmemcpy_in(void *dest, physptr src, size_t len, bool nocache) {
     bool previnterrupts = arch_interrupts_disable();
-    physptr srcpage = aligndown(src, ARCH_PAGESIZE);
+    physptr srcpage = align_down(src, ARCH_PAGESIZE);
     size_t offset = src - srcpage;
     uint8_t *dest_byte = dest;
     size_t copylen;
@@ -30,7 +30,7 @@ void pmemcpy_in(void *dest, physptr src, size_t len, bool nocache) {
 
 void pmemcpy_out(physptr dest, void const *src, size_t len, bool nocache) {
     bool previnterrupts = arch_interrupts_disable();
-    physptr destpage = aligndown(dest, ARCH_PAGESIZE);
+    physptr destpage = align_down(dest, ARCH_PAGESIZE);
     size_t offset = dest - destpage;
     uint8_t const *src_byte = src;
     size_t copylen;
@@ -42,14 +42,15 @@ void pmemcpy_out(physptr dest, void const *src, size_t len, bool nocache) {
         }
         arch_mmu_scratchmap(destpage, nocache);
         memcpy(
-            (void *)(ARCH_SCRATCH_MAP_BASE + offset), src_byte, copylen);
+            (char *)ARCH_SCRATCH_MAP_BASE + offset,
+            src_byte, copylen);
     }
     interrupts_restore(previnterrupts);
 }
 
 void pmemset(physptr dest, int byte, size_t len, bool nocache) {
     bool previnterrupts = arch_interrupts_disable();
-    physptr destpage = aligndown(dest, ARCH_PAGESIZE);
+    physptr destpage = align_down(dest, ARCH_PAGESIZE);
     size_t offset = dest - destpage;
     size_t copylen;
     for (size_t i = 0; i < len; destpage += ARCH_PAGESIZE, i += copylen, offset = 0) {

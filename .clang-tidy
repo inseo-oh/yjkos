@@ -1,17 +1,21 @@
 Checks: [
     '*',
     '-altera-*',
-    '-llvmlibc-*',
+    "-bugprone-easily-swappable-parameters",
+    "-bugprone-multi-level-implicit-pointer-conversion",
     '-cppcoreguidelines-avoid-non-const-global-variables',
     "-cppcoreguidelines-interfaces-global-init",
     "-cppcoreguidelines-avoid-magic-numbers",
-    "-readability-magic-numbers",
-    "-bugprone-easily-swappable-parameters",
-    "-google-readability-todo",
-    "-concurrency-mt-unsafe",
-    "-readability-identifier-length",
     "-cppcoreguidelines-init-variables",
+    "-cppcoreguidelines-macro-to-enum",
+    "-concurrency-mt-unsafe",
+    "-google-readability-todo",
     "-hicpp-no-assembler",
+    '-llvmlibc-*',
+    '-llvm-header-guard',
+    "-modernize-macro-to-enum",
+    "-readability-magic-numbers",
+    "-readability-identifier-length",
     # We are fine with rand()
     "-cert-msc30-c", "-cert-msc50-cpp",
     # It is safe to use reserved identifiers, because we are who implementing
@@ -22,4 +26,5 @@ Checks: [
 ]
 
 CheckOptions:
-    readability-function-cognitive-complexity.IgnoreMacros: 'true'
+    readability-function-cognitive-complexity.IgnoreMacros: true
+    hicpp-signed-bitwise.IgnorePositiveIntegerLiterals: true

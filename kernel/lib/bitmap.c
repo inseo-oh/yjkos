@@ -47,7 +47,7 @@ uint makebitmask(size_t offset, size_t len) {
 }
 
 size_t bitmap_neededwordcount(size_t bits) {
-    return sizetoblocks(bits, BITS_PER_WORD);
+    return size_to_blocks(bits, BITS_PER_WORD);
 }
 
 long bitmap_findfirstsetbit(struct bitmap *self, long startpos) {

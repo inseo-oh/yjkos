@@ -16,11 +16,11 @@ static void stacktrace_with_frame(struct funcstackframe *startingframe) {
     struct funcstackframe *frame = startingframe;
     while (frame != NULL) {
         physptr physaddr;
-        int ret = arch_mmu_virttophys(
-            &physaddr, (uintptr_t)frame);
+        int ret = arch_mmu_virt_to_phys(
+            &physaddr, frame);
         if (ret < 0) {
             co_printf(
-                "  stackframe at %p is not accessible(error %d) - STOP.\n",
+                "  stackframe at %p inaccessible(error %d) - STOP.\n",
                 ret, frame);
             break;
         }
@@ -35,7 +35,8 @@ void arch_stacktrace_for_trapframe(void *trapframe) {
         return;
     }
     co_printf("pc: %#lx\n", ((struct trapframe *)trapframe)->eip);
-    stacktrace_with_frame((void *)((struct trapframe *)trapframe)->ebp);
+    stacktrace_with_frame(
+        (void *)((struct trapframe *)trapframe)->ebp);
 }
 
 void arch_stacktrace(void) {

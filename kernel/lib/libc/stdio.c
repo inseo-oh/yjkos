@@ -18,7 +18,7 @@ struct vsnprintf_stream {
     size_t remaininglen;
 };
 
-static WARN_UNUSED_RESULT ssize_t vsnprintf_stream_op_write(
+WARN_UNUSED_RESULT static ssize_t vsnprintf_stream_op_write(
     struct stream *self, void *buf, size_t size)
 {
     assert(size < STREAM_MAX_TRANSFER_SIZE);

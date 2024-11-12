@@ -45,7 +45,7 @@ enum {
     UBSAN_KIND_UNKNOWN = 0xffff,
 };
 
-static void printtypedescriptor(struct typedescriptor const *desc) {
+static void print_type_descriptor(struct typedescriptor const *desc) {
     if (desc == NULL) {
         co_printf("<no info>");
         return;
@@ -55,7 +55,7 @@ static void printtypedescriptor(struct typedescriptor const *desc) {
             co_printf(
                 "(int %c%u) %s",
                 (desc->typeinfo & 1U) ? 's' : 'u',
-                1U << (desc->typeinfo >> 1U), desc->typename);
+                1U << ((uint32_t)desc->typeinfo >> 1), desc->typename);
             break;
         case UBSAN_KIND_FLOAT:
             co_printf("(f%u) %s", desc->typeinfo, desc->typename);
@@ -64,8 +64,10 @@ static void printtypedescriptor(struct typedescriptor const *desc) {
             co_printf(
                 "(bigint %c%u) %s",
                 (desc->typeinfo & 1U) ? 's' : 'u',
-                1U << (desc->typeinfo >> 1U), desc->typename);
+                1U << ((uint32_t)desc->typeinfo >> 1), desc->typename);
             break;
+        default:
+            co_printf("??");
     }
 }
 
@@ -94,7 +96,7 @@ static void typemismatch(struct typemismatch_data *data, void *ptr) {
     co_printf("type mismatch error at %s:%d:%d!\n", data->loc.filename, data->loc.line, data->loc.column);
     co_printf("pointer: %p\n", ptr);
     co_printf("   type: ");
-    printtypedescriptor(data->type);
+    print_type_descriptor(data->type);
     co_printf("\n");
     interrupts_restore(previnterrupts);
 }
@@ -139,10 +141,10 @@ static void outofbounds(struct outofbounds_data *data, void *index) {
     printheadermessage();
     co_printf("out of bounds error at %s:%d:%d!\n", data->loc.filename, data->loc.column, data->loc.line);
     co_printf(" array type: ");
-    printtypedescriptor(data->array_type);
+    print_type_descriptor(data->array_type);
     co_printf("\n");
     co_printf(" index type: ");
-    printtypedescriptor(data->index_type);
+    print_type_descriptor(data->index_type);
     co_printf("\n");
     co_printf("index value: %zu\n", (size_t)index);
     interrupts_restore(previnterrupts);
@@ -166,10 +168,10 @@ static void shiftoutofbounds(struct shiftoutofbounds_data *data, void *lhs, void
     printheadermessage();
     co_printf("shift out of bounds error at %s:%d:%d!\n", data->loc.filename, data->loc.column, data->loc.line);
     co_printf("            lhs type: ");
-    printtypedescriptor(data->lhstype);
+    print_type_descriptor(data->lhstype);
     co_printf("\n");
     co_printf("            rhs type: ");
-    printtypedescriptor(data->rhstype);
+    print_type_descriptor(data->rhstype);
     co_printf("\n");
     co_printf("lhs value(as size_t): %zu\n", (size_t)lhs);
     co_printf("rhs value(as size_t): %zu\n", (size_t)rhs);
@@ -193,7 +195,7 @@ static void loadinvalidvalue(struct invalidvalue_data *data, void *val) {
     printheadermessage();
     co_printf("load invalid value error at %s:%d:%d!\n", data->loc.filename, data->loc.column, data->loc.line);
     co_printf("           type: ");
-    printtypedescriptor(data->type);
+    print_type_descriptor(data->type);
     co_printf("\n");
     co_printf("value(as size_t): %zu\n", (size_t)val);
     interrupts_restore(previnterrupts);
@@ -217,7 +219,7 @@ static void overflow(char const *type, struct overflow_data *data, void *lhs, vo
     printheadermessage();
     co_printf("%s overflow error at %s:%d:%d!\n", type, data->loc.filename, data->loc.column, data->loc.line);
     co_printf("                type: ");
-    printtypedescriptor(data->type);
+    print_type_descriptor(data->type);
     co_printf("\n");
     co_printf("lhs value(as size_t): %zu\n", (size_t)lhs);
     co_printf("rhs value(as size_t): %zu\n", (size_t)rhs);

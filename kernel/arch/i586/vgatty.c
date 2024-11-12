@@ -1,7 +1,7 @@
 #include "vgatty.h"
+#include <kernel/io/co.h>
 #include <kernel/io/kbd.h>
 #include <kernel/io/stream.h>
-#include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/mem/vmm.h>
 #include <kernel/types.h>
@@ -54,10 +54,12 @@ static void writechar(char chr) {
     if (chr == '\n') {
         advanceline();
         return;
-    } else if (chr == '\r') {
+    }
+    if (chr == '\r') {
         s_currentcolumn = 0;
         return;
-    } else if (s_totalcolumns <= s_currentcolumn) {
+    }
+    if (s_totalcolumns <= s_currentcolumn) {
         advanceline();
     }
     writecharat(s_currentrow, s_currentcolumn, chr);
@@ -65,19 +67,19 @@ static void writechar(char chr) {
 }
 
 
-static WARN_UNUSED_RESULT ssize_t stream_op_write(
+WARN_UNUSED_RESULT static ssize_t stream_op_write(
     struct stream *self, void *data, size_t size) {
     (void)self;
     assert(size <= STREAM_MAX_TRANSFER_SIZE);
 
     for (size_t idx = 0; idx < size; idx++) {
-        uint8_t c = ((uint8_t *)data)[idx];
+        char c = ((char *)data)[idx];
         writechar(c);
     }
-    return size;
+    return (ssize_t)size;
 }
 
-static WARN_UNUSED_RESULT ssize_t stream_op_read(
+WARN_UNUSED_RESULT static ssize_t stream_op_read(
     struct stream *self, void *buf, size_t size) {
     (void)self;
     assert(size <= STREAM_MAX_TRANSFER_SIZE);
@@ -98,7 +100,7 @@ static WARN_UNUSED_RESULT ssize_t stream_op_read(
         *((uint8_t *)buf) = event.chr;
         read_len++;
     }
-    return read_len;
+    return (ssize_t)read_len;
 }
 
 static struct stream_ops const OPS = {

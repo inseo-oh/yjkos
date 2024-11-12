@@ -70,12 +70,12 @@ char *strrchr(char const *s, int c) {
 void memset(void *s, int c, size_t n) {
     char *next = (char *)s;
     for (size_t i = 0; i < n; i++) {
-        *(next++) = c;
+        *(next++) = (char)c;
     }
 }
 
 // https://pubs.opengroup.org/onlinepubs/9799919799/functions/memcpy.html
-void memcpy(void *restrict s1, const void *restrict s2, size_t n) {
+void memcpy(void *restrict dest, const void *restrict src, size_t n) {
 #ifdef YJKERNEL_ARCH_I586
     int dummy[3];
     __asm__ volatile (
@@ -87,8 +87,8 @@ void memcpy(void *restrict s1, const void *restrict s2, size_t n) {
           "=S"(dummy[1]),
           "=D"(dummy[2])
         : "c"(n),
-          "S"(s2),
-          "D"(s1)
+          "S"(src),
+          "D"(dest)
     );
 #else
     for (size_t i = 0 ; i < n; i++) {

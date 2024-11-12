@@ -80,8 +80,7 @@ void __heap_checkoverflow(struct sourcelocation srcloc) {
             goto checkend;
         }
         physptr physaddr = 0;
-        int ret = arch_mmu_virttophys(
-            &physaddr, (uintptr_t)alloc);
+        int ret = arch_mmu_virt_to_phys(&physaddr, alloc);
         if (ret < 0) {
             co_printf("heap: bad alloc ptr(error %d)\n", ret);
             corrupted = true;
@@ -121,7 +120,7 @@ static void *allocfrompool(struct poolheader *self, size_t size) {
         return NULL;
     }
     size_t actualsize = actualallocsize(size);
-    size_t blockcount = sizetoblocks(actualsize, BLOCK_SIZE);
+    size_t blockcount = size_to_blocks(actualsize, BLOCK_SIZE);
     long blockindex = bitmap_findsetbits(&self->blockbitmap, 0, blockcount);
     if (blockindex < 0) {
         goto out;
@@ -134,7 +133,7 @@ static void *allocfrompool(struct poolheader *self, size_t size) {
         assert(!bitmap_isbitset(&self->blockbitmap, blockindex + i));
     }
     uintptr_t offsetinpool = blockindex * BLOCK_SIZE;
-    assert(isaligned(offsetinpool, alignof(max_align_t)));
+    assert(is_aligned(offsetinpool, alignof(max_align_t)));
     alloc = (struct allocheader *)((char *)self->blockpool + offsetinpool);
     self->usedblockcount += blockcount;
 out:
@@ -158,7 +157,7 @@ out:
 }
 
 static struct allocheader *allocheaderof(void *ptr) {
-    if ((ptr == NULL) || (!isaligned((uintptr_t)ptr, alignof(max_align_t))) || ((uintptr_t)ptr < offsetof(struct allocheader, data))) {
+    if ((ptr == NULL) || (!is_aligned((uintptr_t)ptr, alignof(max_align_t))) || ((uintptr_t)ptr < offsetof(struct allocheader, data))) {
         return NULL;
     }
     return (struct allocheader *)(void *)(
@@ -208,7 +207,7 @@ static bool testheap(struct poolheader *self) {
                 } else {
                     alloc = expected_bptr;
                 }
-                if(!isaligned(
+                if(!is_aligned(
                     (uintptr_t)alloc, alignof(max_align_t))) {
                     arch_interrupts_disable();
                     co_printf("misaligned allocation\n");
@@ -319,8 +318,12 @@ static bool testheap(struct poolheader *self) {
     return true;
 }
 
-// Backup of old code for implementing userspace malloc in the future. It will no longer work as-is though.
-// (It allocates new heap based on desired size)
+/*
+ * Backup of old code for implementing userspace malloc in the future. It will 
+ * no longer work as-is though.
+ * (It allocates new heap based on desired size)
+ */
+// NOLINTNEXTLINE(readability-avoid-unconditional-preprocessor-if)
 #if 0
 static poolheader_t *createpool(size_t minmemsize) {
     size_t desiredblockcount;
@@ -330,16 +333,16 @@ static poolheader_t *createpool(size_t minmemsize) {
     //                     So actual allocation can be increased as needed. 
     if (!s_initialheapinitialized) {
         assert(sizeof(s_initialheapmemory) % BLOCK_SIZE == 0);
-        desiredblockcount = sizetoblocks(sizeof(s_initialheapmemory), BLOCK_SIZE);
+        desiredblockcount = size_to_blocks(sizeof(s_initialheapmemory), BLOCK_SIZE);
     } else {
         // Initial heap is already there, so it's time for more memory.
-        desiredblockcount = sizetoblocks(minmemsize, BLOCK_SIZE);
+        desiredblockcount = size_to_blocks(minmemsize, BLOCK_SIZE);
     }
 
     size_t wordcount = bitmap_neededwordcount(desiredblockcount);
     size_t metadatasize = sizeof(poolheader_t) + (wordcount * sizeof(uint));
     size_t totalsize = metadatasize + (desiredblockcount * BLOCK_SIZE);
-    size_t pagecount = sizetoblocks(totalsize, ARCH_PAGESIZE);
+    size_t pagecount = size_to_blocks(totalsize, ARCH_PAGESIZE);
     poolheader_t *pool;
     size_t bitmapsize;
     size_t poolblockcount;
@@ -358,7 +361,7 @@ static poolheader_t *createpool(size_t minmemsize) {
         }
  
         // Now we calculate actual size
-        size_t totalblockcount = sizetoblocks(pagecount * ARCH_PAGESIZE, BLOCK_SIZE);
+        size_t totalblockcount = size_to_blocks(pagecount * ARCH_PAGESIZE, BLOCK_SIZE);
 
         wordcount = bitmap_neededwordcount(totalblockcount);
         bitmapsize = wordcount * sizeof(uint);
@@ -377,7 +380,7 @@ static poolheader_t *createpool(size_t minmemsize) {
         pagecount++;
     }
     // If it is initial pool, and resulting pool block count is not enough, return NULL;
-    if (!s_initialheapinitialized && (poolblockcount < sizetoblocks(minmemsize, BLOCK_SIZE))) {
+    if (!s_initialheapinitialized && (poolblockcount < size_to_blocks(minmemsize, BLOCK_SIZE))) {
         return NULL;
     }
 
@@ -417,14 +420,14 @@ static poolheader_t *createpool(size_t minmemsize) {
 }
 #endif
 
-static struct poolheader *addmem(void *mem, size_t memsize) {
+static struct poolheader *add_mem(void *mem, size_t memsize) {
     ASSERT_INTERRUPTS_DISABLED();
-    size_t maxblockcount = sizetoblocks(memsize, BLOCK_SIZE);
+    size_t maxblockcount = size_to_blocks(memsize, BLOCK_SIZE);
 
     size_t wordcount = bitmap_neededwordcount(maxblockcount);
     size_t metadatasize = sizeof(struct poolheader) + (wordcount * sizeof(uint));
     size_t maxsize = metadatasize + (maxblockcount * BLOCK_SIZE);
-    size_t pagecount = sizetoblocks(maxsize, ARCH_PAGESIZE);
+    size_t pagecount = size_to_blocks(maxsize, ARCH_PAGESIZE);
     struct poolheader *pool = mem;
     size_t bitmapsize = 0;
     size_t poolblockcount = 0;
@@ -435,7 +438,7 @@ static struct poolheader *addmem(void *mem, size_t memsize) {
     }
 
     // Now we calculate the actual size
-    size_t totalblockcount = sizetoblocks(pagecount * ARCH_PAGESIZE, BLOCK_SIZE);
+    size_t totalblockcount = size_to_blocks(pagecount * ARCH_PAGESIZE, BLOCK_SIZE);
 
     wordcount = bitmap_neededwordcount(totalblockcount);
     bitmapsize = wordcount * sizeof(uint);
@@ -475,7 +478,7 @@ static struct poolheader *addmem(void *mem, size_t memsize) {
 
 void *heap_alloc(size_t size, uint8_t flags) {
     size_t actualsize = actualallocsize(size);
-    size_t actualblockcount = sizetoblocks(actualsize, BLOCK_SIZE);
+    size_t actualblockcount = size_to_blocks(actualsize, BLOCK_SIZE);
 
     if (size == 0) {
         return NULL;
@@ -486,7 +489,7 @@ void *heap_alloc(size_t size, uint8_t flags) {
     bool previnterrupts = arch_interrupts_disable();
     HEAP_CHECKOVERFLOW();
     if (!s_initialheapinitialized) {
-        addmem(s_initialheapmemory, sizeof(s_initialheapmemory));
+        add_mem(s_initialheapmemory, sizeof(s_initialheapmemory));
     }
     void *result = NULL;
     if (actualblockcount < s_freeblockcount) {
@@ -608,8 +611,7 @@ void heap_expand(void) {
         co_printf("not enough memory to expand heap\n");
         goto out;
     }
-    addmem((void *)object->startaddress,
-        object->endaddress - object->startaddress + 1);
+    add_mem(object->start, vmm_object_size((object)));
 out:
     interrupts_restore(previnterrupts);
 }

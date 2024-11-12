@@ -2,7 +2,6 @@
 #include <kernel/arch/interrupts.h>
 #include <kernel/io/co.h>
 #include <kernel/io/stream.h>
-#include <kernel/lib/list.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>

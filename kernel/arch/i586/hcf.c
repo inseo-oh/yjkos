@@ -8,5 +8,5 @@ NORETURN void arch_hcf(void) {
         "   hlt\n"
         "   jmp 0b\n"
     );
-    while(1);
+    while(1) {}
 }

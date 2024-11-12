@@ -2,14 +2,14 @@
 
 // This file mostly uses #define(other than C types and functions) to share with assembly code.
 
-#define ARCHI586_MMU_COMMON_FLAG_P     (1 << 0)
-#define ARCHI586_MMU_COMMON_FLAG_RW    (1 << 1)
-#define ARCHI586_MMU_COMMON_FLAG_US    (1 << 2)
-#define ARCHI586_MMU_COMMON_FLAG_PWT   (1 << 3)
-#define ARCHI586_MMU_COMMON_FLAG_PCD   (1 << 4)
-#define ARCHI586_MMU_COMMON_FLAG_A     (1 << 5)
-#define ARCHI586_MMU_COMMON_FLAG_D     (1 << 6)
-#define ARCHI586_MMU_COMMON_FLAG_G     (1 << 8)
+#define ARCHI586_MMU_COMMON_FLAG_P     (1U << 0)
+#define ARCHI586_MMU_COMMON_FLAG_RW    (1U << 1)
+#define ARCHI586_MMU_COMMON_FLAG_US    (1U << 2)
+#define ARCHI586_MMU_COMMON_FLAG_PWT   (1U << 3)
+#define ARCHI586_MMU_COMMON_FLAG_PCD   (1U << 4)
+#define ARCHI586_MMU_COMMON_FLAG_A     (1U << 5)
+#define ARCHI586_MMU_COMMON_FLAG_D     (1U << 6)
+#define ARCHI586_MMU_COMMON_FLAG_G     (1U << 8)
 
 
 #define ARCHI586_MMU_PDE_FLAG_P     ARCHI586_MMU_COMMON_FLAG_P
@@ -56,7 +56,6 @@
 
 #ifndef YJKERNEL_ASMFILE
 
-#include <kernel/arch/mmu.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/types.h>
 #include <stdbool.h>

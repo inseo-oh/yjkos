@@ -27,9 +27,9 @@ static uint16_t s_flags;
 // TODO: Use bitmap instead?
 static bool s_keysdown[KBD_KEY_COUNT];
 
-#define KEYMAP_FLAG_SHIFT    1U << 0U
-#define KEYMAP_FLAG_CAPSLOCK 1U << 1U
-#define KEYMAP_FLAG_NUMLOCK  1U << 2U
+#define KEYMAP_FLAG_SHIFT    (1U << 0)
+#define KEYMAP_FLAG_CAPSLOCK (1U << 1)
+#define KEYMAP_FLAG_NUMLOCK  (1U << 2)
 
 struct keymapentry {
     enum kbd_key keyalt;
@@ -197,7 +197,7 @@ static void releaseallkeysexcept(enum kbd_key except) {
             continue;
         }
         if (s_keysdown[key]) {
-            kbd_keyreleased(key);
+            kbd_key_released(key);
         }
     }
 }
@@ -226,7 +226,7 @@ bool kbd_pullevent(struct kbd_keyevent *out) {
     return result;
 }
 
-void kbd_keypressed(enum kbd_key key) {
+void kbd_key_pressed(enum kbd_key key) {
     struct keymapentry const *entry = &KEYMAP[key];
     switch(key) {
         // Modifier key except for lock keys, like Shift and Alt.
@@ -295,7 +295,7 @@ void kbd_keypressed(enum kbd_key key) {
     }
 }
 
-void kbd_keyreleased(enum kbd_key key) {
+void kbd_key_released(enum kbd_key key) {
     struct keymapentry const *entry = &KEYMAP[key];
     switch(key) {
         // Modifier key except for lock keys, like Shift and Alt.

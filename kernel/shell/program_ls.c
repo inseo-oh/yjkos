@@ -4,6 +4,7 @@
 #include <kernel/fs/vfs.h>
 #include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
+#include <kernel/lib/miscmath.h>
 #include <kernel/mem/heap.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -26,7 +27,7 @@ struct opts {
     bool streamformat : 1; // -m
 };
 
-static WARN_UNUSED_RESULT bool getopts(
+WARN_UNUSED_RESULT static bool getopts(
     struct opts *out, int argc, char *argv[])
 {
     bool ok = true;
@@ -72,10 +73,10 @@ struct entry {
 
 static int format(
     char *buf, size_t size, struct entry const *ent, struct opts const *opts,
-    bool islastentry)
+    bool is_last_entry)
 {
     if (opts->streamformat) {
-        if (islastentry) {
+        if (is_last_entry) {
             return snprintf(buf, size, "%s", ent->name);
         }
         return snprintf(buf, size, "%s, ", ent->name);
@@ -83,86 +84,108 @@ static int format(
     return snprintf(buf, size, "%s ", ent->name);
 }
 
-static void showdir(
-    char const *progname, char const *path, struct opts const *opts)
+static bool should_hide_dirent(struct dirent *ent, struct opts const *opts) {
+    if (!opts->all || opts->all_alt) {
+        if ((strcmp(ent->d_name, ".") == 0) ||
+            strcmp(ent->d_name, "..") == 0)
+        {
+            return true;
+        }
+    }
+    if (!opts->all && !opts->all_alt) {
+        if (ent->d_name[0] == '.') {
+            return true;
+        }
+    }
+    return false;
+}
+
+static int collect_entries(
+    struct entry **entries_out, size_t *entries_len_out,
+    char const *path, struct opts const *opts)
 {
     DIR *dir = NULL;
     int ret = vfs_opendir(&dir, path);
     if (ret < 0) {
-        co_printf(
-            "%s: failed to open directory %s (error %d)\n",
-            progname, path, ret);
-        return;
+        return ret;
     }
     struct entry *entries = NULL;
-    size_t entrieslen = 0;
+    size_t entries_len = 0;
     while (1) {
         struct dirent ent;
         ret = vfs_readdir(&ent, dir);
-        if (ret == -ENOENT) {
+        if (ret < 0) {
             break;
         }
-        if (ret != 0) {
-            co_printf(
-                "%s: failed to read directory %s (error %d)\n",
-                progname, path, ret);
-            break;
-        }
-        bool shouldhide = false;
-        if (!opts->all || opts->all_alt) {
-            shouldhide |= (strcmp(ent.d_name, ".") == 0) ||
-                          strcmp(ent.d_name, "..") == 0;
-        }
-        if (!opts->all && !opts->all_alt) {
-            shouldhide |= ent.d_name[0] == '.';
-        }
-        if (shouldhide) {
+        if (should_hide_dirent(&ent, opts)) {
             continue;
         }
-        if ((SIZE_MAX - 1) < entrieslen) {
+        if (WILL_ADD_OVERFLOW(entries_len, 1, SIZE_MAX)) {
             goto oom;
         }
-        void *newentries = heap_reallocarray(
+        void *new_entries = heap_reallocarray(
             entries, sizeof(*entries),
-            entrieslen + 1, 0);
-        if (newentries == NULL) {
+            entries_len + 1, 0);
+        if (new_entries == NULL) {
             goto oom;
         }
-        entries = newentries;
-        entrieslen++;
-        struct entry *dest = &entries[entrieslen - 1];
+        entries = new_entries;
+        entries_len++;
+        struct entry *dest = &entries[entries_len - 1];
         memset(dest, 0, sizeof(*dest));
         dest->name = strdup(ent.d_name);
         if (dest->name == NULL) {
             goto oom;
         }
     }
-    goto cont;
-oom:
-    vfs_closedir(dir);
-    co_printf("%s: not enough memory to allocate list\n", progname);
+    ret = 0;
     goto out;
-cont:
+oom:
+    ret = -ENOMEM;
+    for (size_t i = 0; i < entries_len; i++) {
+        heap_free(entries[i].name);
+    }
+    heap_free(entries);
+    goto out;
+out:
     vfs_closedir(dir);
-    int linelen = 0;
+    *entries_out = entries;
+    *entries_len_out = entries_len;
+    return ret;
+}
+
+static void show_dir(
+    char const *progname, char const *path, struct opts const *opts)
+{
+    struct entry *entries = NULL;
+    size_t entries_len = 0;
+    int ret = collect_entries(
+        &entries, &entries_len, path, opts);
+    if (ret < 0) {
+        co_printf(
+            "%s: failed to read directory %s (error %d)\n",
+            progname, path, ret);
+        goto out;
+    }
+    int line_len = 0;
     char buf[COLUMNS + 1];
-    for (size_t i = 0; i < entrieslen; i++) {
+    for (size_t i = 0; i < entries_len; i++) {
         struct entry const *ent = &entries[i];
-        bool islastentry = i == (entrieslen - 1);
-        int len = format(buf, sizeof(buf), ent, opts, islastentry);
+        bool is_last_entry = i == (entries_len - 1);
+        int len = format(buf, sizeof(buf), ent, opts, is_last_entry);
         bool ishorizontal = opts->streamformat;
-        if ((ishorizontal && (COLUMNS - linelen) < len) ||
+        if ((ishorizontal && (COLUMNS - line_len) < len) ||
             (!ishorizontal && i != 0))
         {
             co_printf("\n");
-            linelen = 0;
+            line_len = 0;
         }
         co_printf("%s", buf);
-        linelen += len;
+        line_len += len;
     }
     co_printf("\n");
 out:
-    for (size_t i = 0; i < entrieslen; i++) {
+    for (size_t i = 0; i < entries_len; i++) {
         heap_free(entries[i].name);
     }
     heap_free(entries);
@@ -174,14 +197,14 @@ static int program_main(int argc, char *argv[]) {
         return 1;
     }
     if (argc <= optind) {
-        showdir(argv[0], ".", &opts);
+        show_dir(argv[0], ".", &opts);
         return 0;
     }
     for (int i = optind; i < argc; i++) {
         if (optind + 1 != argc) {
             co_printf("%s:\n", argv[i]);
         }
-        showdir(argv[0], argv[i], &opts);
+        show_dir(argv[0], argv[i], &opts);
     }
     return 0;
 }

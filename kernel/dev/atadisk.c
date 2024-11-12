@@ -1,10 +1,9 @@
+#include <errno.h>
 #include <kernel/dev/atadisk.h>
-#include <kernel/lib/diagnostics.h>
 #include <kernel/io/disk.h>
 #include <kernel/io/iodev.h>
-#include <kernel/io/co.h>
+#include <kernel/lib/diagnostics.h>
 #include <kernel/ticktime.h>
-#include <errno.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <string.h>
@@ -14,7 +13,7 @@ enum {
     MAX_RETRIES = 3,
 };
 
-static WARN_UNUSED_RESULT int waitirq(struct atadisk *disk) {
+WARN_UNUSED_RESULT static int waitirq(struct atadisk *disk) {
     enum {
         STATUS_POLL_PERIOD = 10,
     };
@@ -47,7 +46,7 @@ out:
     return ret;
 }
 
-static WARN_UNUSED_RESULT int waitbusyclear(struct atadisk *disk) {
+WARN_UNUSED_RESULT static int waitbusyclear(struct atadisk *disk) {
     enum {
         STATUS_POLL_PERIOD = 10,
     };
@@ -75,7 +74,7 @@ out:
     return ret;
 }
 
-static WARN_UNUSED_RESULT int waitbusyclear_irq(struct atadisk *disk) {
+WARN_UNUSED_RESULT static int waitbusyclear_irq(struct atadisk *disk) {
     int ret = 0;
     while(1) {
         ret = waitirq(disk);
@@ -92,7 +91,7 @@ out:
     return ret;
 }
 
-static WARN_UNUSED_RESULT int waitdrqset(struct atadisk *disk) {
+WARN_UNUSED_RESULT static int waitdrqset(struct atadisk *disk) {
     int ret = 0;
     ticktime starttime = g_ticktime;
     bool ok = false;
@@ -117,7 +116,10 @@ out:
     return ret;
 }
 
-static void extractstring_from_identifydata(char *dest, struct ata_databuf *rawdata, size_t startoffset, size_t endoffset) {
+static void extractstring_from_identifydata(
+    uint8_t *dest, struct ata_databuf *rawdata, size_t startoffset,
+    size_t endoffset)
+{
     for (size_t i = startoffset; i <= endoffset; i++) {
         dest[(i - startoffset) * 2] = rawdata->data[i] >> 8;
         dest[(i - startoffset) * 2 + 1] = rawdata->data[i];
@@ -125,12 +127,12 @@ static void extractstring_from_identifydata(char *dest, struct ata_databuf *rawd
 }
 
 struct identifyresult {
-    char serial[41];
-    char firmware[9];
-    char modelnum[41];
+    uint8_t serial[41];
+    uint8_t firmware[9];
+    uint8_t modelnum[41];
 };
 
-static WARN_UNUSED_RESULT int identifydevice(
+WARN_UNUSED_RESULT static int identifydevice(
     struct identifyresult *out, struct atadisk *disk)
 {
     int ret = 0;
@@ -156,7 +158,7 @@ static WARN_UNUSED_RESULT int identifydevice(
     bool ok = false;
     while ((g_ticktime - starttime) < TIMEOUT) {
         uint32_t lba = disk->ops->get_lba_output(disk);
-        if ((lba & 0xffff00) != 0) {
+        if ((lba & 0xffff00U) != 0) {
             // Not an ATA device
             ret = -ENODEV;
             goto fail;
@@ -178,16 +180,19 @@ static WARN_UNUSED_RESULT int identifydevice(
     struct ata_databuf buffer;
     disk->ops->read_data(&buffer, disk);
     memset(out, 0, sizeof(*out));
-    extractstring_from_identifydata(out->serial, &buffer, 10, 19);
-    extractstring_from_identifydata(out->firmware, &buffer, 23, 26);
-    extractstring_from_identifydata(out->modelnum, &buffer, 27, 46);
+    extractstring_from_identifydata(
+        out->serial, &buffer, 10, 19);
+    extractstring_from_identifydata(
+        out->firmware, &buffer, 23, 26);
+    extractstring_from_identifydata(
+        out->modelnum, &buffer, 27, 46);
     goto out;
 fail:
 out:
     return ret;
 }
 
-static WARN_UNUSED_RESULT int flushcache(struct atadisk *disk) {
+WARN_UNUSED_RESULT static int flushcache(struct atadisk *disk) {
     int ret = 0;
     disk->ops->select_disk(disk);
     disk->ops->issue_cmd(disk, ATA_CMD_FLUSHCACHE);
@@ -201,7 +206,7 @@ out:
     return ret;
 }
 
-static WARN_UNUSED_RESULT int writesectors(struct atadisk *disk, uint32_t lba, size_t sectorcount, void const *buf) {
+WARN_UNUSED_RESULT static int writesectors(struct atadisk *disk, uint32_t lba, size_t sectorcount, void const *buf) {
     int ret = 0;
     disk->ops->lock(disk);
     bool candma = disk->ops->dma_beginsession(disk);
@@ -241,7 +246,9 @@ static WARN_UNUSED_RESULT int writesectors(struct atadisk *disk, uint32_t lba, s
                 disk->ops->issue_cmd(disk, ATA_CMD_WRITEDMA);
                 ret = disk->ops->dma_begin_transfer(disk);
                 if (ret < 0) {
-                    iodev_printf(&disk->physdisk.iodev, "failed to start DMA transfer\n");
+                    iodev_printf(
+                        &disk->physdisk.iodev,
+                        "failed to start DMA transfer\n");
                     goto tryfailed;
                 }
                 dmarunning = true;
@@ -287,7 +294,7 @@ static WARN_UNUSED_RESULT int writesectors(struct atadisk *disk, uint32_t lba, s
                         goto tryfailed;
                     }
                     for (size_t i = 0; i < 256; i++) {
-                        buffer.data[i] = ((uint16_t)srcbuf[1] << 8) | srcbuf[0];
+                        buffer.data[i] = ((uint32_t)srcbuf[1] << 8) | srcbuf[0];
                         srcbuf += 2;
                     }
                     disk->ops->write_data(disk, &buffer);
@@ -331,7 +338,6 @@ static WARN_UNUSED_RESULT int writesectors(struct atadisk *disk, uint32_t lba, s
                 iodev_printf(&disk->physdisk.iodev, "resetting disk\n");
                 disk->ops->soft_reset(disk);
             }
-            continue;
         }
     }
     goto out;
@@ -344,7 +350,7 @@ out:
     return ret;
 }
 
-static WARN_UNUSED_RESULT int readsectors(
+WARN_UNUSED_RESULT static int readsectors(
     struct atadisk *disk, uint32_t lba, size_t sectorcount, void *buf)
 {
     int ret = 0;
@@ -458,12 +464,14 @@ static WARN_UNUSED_RESULT int readsectors(
                 &disk->physdisk.iodev,
                 "error %d occured (try %u/%u)\n", ret, try + 1, MAX_RETRIES);
             if (!iscrcerror && candma) {
-                // If we are using DMA, reset the disk to take it out of DMA mode, to be safe.
+                /*
+                 * If we are using DMA, reset the disk to take it out of DMA 
+                 * mode, to be safe.
+                 */
                 iodev_printf(
                     &disk->physdisk.iodev, "resetting disk\n");
                 disk->ops->soft_reset(disk);
             }
-            continue;
         }
     }
     goto out;
@@ -476,11 +484,16 @@ out:
     return ret;
 }
 
-static WARN_UNUSED_RESULT int op_read(struct pdisk *self, void *buf, size_t blockaddr, size_t blockcount) {
+WARN_UNUSED_RESULT static int op_read(
+    struct pdisk *self, void *buf, size_t blockaddr, size_t blockcount)
+{
     struct atadisk *disk = self->data;
     return readsectors(disk, blockaddr, blockcount, buf);
 }
-static WARN_UNUSED_RESULT int op_write(struct pdisk *self, void const *buf, size_t blockaddr, size_t blockcount) {
+
+WARN_UNUSED_RESULT static int op_write(
+    struct pdisk *self, void const *buf, size_t blockaddr, size_t blockcount)
+{
     struct atadisk *disk = self->data;
     return writesectors(disk, blockaddr, blockcount, buf);
 }
@@ -490,7 +503,9 @@ static struct pdisk_ops const OPS = {
     .write = op_write,
 };
 
-WARN_UNUSED_RESULT int atadisk_register(struct atadisk *disk_out, struct atadisk_ops const *ops, void *data) {
+WARN_UNUSED_RESULT int atadisk_register(
+    struct atadisk *disk_out, struct atadisk_ops const *ops, void *data)
+{
     int ret = 0;
     memset(disk_out, 0, sizeof(*disk_out));
     disk_out->ops = ops;

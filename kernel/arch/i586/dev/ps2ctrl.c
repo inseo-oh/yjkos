@@ -2,15 +2,13 @@
 #include "../pic.h"
 #include "ps2ctrl.h"
 #include <assert.h>
+#include <errno.h>
 #include <kernel/dev/ps2.h>
-#include <kernel/lib/diagnostics.h>
-#include <kernel/io/iodev.h>
-#include <kernel/io/stream.h>
 #include <kernel/io/co.h>
+#include <kernel/io/stream.h>
+#include <kernel/lib/diagnostics.h>
 #include <kernel/mem/heap.h>
 #include <kernel/ticktime.h>
-#include <kernel/trapmanager.h>
-#include <errno.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -23,42 +21,40 @@ static bool const CONFIG_COMM_DEBUG = false;
 //-----------------------------------------------------------------------------
 
 
-enum {
-    DATA_PORT   = 0x60,
-    STATUS_PORT = 0x64, // read only
-    CMD_PORT    = 0x64, // write only
+#define DATA_PORT   0x60
+#define STATUS_PORT 0x64 // Read only
+#define CMD_PORT    0x64 // Write only
 
-    // PS/2 controller commands
-    CMD_READCTRLCONFIG   = 0x20,
-    CMD_WRITECTRLCONFIG  = 0x60,
-    CMD_DISABLEPORT1     = 0xa7,
-    CMD_ENABLEPORT1      = 0xa8,
-    CMD_TESTPORT1        = 0xa9,
-    CMD_TESTCTRL         = 0xaa,
-    CMD_TESTPORT0        = 0xab,
-    CMD_DISABLEPORT0     = 0xad,
-    CMD_ENABLEPORT0      = 0xae,
-    CMD_WRITEPORT1       = 0xd4,
+// PS/2 controller commands
+#define CMD_READCTRLCONFIG  0x20
+#define CMD_WRITECTRLCONFIG 0x60
+#define CMD_DISABLEPORT1    0xa7
+#define CMD_ENABLEPORT1     0xa8
+#define CMD_TESTPORT1       0xa9
+#define CMD_TESTCTRL        0xaa
+#define CMD_TESTPORT0       0xab
+#define CMD_DISABLEPORT0    0xad
+#define CMD_ENABLEPORT0     0xae
+#define CMD_WRITEPORT1      0xd4
 
-    IRQ_PORT0 = 1,
-    IRQ_PORT1 = 12,
-};
+#define IRQ_PORT0   1
+#define IRQ_PORT1   12
 
 // PS/2 controller configuration
-static uint8_t const CONFIG_FLAG_PORT0_INT     = 1 << 0;
-static uint8_t const CONFIG_FLAG_PORT1_INT     = 1 << 1;
-static uint8_t const CONFIG_FLAG_SYS           = 1 << 2; 
-static uint8_t const CONFIG_FLAG_PORT0_CLK_OFF = 1 << 4;
-static uint8_t const CONFIG_FLAG_PORT1_CLK_OFF = 1 << 5;
-static uint8_t const CONFIG_FLAG_PORT0_TRANS   = 1 << 6;
+#define CONFIG_FLAG_PORT0_INT       (1U << 0)
+#define CONFIG_FLAG_PORT1_INT       (1U << 1)
+#define CONFIG_FLAG_SYS             (1U << 2)
+#define CONFIG_FLAG_PORT0_CLK_OFF   (1U << 4)
+#define CONFIG_FLAG_PORT1_CLK_OFF   (1U << 5)
+#define CONFIG_FLAG_PORT0_TRANS     (1U << 6)
 
 // PS/2 controller status
-static uint8_t const STATUS_FLAG_OUTBUF_FULL = 1 << 0;
-static uint8_t const STATUS_FLAG_INBUF_FULL  = 1 << 1;
-static uint8_t const STATUS_FLAG_SYS         = 1 << 2;
-static uint8_t const STATUS_FLAG_CMD_DATA    = 1 << 3;
-static uint8_t const STATUS_TIMEOUT_ERR      = 1 << 6;
-static uint8_t const STATUS_PARITY_ERR       = 1 << 7;
+#define STATUS_FLAG_OUTBUF_FULL     (1U << 0)
+#define STATUS_FLAG_INBUF_FULL      (1U << 1)
+#define STATUS_FLAG_SYS             (1U << 2)
+#define STATUS_FLAG_CMD_DATA        (1U << 3)
+#define STATUS_TIMEOUT_ERR          (1U << 6)
+#define STATUS_PARITY_ERR           (1U << 7)
 
 
 struct portcontext {
@@ -67,7 +63,7 @@ struct portcontext {
     struct archi586_pic_irq_handler irqhandler;
 };
 
-static WARN_UNUSED_RESULT int waitforrecv(void) {
+WARN_UNUSED_RESULT static int waitforrecv(void) {
     ticktime oldtime = g_ticktime;
     bool timeout = true;
     while ((g_ticktime - oldtime) < PS2_TIMEOUT) {
@@ -84,7 +80,7 @@ static WARN_UNUSED_RESULT int waitforrecv(void) {
     return 0;
 }
 
-static WARN_UNUSED_RESULT int waitforsend(void) {
+WARN_UNUSED_RESULT static int waitforsend(void) {
     ticktime oldtime = g_ticktime;
     bool timeout = true;
     while ((g_ticktime - oldtime) < PS2_TIMEOUT) {
@@ -158,7 +154,7 @@ static ssize_t stream_op_write(struct stream *self, void *data, size_t size) {
             return ret;
         }
     }
-    return size;
+    return (ssize_t)size;
 }
 
 static void irqhandler(int irqnum, void *data) {
@@ -176,7 +172,7 @@ static struct stream_ops const OPS = {
     .write = stream_op_write,
 };
 
-static WARN_UNUSED_RESULT int discoveredport(size_t portindex) {
+WARN_UNUSED_RESULT static int discoveredport(size_t portindex) {
     assert(portindex < 2);
     int result = 0;
     struct portcontext *port = heap_alloc(sizeof(*port), HEAP_FLAG_ZEROMEMORY);

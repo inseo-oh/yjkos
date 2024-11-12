@@ -32,7 +32,7 @@ static struct thread *s_runningthread;
 static struct list s_mutexwaitthreads;
 
 // If insert_after is NULL, queue will be inserted at front.
-static WARN_UNUSED_RESULT struct sched_queue *alloc_queue(
+WARN_UNUSED_RESULT static struct sched_queue *alloc_queue(
     struct sched_queue *insert_after, int8_t priority)
 {
     struct sched_queue *resultqueue = heap_alloc(
@@ -53,7 +53,7 @@ static WARN_UNUSED_RESULT struct sched_queue *alloc_queue(
     return resultqueue;
 }
 
-static WARN_UNUSED_RESULT struct sched_queue *get_queue(int8_t priority) {
+WARN_UNUSED_RESULT static struct sched_queue *get_queue(int8_t priority) {
     struct list_node *insert_after = NULL;
     struct sched_queue *result_queue = NULL;
     bool should_insert_front = false;

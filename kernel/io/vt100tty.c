@@ -36,7 +36,9 @@ static void advanceline(struct vt100tty *self, bool wastextoverflow) {
             }
             self->lineinfos[destline].iscontinuation =
                 self->lineinfos[srcline].iscontinuation;
-            self->lineinfos[destline].needsupdate |= !hasscroll;
+            if (!hasscroll) {
+                self->lineinfos[destline].needsupdate = true;
+            }
         }
         self->currentrow--;
         if (hasscroll) {
@@ -56,7 +58,7 @@ static void advanceline(struct vt100tty *self, bool wastextoverflow) {
     self->lineinfos[self->currentrow].iscontinuation = wastextoverflow;
 }
 
-static void writechar(struct vt100tty *self, char chr) {
+static void write_char(struct vt100tty *self, int chr) {
     if (chr == '\n') {
         advanceline(self, false);
         return;
@@ -70,26 +72,26 @@ static void writechar(struct vt100tty *self, char chr) {
     }
     struct vt100tty_char *dest =
         charat(self, self->currentrow, self->currentcolumn);
-    dest->chr = chr;
+    dest->chr = (char)chr;
     dest->needsupdate = true;
     self->lineinfos[self->currentrow].needsupdate = true;
     self->currentcolumn++;
 }
 
-static WARN_UNUSED_RESULT ssize_t stream_op_write(
+WARN_UNUSED_RESULT static ssize_t stream_op_write(
     struct stream *stream, void *data, size_t size)
 {
     struct vt100tty *self = stream->data;
     assert(size <= STREAM_MAX_TRANSFER_SIZE);
 
     for (size_t idx = 0; idx < size; idx++) {
-        uint8_t c = ((uint8_t *)data)[idx];
-        writechar(self, c);
+        int c = ((uint8_t *)data)[idx];
+        write_char(self, c);
     }
     return (ssize_t)size;
 }
 
-static WARN_UNUSED_RESULT ssize_t stream_op_read(
+WARN_UNUSED_RESULT static ssize_t stream_op_read(
     struct stream *stream, void *buf, size_t size)
 {
     (void)stream;

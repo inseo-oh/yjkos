@@ -34,7 +34,7 @@ struct opts {
     bool all : 1;
 };
 
-static WARN_UNUSED_RESULT bool getopts(
+WARN_UNUSED_RESULT static bool getopts(
     struct opts *out, int argc, char *argv[])
 {
     bool ok = true;

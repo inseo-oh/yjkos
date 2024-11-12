@@ -129,8 +129,8 @@ struct mbrentry {
 static void mbr_entry_at(struct mbrentry *out, uint8_t const *ptr) {
     out->flags = ptr[0x0];
     out->partitiontype = ptr[0x4];
-    out->startlba = uint32leat(&ptr[0x8]);
-    out->sectorcount = uint32leat(&ptr[0xc]);
+    out->startlba = uint32_le_at(&ptr[0x8]);
+    out->sectorcount = uint32_le_at(&ptr[0xc]);
 }
 
 static bool parsembr(
@@ -165,7 +165,7 @@ static bool parsembr(
             "[%u] %02x     %02x    %08x  %u MiB\n",
             i, mbrentries[i].flags, mbrentries[i].partitiontype,
             mbrentries[i].startlba,
-            sizetoblocks(mbrentries[i].sectorcount,
+            size_to_blocks(mbrentries[i].sectorcount,
                 (1024 * 1024 / MBR_BLOCK_SIZE)));
     }
     iodev_printf(

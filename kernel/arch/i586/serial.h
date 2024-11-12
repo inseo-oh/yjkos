@@ -1,8 +1,7 @@
 #pragma once
 #include "pic.h"
-#include <kernel/lib/diagnostics.h>
-#include <kernel/io/stream.h>
 #include <kernel/io/tty.h>
+#include <kernel/lib/diagnostics.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -25,6 +24,6 @@ WARN_UNUSED_RESULT int archi586_serial_init(
     struct archi586_serial *out, uint16_t baseaddr, int32_t masterclock,
     uint8_t irq);
 WARN_UNUSED_RESULT int archi586_serial_config(
-    struct archi586_serial *self, uint32_t baudrate);
+    struct archi586_serial *self, int32_t baudrate);
 void archi586_serial_useirq(struct archi586_serial *self);
 WARN_UNUSED_RESULT int archi586_serial_initiodev(struct archi586_serial *self);

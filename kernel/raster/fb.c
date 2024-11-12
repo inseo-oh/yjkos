@@ -1,13 +1,10 @@
 #include "psf.h"
 #include "fbtty.h"
 #include <assert.h>
-#include <kernel/arch/tsc.h>
 #include <kernel/io/co.h>
-#include <kernel/lib/bitmap.h>
 #include <kernel/lib/string_ext.h>
 #include <kernel/mem/heap.h>
 #include <kernel/mem/vmm.h>
-#include <kernel/panic.h>
 #include <kernel/raster/fb.h>
 #include <kernel/types.h>
 #include <stddef.h>
@@ -24,9 +21,9 @@ static bool const CONFIG_SHOW_DAMAGE = false;
 //-----------------------------------------------------------------------------
 
 fb_color makecolor(uint8_t red, uint8_t green, uint8_t blue) {
-    return (((fb_color)(red >> 3U)) << 10U) |
-           (((fb_color)(green >> 3U)) << 5U) |
-           ((fb_color)(blue >> 3U));
+    return (((uint32_t)(red >> 3)) << 10) |
+           (((uint32_t)(green >> 3)) << 5) |
+           ((fb_color)(blue >> 3));
 }
 
 fb_color black(void) {
@@ -37,14 +34,14 @@ fb_color white(void) {
     return makecolor(255, 255, 255);
 }
 
-static int32_t s_width;
-static int32_t s_height;
-static int32_t s_damagefirsty = -1;
-static int32_t s_damagelasty = -1;
+static int s_width;
+static int s_height;
+static int s_damagefirsty = -1;
+static int s_damagelasty = -1;
 
 static fb_color *s_backbuffer;
 
-static void include_damage(int32_t from, int32_t to) {
+static void include_damage(int from, int to) {
     if ((s_damagefirsty == -1) || (from < s_damagefirsty)) {
         s_damagefirsty = from;
     }
@@ -55,7 +52,7 @@ static void include_damage(int32_t from, int32_t to) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void fb_drawpixel(int32_t x, int32_t y, fb_color color) {
+void fb_drawpixel(int x, int y, fb_color color) {
     if (s_backbuffer == NULL) {
         return;
     }
@@ -65,12 +62,12 @@ void fb_drawpixel(int32_t x, int32_t y, fb_color color) {
 }
 
 void fb_drawimage(
-    fb_color *image, int32_t width, int32_t height, int32_t pixelsperline, int32_t destx, int32_t desty)
+    fb_color *image, int width, int height, int pixelsperline, int destx, int desty)
 {
     size_t baseoffset = (desty * s_width) + destx;
     fb_color *srcline = image;
     fb_color *destline = &s_backbuffer[baseoffset];
-    for (int32_t srcy = 0; srcy < height; srcy++) {
+    for (int srcy = 0; srcy < height; srcy++) {
         memcpy(destline, srcline, sizeof(*destline) * width);
         srcline += pixelsperline;
         destline += s_width;
@@ -79,13 +76,13 @@ void fb_drawimage(
 }
 
 void fb_drawrect(
-    int32_t width, int32_t height, int32_t destx, int32_t desty,
+    int width, int height, int destx, int desty,
     fb_color color)
 {
     size_t baseoffset = (desty * s_width) + destx;
     fb_color *destline = &s_backbuffer[baseoffset];
-    for (int32_t srcy = 0; srcy < height; srcy++) {
-        for (int32_t srcx = 0; srcx < width; srcx++) {
+    for (int srcy = 0; srcy < height; srcy++) {
+        for (int srcx = 0; srcx < width; srcx++) {
             destline[srcx] = color;
         }
         destline += s_width;
@@ -93,7 +90,7 @@ void fb_drawrect(
     include_damage(desty, desty + height - 1);
 }
 
-void fb_drawtext(char *text, int32_t destx, int32_t desty, fb_color color) {
+void fb_drawtext(char *text, int destx, int desty, fb_color color) {
     size_t baseoffset = (desty * s_width) + destx;
     for (char *nextchar = text; *nextchar != '\0'; nextchar++) {
         // TODO: Decode UTF-8
@@ -134,8 +131,8 @@ void fb_drawtext(char *text, int32_t destx, int32_t desty, fb_color color) {
 
 static union {
     struct {
-        int8_t redfieldpos,  greenfieldpos,  bluefieldpos;
-        int8_t redmasksize,  greenmasksize,  bluemasksize;
+        int redfieldpos,  greenfieldpos,  bluefieldpos;
+        int redmasksize,  greenmasksize,  bluemasksize;
     } rgb;
     struct {
         uint8_t *palette;
@@ -144,13 +141,13 @@ static union {
 } s_colorinfo;
 
 static void *s_fbbase;
-static int32_t s_fbpitch;
+static int s_fbpitch;
 
 
 static uint32_t makenativecolor_rgb(fb_color rgb) {
-    uint32_t red   = (((rgb >> 10U) & 0x1fU) * 255) / 0x1f;
-    uint32_t green = (((rgb >> 5U) & 0x1fU) * 255) / 0x1f;
-    uint32_t blue  = ((rgb & 0x1fU) * 255) / 0x1f;
+    uint32_t red   = ((((uint32_t)rgb >> 10U) & 0x1fU) * 255) / 0x1f;
+    uint32_t green = ((((uint32_t)rgb >> 5U) & 0x1fU) * 255) / 0x1f;
+    uint32_t blue  = (((uint32_t)rgb & 0x1fU) * 255) / 0x1f;
     uint32_t redshiftcount = 8 - s_colorinfo.rgb.redmasksize;
     uint32_t greenshiftcount = 8 - s_colorinfo.rgb.greenmasksize;
     uint32_t blueshiftcount = 8 - s_colorinfo.rgb.bluemasksize;
@@ -166,8 +163,8 @@ static uint32_t makenativecolor_indexed(fb_color rgb) {
     static int s_lastavg = -1;
     static int s_lastcolor = -1;
 
-    uint red   = ((rgb >> 10U) & 0x1fU) << 3U;
-    uint green = ((rgb >> 5U) & 0x1fU) << 3U;
+    uint red   = (((uint32_t)rgb >> 10U) & 0x1fU) << 3U;
+    uint green = (((uint32_t)rgb >> 5) & 0x1fU) << 3U;
     uint blue  = (rgb & 0x1fU) << 3U;
     int avgcolor = (int)((red + green + blue) / 3);
     if (s_lastavg == avgcolor) {
@@ -209,9 +206,9 @@ static void update32(void) {
     if (CONFIG_SHOW_DAMAGE) {
         uint32_t *destline = &((uint32_t *)s_fbbase)[
             s_damagefirsty * (s_fbpitch / 4)];
-        for (int32_t srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
+        for (int srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
             uint32_t *destpixel = destline;
-            for (int32_t srcx = 0; srcx < s_width; srcx++, destpixel++) {
+            for (int srcx = 0; srcx < s_width; srcx++, destpixel++) {
                 *destpixel = 0x7f7f7f;
             }
             destline += s_fbpitch / 4;
@@ -220,12 +217,12 @@ static void update32(void) {
     fb_color *srcpixel = &s_backbuffer[s_damagefirsty * s_width];
     uint32_t *destline = &((uint32_t *)s_fbbase)[
         s_damagefirsty * (s_fbpitch / 4)];
-    int32_t lastcolor = -1;
+    int lastcolor = -1;
     uint32_t lastnativecolor = -1;
-    for (int32_t srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
+    for (int srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
         uint32_t *destpixel = destline;
-        for (int32_t srcx = 0; srcx < s_width; srcx++, srcpixel++, destpixel++) {
-            int32_t color = *srcpixel;
+        for (int srcx = 0; srcx < s_width; srcx++, srcpixel++, destpixel++) {
+            int color = *srcpixel;
             if (color == lastcolor) {
                 *destpixel = lastnativecolor;
             } else {
@@ -246,10 +243,10 @@ static void update24(void) {
     }
     if (CONFIG_SHOW_DAMAGE) {
         uint8_t *destline = &((uint8_t *)s_fbbase)[s_damagefirsty * s_fbpitch];
-        for (int32_t srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
+        for (int srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
             uint8_t *destpixel = destline;
             for (
-                int32_t srcx = 0; srcx < s_width;
+                int srcx = 0; srcx < s_width;
                 srcx++, destpixel += 3)
             {
                 destpixel[0] = 127;
@@ -265,10 +262,10 @@ static void update24(void) {
     uint32_t lastcolor = -1;
     uint32_t lastnativecolor = -1;
 
-    for (int32_t srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
+    for (int srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
         uint8_t *destpixel = destline;
         for (
-            int32_t srcx = 0; srcx < s_width;
+            int srcx = 0; srcx < s_width;
             srcx++, srcpixel++, destpixel += 3)
         {
             uint32_t color = *srcpixel;
@@ -297,10 +294,10 @@ static void update16(void) {
     if (CONFIG_SHOW_DAMAGE) {
         uint16_t *destline = &((uint16_t *)s_fbbase)[
             s_damagefirsty * (s_fbpitch / 2)];
-        for (int32_t srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
+        for (int srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
             uint16_t *destpixel = destline;
             for (
-                int32_t srcx = 0; srcx < s_width;
+                int srcx = 0; srcx < s_width;
                 srcx++, destpixel++)
             {
                 destpixel[0] = 0x7f7f;
@@ -312,16 +309,16 @@ static void update16(void) {
     fb_color *srcpixel = &s_backbuffer[s_damagefirsty * s_width];
     uint16_t *destline = &((uint16_t *)s_fbbase)[
         s_damagefirsty * (s_fbpitch / 2)];
-    int32_t lastcolor = -1;
+    int lastcolor = -1;
     uint32_t lastnativecolor = -1;
 
-    for (int32_t srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
+    for (int srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
         uint16_t *destpixel = destline;
         for (
-            int32_t srcx = 0; srcx < s_width;
+            int srcx = 0; srcx < s_width;
             srcx++, srcpixel++, destpixel++)
         {
-            int32_t color = *srcpixel;
+            int color = *srcpixel;
             if (color == lastcolor) {
                 *destpixel = lastnativecolor;
             } else {
@@ -342,22 +339,22 @@ static void update8(void) {
     }
     fb_color *srcpixel = &s_backbuffer[s_damagefirsty * s_width];
     uint8_t *destline = &((uint8_t *)s_fbbase)[s_damagefirsty * s_fbpitch];
-    int32_t lastcolor = -1;
+    int lastcolor = -1;
     uint32_t lastnativecolor = -1;
 
     if (CONFIG_SHOW_DAMAGE) {
         uint8_t *destline = &((uint8_t *)s_fbbase)[s_damagefirsty * s_fbpitch];
-        for (int32_t srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
-            for (int32_t x = 0; x < s_width; x++) {
+        for (int srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
+            for (int x = 0; x < s_width; x++) {
                 destline[x] = 7;
             }
             destline += s_fbpitch;
         }
     }
 
-    for (int32_t srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
-        for (int32_t x = 0; x < s_width; x++, srcpixel++) {
-            int32_t color = *srcpixel;
+    for (int srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
+        for (int x = 0; x < s_width; x++, srcpixel++) {
+            int color = *srcpixel;
             if (color == lastcolor) {
                 destline[x] = lastnativecolor;
             } else {
@@ -383,17 +380,17 @@ static void update1(void) {
 
     if (CONFIG_SHOW_DAMAGE) {
         uint8_t *destline = &((uint8_t *)s_fbbase)[s_damagefirsty * s_fbpitch];
-        for (int32_t srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
-            for (int32_t x = 0; x < s_width; x += 8) {
+        for (int srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
+            for (int x = 0; x < s_width; x += 8) {
                 destline[x / 8] = 0xff;
             }
             destline += s_fbpitch;
         }
     }
 
-    for (int32_t srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
+    for (int srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
         uint8_t temppixeldata = 0;
-        for (int32_t x = 0; x < s_width; x++, srcpixel++) {
+        for (int x = 0; x < s_width; x++, srcpixel++) {
             uint32_t color = *srcpixel;
             uint32_t resultcolor;
             if (color == lastcolor) {
@@ -431,7 +428,7 @@ void fb_scroll(int scrolllen) {
         uint8_t *srcline  = &((uint8_t *)s_fbbase)[s_fbpitch * scrolllen];
         uint8_t *destline = s_fbbase;
         for (
-            int32_t y = 0; y < s_height - scrolllen;
+            int y = 0; y < s_height - scrolllen;
             y++, destline += s_fbpitch, srcline += s_fbpitch)
         {
             memcpy32(destline, srcline, s_fbpitch / 4);
@@ -441,7 +438,7 @@ void fb_scroll(int scrolllen) {
         uint16_t *srcline = &s_backbuffer[s_width * scrolllen];
         uint16_t *destline = s_backbuffer;
         for (
-            int32_t y = 0; y < s_height - scrolllen;
+            int y = 0; y < s_height - scrolllen;
             y++, destline += s_width, srcline += s_width)
         {
             memcpy32(
@@ -451,26 +448,26 @@ void fb_scroll(int scrolllen) {
     }
 }
 
-int32_t fb_getwidth(void) {
+int fb_getwidth(void) {
     return s_width;
 }
 
-int32_t fb_getheight(void) {
+int fb_getheight(void) {
     return s_height;
 }
 
 void fb_init_rgb(
-    int8_t redfieldpos,
-    int8_t redmasksize,
-    int8_t greenfieldpos,
-    int8_t greenmasksize,
-    int8_t bluefieldpos,
-    int8_t bluemasksize,
+    int redfieldpos,
+    int redmasksize,
+    int greenfieldpos,
+    int greenmasksize,
+    int bluefieldpos,
+    int bluemasksize,
     physptr framebufferbase,
-    int32_t width,
-    int32_t height,
-    int32_t pitch,
-    int8_t bpp
+    int width,
+    int height,
+    int pitch,
+    int bpp
 ) {
     s_colorinfo.rgb.redfieldpos = redfieldpos;
     s_colorinfo.rgb.greenfieldpos = greenfieldpos;
@@ -516,9 +513,9 @@ void fb_init_indexed(
     uint8_t *palette,
     int colorcount,
     physptr framebufferbase,
-    int32_t width,
-    int32_t height,
-    int32_t pitch,
+    int width,
+    int height,
+    int pitch,
     int8_t bpp
 ) {
     s_colorinfo.indexed.palette = palette;

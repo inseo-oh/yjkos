@@ -9,7 +9,6 @@
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/miscmath.h>
 #include <kernel/mem/heap.h>
-#include <kernel/types.h>
 #include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -30,7 +29,7 @@ enum {
     INODE_ROOTDIRECTORY = 2,
 };
 
-#define REQUIRED_FEATUREFLAG_COMPRESSION                    (1U<< 0U)
+#define REQUIRED_FEATUREFLAG_COMPRESSION                    (1U << 0U)
 #define REQUIRED_FEATUREFLAG_DIRENTRY_CONTAINS_TYPE_FIELD   (1U << 1U)
 #define REQUIRED_FEATUREFLAG_NEED_REPLAY_JOURNAL            (1U << 2U)
 #define REQUIRED_FEATUREFLAG_JOURNAL_DEVICE_USED            (1U << 3U)
@@ -147,18 +146,18 @@ struct inocontext {
 };
 
 // Bitmask values for type and permissions
-#define INODE_TYPE_MASK          0xf000U
-#define INODE_TYPE_FIFO          0x1000U
-#define INODE_TYPE_CHARACTER     0x2000U
-#define INODE_TYPE_DIRECTORY     0x4000U
-#define INODE_TYPE_BLOCK_DEVICE  0x6000U
-#define INODE_TYPE_REGULAR_FILE  0x8000U
-#define INODE_TYPE_SYMBOLIC_LINK 0xa000U
-#define INODE_TYPE_UNIX_SOCKET   0xc000U
+#define INODE_TYPE_MASK          0xf000
+#define INODE_TYPE_FIFO          0x1000
+#define INODE_TYPE_CHARACTER     0x2000
+#define INODE_TYPE_DIRECTORY     0x4000
+#define INODE_TYPE_BLOCK_DEVICE  0x6000
+#define INODE_TYPE_REGULAR_FILE  0x8000
+#define INODE_TYPE_SYMBOLIC_LINK 0xa000
+#define INODE_TYPE_UNIX_SOCKET   0xc000
 
 
 // `buf` must be able to hold `blkcount * self->blocksize` bytes.
-static WARN_UNUSED_RESULT int readblocks(
+WARN_UNUSED_RESULT static int readblocks(
     struct fscontext *self, void *buf, uint32_t blockaddr, blkcnt_t blkcount)
 {
     int ret = 0;
@@ -184,7 +183,7 @@ out:
 }
 
 // Returns NULL when there's not enough memory.
-static WARN_UNUSED_RESULT uint8_t *allocblockbuf(struct fscontext *self,
+WARN_UNUSED_RESULT static uint8_t *allocblockbuf(struct fscontext *self,
     blkcnt_t count, uint8_t flags)
 {
     uint8_t *buf = heap_calloc(count, self->blocksize, flags);
@@ -194,7 +193,7 @@ static WARN_UNUSED_RESULT uint8_t *allocblockbuf(struct fscontext *self,
     return buf;
 }
 
-static WARN_UNUSED_RESULT int readblocks_alloc(
+WARN_UNUSED_RESULT static int readblocks_alloc(
     uint8_t **out, struct fscontext *self, uint32_t blockaddr,
     blkcnt_t blkcount)
 {
@@ -216,7 +215,7 @@ out:
     return ret;
 }
 
-static WARN_UNUSED_RESULT int readblockgroupdescriptor(
+WARN_UNUSED_RESULT static int readblockgroupdescriptor(
     struct blkgroupdescriptor *out,
     struct fscontext *self, uint32_t blockgroup)
 {
@@ -238,12 +237,12 @@ static WARN_UNUSED_RESULT int readblockgroupdescriptor(
         goto fail;
     }
     uint8_t *data = &buf[byteoffsetinblk];
-    out->blkusagebitmap    = uint32leat(&data[0x00]);
-    out->inodeusagebitmap  = uint32leat(&data[0x04]);
-    out->inodetable        = uint32leat(&data[0x08]);
-    out->unallocatedblocks = uint16leat(&data[0x0c]);
-    out->unallocatedinodes = uint16leat(&data[0x0e]);
-    out->directories       = uint16leat(&data[0x10]);
+    out->blkusagebitmap    = uint32_le_at(&data[0x00]);
+    out->inodeusagebitmap  = uint32_le_at(&data[0x04]);
+    out->inodetable        = uint32_le_at(&data[0x08]);
+    out->unallocatedblocks = uint16_le_at(&data[0x0c]);
+    out->unallocatedinodes = uint16_le_at(&data[0x0e]);
+    out->directories       = uint16_le_at(&data[0x10]);
     goto out;
 fail:
 out:
@@ -255,7 +254,7 @@ static uint32_t blockgroup_of_inode(struct fscontext *self, ino_t inodeaddr) {
     return (inodeaddr - 1) / self->inodesinblkgroup;
 }
 
-static WARN_UNUSED_RESULT int locateinode(
+WARN_UNUSED_RESULT static int locateinode(
     uint32_t *blk_out, off_t *off_out, struct fscontext *self, ino_t inodeaddr)
 {
     int ret = 0;
@@ -276,7 +275,7 @@ out:
     return ret;
 }
 
-static WARN_UNUSED_RESULT int next_direct_blockptr(
+WARN_UNUSED_RESULT static int next_direct_blockptr(
     uint32_t *addr_out, struct inocontext *self)
 {
     uint32_t result_addr;
@@ -290,7 +289,7 @@ static WARN_UNUSED_RESULT int next_direct_blockptr(
     return 0;
 }
 
-static WARN_UNUSED_RESULT int next_triply_indirect_table(
+WARN_UNUSED_RESULT static int next_triply_indirect_table(
     struct inocontext *self)
 {
     uint32_t tableaddr;
@@ -325,7 +324,7 @@ out:
     return ret;
 }
 
-static WARN_UNUSED_RESULT int next_triply_blockptr(
+WARN_UNUSED_RESULT static int next_triply_blockptr(
      uint32_t *addr_out, struct inocontext *self)
 {
     uint32_t tableaddr;
@@ -340,7 +339,7 @@ static WARN_UNUSED_RESULT int next_triply_blockptr(
         }
     }
     self->triplyindirectused = true;
-    tableaddr = uint32leat(
+    tableaddr = uint32_le_at(
         &self->triplyindirectbuf.buf[
             self->triplyindirectbuf.offset_in_buf]);
     self->triplyindirectbuf.offset_in_buf += sizeof(uint32_t);
@@ -350,7 +349,7 @@ out:
     return ret;
 }
 
-static WARN_UNUSED_RESULT int next_doubly_indirect_table(
+WARN_UNUSED_RESULT static int next_doubly_indirect_table(
     struct inocontext *self)
 {
     int ret = -ENOENT;
@@ -387,7 +386,7 @@ out:
     return ret;
 }
 
-static WARN_UNUSED_RESULT int next_doubly_blockptr(
+WARN_UNUSED_RESULT static int next_doubly_blockptr(
      uint32_t *addr_out, struct inocontext *self)
 {
     uint32_t result_addr = 0;
@@ -400,7 +399,7 @@ static WARN_UNUSED_RESULT int next_doubly_blockptr(
             goto out;
         }
     }
-    result_addr = uint32leat(
+    result_addr = uint32_le_at(
         &self->doublyindirectbuf.buf[
             self->doublyindirectbuf.offset_in_buf]);
     self->doublyindirectbuf.offset_in_buf += sizeof(uint32_t);
@@ -414,7 +413,7 @@ out:
     return ret;
 }
 
-static WARN_UNUSED_RESULT int next_singly_indirect_table(
+WARN_UNUSED_RESULT static int next_singly_indirect_table(
     struct inocontext *self)
 {
     int ret = -ENOENT;
@@ -451,7 +450,7 @@ out:
 }
 
 // Returns -ENOENT on EOF.
-static WARN_UNUSED_RESULT int next_singly_blockptr(
+WARN_UNUSED_RESULT static int next_singly_blockptr(
     uint32_t *addr_out, struct inocontext *self)
 {
     int ret = -ENOENT;
@@ -465,7 +464,7 @@ static WARN_UNUSED_RESULT int next_singly_blockptr(
             goto out;
         }
     }
-    result_addr = uint32leat(
+    result_addr = uint32_le_at(
         &self->singlyindirectbuf.buf[
             self->singlyindirectbuf.offset_in_buf]);
     if (result_addr == 0) {
@@ -479,7 +478,7 @@ out:
 }
 
 // Returns -ENOENT on EOF.
-static WARN_UNUSED_RESULT int next_inode_block(struct inocontext *self) {
+WARN_UNUSED_RESULT static int next_inode_block(struct inocontext *self) {
     int ret = 0;
     enum {
         DIRECT_BLOCK_POINTER_COUNT =
@@ -528,7 +527,7 @@ static void rewindinode(struct inocontext *self) {
     MUST_SUCCEED(ret);
 }
 
-static WARN_UNUSED_RESULT int next_inode_block_and_reset_blockbuf(
+WARN_UNUSED_RESULT static int next_inode_block_and_reset_blockbuf(
     struct inocontext *self)
 {
     int ret = next_inode_block(self);
@@ -543,7 +542,7 @@ static WARN_UNUSED_RESULT int next_inode_block_and_reset_blockbuf(
 }
 
 // Returns -ENOENT on EOF
-static WARN_UNUSED_RESULT int skipread_inode(
+WARN_UNUSED_RESULT static int skipread_inode(
     struct inocontext *self, size_t len)
 {
     assert(len <= STREAM_MAX_TRANSFER_SIZE);
@@ -595,7 +594,7 @@ out:
     return ret;
 }
 
-static WARN_UNUSED_RESULT int seekinode(
+WARN_UNUSED_RESULT static int seekinode(
     struct inocontext *self, off_t offset, int whence)
 {
     int ret = 0;
@@ -635,7 +634,7 @@ out:
     return ret;
 }
 
-static WARN_UNUSED_RESULT int read_inode_blocks(
+WARN_UNUSED_RESULT static int read_inode_blocks(
     struct inocontext *self, size_t count, uint8_t **dest_inout,
     size_t *remaining_len_inout)
 {
@@ -692,7 +691,7 @@ out:
     return ret;
 }
 
-static WARN_UNUSED_RESULT int read_inode(
+WARN_UNUSED_RESULT static int read_inode(
     struct inocontext *self, void *buf, size_t len)
 {
     assert(len <= STREAM_MAX_TRANSFER_SIZE);
@@ -760,7 +759,7 @@ out:
     return ret;
 }
 
-static WARN_UNUSED_RESULT int openinode(
+WARN_UNUSED_RESULT static int openinode(
     struct inocontext *out, struct fscontext *self, ino_t inode)
 {
     int ret = 0;
@@ -781,28 +780,28 @@ static WARN_UNUSED_RESULT int openinode(
     uint32_t sizel = 0;
     uint32_t sizeh = 0;
     out->fs                         = self;
-    out->typeandpermissions         = uint16leat(&inodedata[0x00]);
-    out->uid                        = uint16leat(&inodedata[0x02]);
-    sizel                           = uint32leat(&inodedata[0x04]);
-    out->lastaccesstime             = uint32leat(&inodedata[0x08]);
-    out->creationtime               = uint32leat(&inodedata[0x0c]);
-    out->lastmodifiedtime           = uint32leat(&inodedata[0x10]);
-    out->deletiontime               = uint32leat(&inodedata[0x14]);
-    out->gid                        = uint16leat(&inodedata[0x18]);
-    out->hardlinks                  = uint16leat(&inodedata[0x1a]);
-    out->disksectors                = uint32leat(&inodedata[0x1c]);
-    out->flags                      = uint32leat(&inodedata[0x20]);
+    out->typeandpermissions         = uint16_le_at(&inodedata[0x00]);
+    out->uid                        = uint16_le_at(&inodedata[0x02]);
+    sizel                           = uint32_le_at(&inodedata[0x04]);
+    out->lastaccesstime             = uint32_le_at(&inodedata[0x08]);
+    out->creationtime               = uint32_le_at(&inodedata[0x0c]);
+    out->lastmodifiedtime           = uint32_le_at(&inodedata[0x10]);
+    out->deletiontime               = uint32_le_at(&inodedata[0x14]);
+    out->gid                        = uint16_le_at(&inodedata[0x18]);
+    out->hardlinks                  = uint16_le_at(&inodedata[0x1a]);
+    out->disksectors                = uint32_le_at(&inodedata[0x1c]);
+    out->flags                      = uint32_le_at(&inodedata[0x20]);
     for (int i = 0; i < 12; i++) {
-        out->direct_blockptrs[i]       = uint32leat(
+        out->direct_blockptrs[i]       = uint32_le_at(
             &inodedata[0x28 + sizeof(*out->direct_blockptrs) * i]);
     }
-    out->singlyindirecttable        = uint32leat(&inodedata[0x58]);
-    out->doublyindirecttable        = uint32leat(&inodedata[0x5c]);
-    out->triplyindirecttable        = uint32leat(&inodedata[0x60]);
-    out->generationnumber           = uint32leat(&inodedata[0x64]);
+    out->singlyindirecttable        = uint32_le_at(&inodedata[0x58]);
+    out->doublyindirecttable        = uint32_le_at(&inodedata[0x5c]);
+    out->triplyindirecttable        = uint32_le_at(&inodedata[0x60]);
+    out->generationnumber           = uint32_le_at(&inodedata[0x64]);
     if (1 <= self->majorver) {
         if (self->requiredfeatures_rw & RWMOUNT_FEATUREFLAG_64BIT_FILE_SIZE) {
-            sizeh                   = uint32leat(&inodedata[0x6c]);
+            sizeh                   = uint32_le_at(&inodedata[0x6c]);
         }
     }
     if ((sizeh >> 31U) != 0) {
@@ -840,7 +839,7 @@ struct directory {
 };
 
 // Returns -ENOENT when it reaches end of the directory.
-static WARN_UNUSED_RESULT int readdirectory(struct dirent *out, DIR *self) {
+WARN_UNUSED_RESULT static int readdirectory(struct dirent *out, DIR *self) {
     struct directory *dir = self->data;
     int ret = 0;
     while(1) {
@@ -850,8 +849,8 @@ static WARN_UNUSED_RESULT int readdirectory(struct dirent *out, DIR *self) {
         if (ret < 0) {
             goto fail;
         }
-        out->d_ino       = uint32leat(&header[0x0]);
-        size_t entrysize = uint16leat(&header[0x4]);
+        out->d_ino       = uint32_le_at(&header[0x0]);
+        size_t entrysize = uint16_le_at(&header[0x4]);
         size_t namelen   = header[0x6];
         if (!(dir->inocontext.fs->requiredfeatures &
             REQUIRED_FEATUREFLAG_DIRENTRY_CONTAINS_TYPE_FIELD))
@@ -883,7 +882,7 @@ out:
     return ret;
 }
 
-static WARN_UNUSED_RESULT int opendirectory(
+WARN_UNUSED_RESULT static int opendirectory(
     DIR **dir_out, struct fscontext *self, ino_t inode)
 {
     int ret = 0;
@@ -924,7 +923,7 @@ static void closedirectory(DIR *self) {
     heap_free(dir);
 }
 
-static WARN_UNUSED_RESULT int openfile(
+WARN_UNUSED_RESULT static int openfile(
     struct inocontext *out, struct fscontext *self, ino_t inode)
 {
     int ret;
@@ -952,7 +951,7 @@ static void closefile(struct inocontext *self) {
     closeinode(self);
 }
 
-static WARN_UNUSED_RESULT int resolve_path(
+WARN_UNUSED_RESULT static int resolve_path(
     ino_t *ino_out, struct fscontext *self, ino_t parent, char const *path)
 {
     int ret = 0;
@@ -1051,7 +1050,7 @@ WARN_UNUSED_RESULT static ssize_t fd_op_write(
     return -EIO;
 }
 
-static WARN_UNUSED_RESULT int fd_op_seek(
+WARN_UNUSED_RESULT static int fd_op_seek(
     struct fd *self, off_t offset, int whence)
 {
     struct openfdcontext *context = self->data;
@@ -1074,7 +1073,7 @@ static struct fd_ops const FD_OPS = {
     .close = fd_op_close,
 };
 
-static WARN_UNUSED_RESULT int vfs_op_mount(
+WARN_UNUSED_RESULT static int vfs_op_mount(
     struct vfs_fscontext **out, struct ldisk *disk)
 {
     int ret = 0;
@@ -1095,7 +1094,7 @@ static WARN_UNUSED_RESULT int vfs_op_mount(
             goto fail;
         }
     }
-    context->signature = uint16leat(&superblk[0x038]);
+    context->signature = uint16_le_at(&superblk[0x038]);
     if (context->signature != EXT2_SIGNATURE) {
         iodev_printf(
             &disk->iodev, "ext2: invalid superblk signature\n");
@@ -1103,13 +1102,13 @@ static WARN_UNUSED_RESULT int vfs_op_mount(
         goto fail;
     }
     context->disk                      = disk;
-    context->totalinodes               = uint32leat(&superblk[0x000]);
-    context->totalblks                 = uint32leat(&superblk[0x004]);
-    context->reservedblksforsu         = uint32leat(&superblk[0x008]);
-    context->totalunallocatedblocks    = uint32leat(&superblk[0x00c]);
-    context->totalunallocatedinodes    = uint32leat(&superblk[0x010]);
-    context->superblkblknum            = uint32leat(&superblk[0x014]);
-    uint32_t blocksize_raw             = uint32leat(&superblk[0x018]);
+    context->totalinodes               = uint32_le_at(&superblk[0x000]);
+    context->totalblks                 = uint32_le_at(&superblk[0x004]);
+    context->reservedblksforsu         = uint32_le_at(&superblk[0x008]);
+    context->totalunallocatedblocks    = uint32_le_at(&superblk[0x00c]);
+    context->totalunallocatedinodes    = uint32_le_at(&superblk[0x010]);
+    context->superblkblknum            = uint32_le_at(&superblk[0x014]);
+    uint32_t blocksize_raw             = uint32_le_at(&superblk[0x018]);
     if (21 < blocksize_raw) {
         iodev_printf(
             &disk->iodev, "ext2: block size value is too large\n");
@@ -1117,29 +1116,29 @@ static WARN_UNUSED_RESULT int vfs_op_mount(
         goto fail;
     }
     context->blocksize                 = (blksize_t)(1024UL << blocksize_raw);
-    context->blksinblkgroup            = uint32leat(&superblk[0x020]);
-    context->inodesinblkgroup          = uint32leat(&superblk[0x028]);
-    context->lastmounttime             = uint32leat(&superblk[0x02c]);
-    context->laswrittentime            = uint32leat(&superblk[0x030]);
-    context->mountssincelastfsck       = uint16leat(&superblk[0x034]);
-    context->mountsbeforefsckrequired  = uint16leat(&superblk[0x036]);
-    context->fsstate                   = uint16leat(&superblk[0x03a]);
-    context->erraction                 = uint16leat(&superblk[0x03c]);
-    context->minorver                  = uint16leat(&superblk[0x03e]);
-    context->lastfscktime              = uint32leat(&superblk[0x040]);
-    context->fsckinterval              = uint32leat(&superblk[0x044]);
-    context->creatorosid               = uint32leat(&superblk[0x048]);
-    context->majorver                  = uint32leat(&superblk[0x04c]);
-    context->reservedblkuid            = uint16leat(&superblk[0x050]);
-    context->reservedblkgid            = uint16leat(&superblk[0x052]);
+    context->blksinblkgroup            = uint32_le_at(&superblk[0x020]);
+    context->inodesinblkgroup          = uint32_le_at(&superblk[0x028]);
+    context->lastmounttime             = uint32_le_at(&superblk[0x02c]);
+    context->laswrittentime            = uint32_le_at(&superblk[0x030]);
+    context->mountssincelastfsck       = uint16_le_at(&superblk[0x034]);
+    context->mountsbeforefsckrequired  = uint16_le_at(&superblk[0x036]);
+    context->fsstate                   = uint16_le_at(&superblk[0x03a]);
+    context->erraction                 = uint16_le_at(&superblk[0x03c]);
+    context->minorver                  = uint16_le_at(&superblk[0x03e]);
+    context->lastfscktime              = uint32_le_at(&superblk[0x040]);
+    context->fsckinterval              = uint32_le_at(&superblk[0x044]);
+    context->creatorosid               = uint32_le_at(&superblk[0x048]);
+    context->majorver                  = uint32_le_at(&superblk[0x04c]);
+    context->reservedblkuid            = uint16_le_at(&superblk[0x050]);
+    context->reservedblkgid            = uint16_le_at(&superblk[0x052]);
 
     if (1 <= context->majorver) {
-        context->firstnonreservedinode = uint16leat(&superblk[0x054]);
-        context->inodesize             = uint16leat(&superblk[0x058]);
-        context->blkgroup              = uint16leat(&superblk[0x05a]);
-        context->optionalfeatures      = uint32leat(&superblk[0x05c]);
-        context->requiredfeatures      = uint32leat(&superblk[0x060]);
-        context->requiredfeatures_rw   = uint32leat(&superblk[0x064]);
+        context->firstnonreservedinode = uint16_le_at(&superblk[0x054]);
+        context->inodesize             = uint16_le_at(&superblk[0x058]);
+        context->blkgroup              = uint16_le_at(&superblk[0x05a]);
+        context->optionalfeatures      = uint32_le_at(&superblk[0x05c]);
+        context->requiredfeatures      = uint32_le_at(&superblk[0x060]);
+        context->requiredfeatures_rw   = uint32_le_at(&superblk[0x064]);
         memcpy(
             context->filesystemid,  &superblk[0x068],
             sizeof(context->filesystemid));
@@ -1165,15 +1164,15 @@ static WARN_UNUSED_RESULT int vfs_op_mount(
                 "ext2: some strings in superblock were not terminated - terminating at the last character\n");
 
         }
-        context->compressionalgorithms = uint32leat(&superblk[0x0c8]);
+        context->compressionalgorithms = uint32_le_at(&superblk[0x0c8]);
         context->preallocatefileblks   = superblk[0x0cc];
         context->preallocatedirblks    = superblk[0x0cd];
         memcpy(
             context->journalid, &superblk[0x0d0],
             sizeof(context->journalid));
-        context->journalinode          = uint32leat(&superblk[0x0e0]);
-        context->journaldevice         = uint32leat(&superblk[0x0e4]);
-        context->orphaninodelisthead   = uint32leat(&superblk[0x0e8]);
+        context->journalinode          = uint32_le_at(&superblk[0x0e0]);
+        context->journaldevice         = uint32_le_at(&superblk[0x0e4]);
+        context->orphaninodelisthead   = uint32_le_at(&superblk[0x0e8]);
     } else {
         context->firstnonreservedinode = 11;
         context->inodesize = 128;
@@ -1186,9 +1185,9 @@ static WARN_UNUSED_RESULT int vfs_op_mount(
         id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7], id[8], id[9],
         id[10], id[11], id[12], id[13], id[14], id[15]);
 
-    size_t blkgroupcount = sizetoblocks(
+    size_t blkgroupcount = size_to_blocks(
         context->totalblks, context->blksinblkgroup);
-    size_t blkgroupcount2 = sizetoblocks(
+    size_t blkgroupcount2 = size_to_blocks(
         context->totalinodes, context->inodesinblkgroup);
     if (blkgroupcount != blkgroupcount2) {
         iodev_printf(
@@ -1250,7 +1249,7 @@ static  WARN_UNUSED_RESULT int vfs_op_umount(struct vfs_fscontext *self) {
     return 0;
 }
 
-static WARN_UNUSED_RESULT int vfs_op_open(
+WARN_UNUSED_RESULT static int vfs_op_open(
     struct fd **out, struct vfs_fscontext *self, char const *path, int flags)
 {
     int ret;
@@ -1283,7 +1282,7 @@ out:
     return ret;
 }
 
-static WARN_UNUSED_RESULT int vfs_op_opendir(
+WARN_UNUSED_RESULT static int vfs_op_opendir(
     DIR **out, struct vfs_fscontext *self, char const *path)
 {
     int ret;
@@ -1304,7 +1303,7 @@ out:
     return ret;
 }
 
-static WARN_UNUSED_RESULT int vfs_op_closedir(DIR *self) {
+WARN_UNUSED_RESULT static int vfs_op_closedir(DIR *self) {
     closedirectory(self);
     return 0;
 }

@@ -2,7 +2,7 @@
 #include "../pic.h"
 #include "idebus.h"
 #include <assert.h>
-#include <kernel/arch/interrupts.h>
+#include <errno.h>
 #include <kernel/arch/iodelay.h>
 #include <kernel/arch/mmu.h>
 #include <kernel/dev/atadisk.h>
@@ -14,7 +14,6 @@
 #include <kernel/mem/heap.h>
 #include <kernel/mem/pmm.h>
 #include <kernel/mem/vmm.h>
-#include <kernel/trapmanager.h>
 #include <kernel/types.h>
 #include <stdalign.h>
 #include <stdarg.h>
@@ -23,9 +22,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 
-#define PRD_FLAG_LAST_ENTRY_IN_PRDT (1 << 15)
+#define PRD_FLAG_LAST_ENTRY_IN_PRDT (1U << 15)
 
 // Physical Region Descriptor
 struct prd {
@@ -81,8 +79,8 @@ enum ioreg {
     IOREG_COMMAND        = 7, // write
 };
 
-#define DRIVE_AND_HEAD_FLAG_DRV     (1 << 4)
-#define DRIVE_AND_HEAD_FLAG_LBA     (1 << 6)
+#define DRIVE_AND_HEAD_FLAG_DRV     (1U << 4)
+#define DRIVE_AND_HEAD_FLAG_LBA     (1U << 6)
 
 static void io_out8(struct bus *self, enum ioreg reg, uint8_t data) {
     archi586_out8(self->io_iobase + reg, data);
@@ -107,9 +105,9 @@ enum ctrlreg {
     CTRLREG_DEVICE_CONTROL   = 0, // write
 };
 
-#define DRVICE_CONTROL_FLAG_NIEN    (1 << 1)
-#define DRVICE_CONTROL_FLAG_SRST    (1 << 2)
-#define DRVICE_CONTROL_FLAG_HOB     (1 << 7)
+#define DRVICE_CONTROL_FLAG_NIEN    (1U << 1)
+#define DRVICE_CONTROL_FLAG_SRST    (1U << 2)
+#define DRVICE_CONTROL_FLAG_HOB     (1U << 7)
 
 static void ctrl_out8(struct bus *self, enum ctrlreg reg, uint8_t data) {
     archi586_out8(self->ctrl_iobase + reg, data);
@@ -196,7 +194,7 @@ static void atadisk_op_set_lba_param(struct atadisk *self, uint32_t data) {
     io_out8(disk->bus, IOREG_LBA_MID, data >> 8);
     io_out8(disk->bus, IOREG_LBA_HI, data >> 16);
     uint8_t regvalue = io_in8(disk->bus, IOREG_DRIVE_AND_HEAD);
-    regvalue = (regvalue & ~0x0F) | ((data >> 24) & 0x0F);
+    regvalue = (regvalue & ~0x0fU) | ((data >> 24) & 0x0fU);
     io_out8(disk->bus, IOREG_DRIVE_AND_HEAD, regvalue);
 }
 static void atadisk_op_set_device_param(struct atadisk *self, uint8_t data) {
@@ -204,16 +202,17 @@ static void atadisk_op_set_device_param(struct atadisk *self, uint8_t data) {
     uint8_t regvalue = io_in8(disk->bus, IOREG_DRIVE_AND_HEAD);
     // Note that we preserve lower 3-bit, which contains upper 4-bit of LBA.
     // (ACS-3 calls these bits as "reserved", and maybe this is the reason?)
-    regvalue = (data & ~0x0F) | (regvalue & 0x0F);
+    regvalue = (data & ~0x0fU) | (regvalue & 0x0fU);
     io_out8(disk->bus, IOREG_DRIVE_AND_HEAD, regvalue);
 }
 static uint32_t atadisk_op_get_lba_output(struct atadisk *self) {
     struct disk *disk = self->data;
-    uint32_t lbalo  = io_in8(disk->bus, IOREG_LBA_LO);
-    uint32_t lbamid = io_in8(disk->bus, IOREG_LBA_MID);
-    uint32_t lbahi  = io_in8(disk->bus, IOREG_LBA_HI);
-    uint32_t lbatop4bit = io_in8(disk->bus, IOREG_DRIVE_AND_HEAD) & 0x0F;
-    return (lbatop4bit << 24) | (lbahi << 16) | (lbamid << 8) | lbalo;
+    uint32_t lba_lo  = io_in8(disk->bus, IOREG_LBA_LO);
+    uint32_t lba_mid = io_in8(disk->bus, IOREG_LBA_MID);
+    uint32_t lba_hi  = io_in8(disk->bus, IOREG_LBA_HI);
+    uint32_t lba_top4bit =
+        io_in8(disk->bus, IOREG_DRIVE_AND_HEAD) & 0x0F;
+    return (lba_top4bit << 24) | (lba_hi << 16) | (lba_mid << 8) | lba_lo;
 }
 
 static void atadisk_op_issue_cmd(struct atadisk *self, enum ata_cmd cmd) {
@@ -228,11 +227,15 @@ static void atadisk_op_clear_irq_flag(struct atadisk *self) {
     struct disk *disk = self->data;
     disk->bus->got_irq = false;
 }
-static void atadisk_op_read_data(struct ata_databuf *out, struct atadisk *self) {
+static void atadisk_op_read_data(
+    struct ata_databuf *out, struct atadisk *self)
+{
     struct disk *disk = self->data;
     io_in16_rep(disk->bus, IOREG_DATA, out->data, sizeof(out->data)/sizeof(*out->data));
 }
-static void atadisk_op_write_data(struct atadisk *self, struct ata_databuf *buffer) {
+static void atadisk_op_write_data(
+    struct atadisk *self, struct ata_databuf *buffer)
+{
     struct disk *disk = self->data;
     for (size_t i = 0; i < 256; i++) {
         io_out16(disk->bus, IOREG_DATA, buffer->data[i]);
@@ -240,31 +243,31 @@ static void atadisk_op_write_data(struct atadisk *self, struct ata_databuf *buff
     }
 }
 
-enum busmasterreg {
+enum busmaster_reg {
     BUSMASTERREG_CMD  = 0,
     BUSMASTERREG_STATUS   = 2,
     BUSMASTERREG_PRDTADDR = 4,
 }; 
 
-static void busmasterout8(struct bus *self, enum busmasterreg reg, uint8_t data) {
+static void busmaster_out8(struct bus *self, enum busmaster_reg reg, uint8_t data) {
     assert(self->busmaster_enabled);
     archi586_out8(self->busmastrer_iobase + reg, data);
 }
-static void busmasterout32(struct bus *self, enum busmasterreg reg, uint32_t data) {
+static void busmaster_out32(struct bus *self, enum busmaster_reg reg, uint32_t data) {
     assert(self->busmaster_enabled);
     archi586_out32(self->busmastrer_iobase + reg, data);
 }
-static uint8_t busmasterin8(struct bus *self, enum busmasterreg reg) {
+static uint8_t busmaster_in8(struct bus *self, enum busmaster_reg reg) {
     assert(self->busmaster_enabled);
     return archi586_in8(self->busmastrer_iobase + reg);
 }
-static uint32_t busmasterin32(struct bus *self, enum busmasterreg reg) {
+static uint32_t busmaster_in32(struct bus *self, enum busmaster_reg reg) {
     assert(self->busmaster_enabled);
     return archi586_in32(self->busmastrer_iobase + reg);
 }
 
-static uint8_t BUSMASTER_CMDFLAG_START = 1 << 0;
-static uint8_t BUSMASTER_CMDFLAG_READ  = 1 << 3;
+#define BUSMASTER_CMDFLAG_START     (1U << 0)
+#define BUSMASTER_CMDFLAG_READ      (1U << 3)
 
 enum {
     MAX_TRANSFTER_SIZE_PER_PRD   = 65536,
@@ -319,7 +322,7 @@ static void atadisk_op_unlock(struct atadisk *self) {
     atomic_store_explicit(&bus->bus_lock_flag, desired, memory_order_release);
 }
 
-static WARN_UNUSED_RESULT int atadisk_op_dma_init_transfter(
+WARN_UNUSED_RESULT static int atadisk_op_dma_init_transfter(
     struct atadisk *self, void *buffer, size_t len, bool isread)
 {
     struct disk *disk = self->data;
@@ -355,7 +358,7 @@ static WARN_UNUSED_RESULT int atadisk_op_dma_init_transfter(
         remainingsize -= currentsize;
     }
     // Setup busmaster registers
-    busmasterout32(
+    busmaster_out32(
         bus, BUSMASTERREG_PRDTADDR, bus->prdt_physbase);
     uint8_t cmdvalue = 0;
     if (isread) {
@@ -363,18 +366,18 @@ static WARN_UNUSED_RESULT int atadisk_op_dma_init_transfter(
     } else {
         cmdvalue &= ~BUSMASTER_CMDFLAG_READ;
     }
-    busmasterout8(bus, BUSMASTERREG_CMD, cmdvalue);
-    busmasterout8(bus, BUSMASTERREG_STATUS, 0x06);
+    busmaster_out8(bus, BUSMASTERREG_CMD, cmdvalue);
+    busmaster_out8(bus, BUSMASTERREG_STATUS, 0x06);
     return 0;
 }
 
-static WARN_UNUSED_RESULT int atadisk_op_dma_begin_transfer(
+WARN_UNUSED_RESULT static int atadisk_op_dma_begin_transfer(
     struct atadisk *self) {
     struct disk *disk = self->data;
     struct bus *bus = disk->bus;
-    uint8_t bmreg = busmasterin8(bus, BUSMASTERREG_CMD);
+    uint8_t bmreg = busmaster_in8(bus, BUSMASTERREG_CMD);
     bmreg |= BUSMASTER_CMDFLAG_START;
-    busmasterout8(bus, BUSMASTERREG_CMD, bmreg);
+    busmaster_out8(bus, BUSMASTERREG_CMD, bmreg);
     return 0;
 }
 
@@ -382,8 +385,8 @@ static enum ata_dmastatus atadisk_op_dma_check_transfer(struct atadisk *self) {
     struct disk *disk = self->data;
     struct bus *bus = disk->bus;
      // We have to read the status after IRQ.
-    uint8_t bmstatus = busmasterin8(bus, BUSMASTERREG_STATUS);
-    if (bmstatus & (1 << 1)) {
+    uint8_t bmstatus = busmaster_in8(bus, BUSMASTERREG_STATUS);
+    if (bmstatus & (1U << 1)) {
         uint16_t pcistatus = pci_readstatusreg(bus->pcipath);
         drive_printf(
             bus, disk->driveid,
@@ -392,9 +395,8 @@ static enum ata_dmastatus atadisk_op_dma_check_transfer(struct atadisk *self) {
         pci_writestatusreg(bus->pcipath, PCI_STATUSFLAG_MASTER_DATA_PARITY_ERROR | PCI_STATUSFLAG_RECEIVED_TARGET_ABORT | PCI_STATUSFLAG_RECEIVED_MASTER_ABORT);
         if (pcistatus & PCI_STATUSFLAG_MASTER_DATA_PARITY_ERROR) {
             return ATA_DMASTATUS_FAIL_UDMA_CRC;
-        } else {
-            return ATA_DMASTATUS_FAIL_OTHER_IO;
         }
+        return ATA_DMASTATUS_FAIL_OTHER_IO;
     }
     if (!(bmstatus & (1 << 0))) {
         pci_writestatusreg(bus->pcipath, PCI_STATUSFLAG_MASTER_DATA_PARITY_ERROR | PCI_STATUSFLAG_RECEIVED_TARGET_ABORT | PCI_STATUSFLAG_RECEIVED_MASTER_ABORT);
@@ -407,7 +409,7 @@ static enum ata_dmastatus atadisk_op_dma_check_transfer(struct atadisk *self) {
 static void atadisk_op_dma_end_transfer(struct atadisk *self, bool wassuccess) {
     struct disk *disk = self->data;
     struct bus *bus = disk->bus;
-    busmasterout8(bus, BUSMASTERREG_CMD, busmasterin8(bus, BUSMASTERREG_CMD) & ~BUSMASTER_CMDFLAG_START);
+    busmaster_out8(bus, BUSMASTERREG_CMD, busmaster_in8(bus, BUSMASTERREG_CMD) & ~BUSMASTER_CMDFLAG_START);
     if (bus->is_dma_read && wassuccess) {
         for (size_t i = 0; i < bus->prd_count; i++) {
             size_t size = bus->prdt[i].len;
@@ -460,7 +462,7 @@ static void irq_handler(int irqnum,  void *data) {
     archi586_pic_sendeoi(irqnum);
 }
 
-static int initcontroller(
+static int init_controller(
     struct shared *shared, uint16_t iobase, uint16_t ctrlbase,
     uint16_t busmastrerbase, pcipath pcipath, bool busmasterenabled,
     uint8_t irq, size_t channalindex)
@@ -481,11 +483,11 @@ static int initcontroller(
     if (busmasterenabled) {
         // This should be enough to store allocated page counts.
         size_t pagecounts[(MAX_DMA_TRANSFER_SIZE_NEEDED / MAX_TRANSFTER_SIZE_PER_PRD) + 1];
-        // Allocate resources needed for busmastering DMA
-        bus->prd_count = sizetoblocks(MAX_DMA_TRANSFER_SIZE_NEEDED, MAX_TRANSFTER_SIZE_PER_PRD);
+        // Allocate resources needed for busmaster_ing DMA
+        bus->prd_count = size_to_blocks(MAX_DMA_TRANSFER_SIZE_NEEDED, MAX_TRANSFTER_SIZE_PER_PRD);
         size_t prdtsize = bus->prd_count * sizeof(*bus->prdt);
         assert(prdtsize < MAX_TRANSFTER_SIZE_PER_PRD);
-        size_t prdtpagecount = sizetoblocks(prdtsize, ARCH_PAGESIZE);
+        size_t prdtpagecount = size_to_blocks(prdtsize, ARCH_PAGESIZE);
         bool physallocok = false;
         struct vmobject *prdtvmobject = NULL;
         size_t allocatedprdtcount = 0;
@@ -504,7 +506,7 @@ static int initcontroller(
             bus_printf(bus, "not enough memory for busmaster PRDT\n");
             goto fail_oom;
         }
-        bus->prdt = (void *)prdtvmobject->startaddress;
+        bus->prdt = prdtvmobject->start;
         memset(bus->prdt, 0, prdtsize);
         size_t remainingsize = MAX_DMA_TRANSFER_SIZE_NEEDED;
         for (size_t i = 0; i < bus->prd_count; i++) {
@@ -516,7 +518,7 @@ static int initcontroller(
              * NOTE: We setup PRD's len and flags when we initialize DMA
              * transfer
              */
-            size_t currentpagecount = sizetoblocks(currentsize, ARCH_PAGESIZE);
+            size_t currentpagecount = size_to_blocks(currentsize, ARCH_PAGESIZE);
             bus->prdt[i].buffer_physaddr = pmm_alloc(&currentpagecount);
             if (bus->prdt[i].buffer_physaddr == PHYSICALPTR_NULL) {
                 goto fail_oom;
@@ -598,23 +600,22 @@ out:
     return result;
 }
 
-static void pciprobecallback(
+/*
+ * Each channel can be either in native or compatibility mode(~_NATIVE
+ * flag set means it's in native mode), and ~_SWITCHABLE flag means
+ * whether it is possible to switch between
+ * two modes.
+ */
+#define PROGIF_FLAG_CHANNEL0_MODE_NATIVE        (1U << 0)
+#define PROGIF_FLAG_CHANNEL0_MODE_SWITCHABLE    (1U << 1)
+#define PROGIF_FLAG_CHANNEL1_MODE_NATIVE        (1U << 2)
+#define PROGIF_FLAG_CHANNEL1_MODE_SWITCHABLE    (1U << 3)
+#define PROGIF_FLAG_BUSMASTER_SUPPORTED         (1U << 7)
+
+static void pci_probe_callback(
     pcipath path, uint16_t venid, uint16_t devid, uint8_t baseclass,
     uint8_t subclass, void *data)
 {
-    enum {
-        /*
-         * Each channel can be either in native or compatibility mode(~_NATIVE
-         * flag set means it's in native mode), and ~_SWITCHABLE flag means
-         * whether it is possible to switch between
-         * two modes.
-         */
-        PROGIF_FLAG_CHANNEL0_MODE_NATIVE     = 1 << 0,
-        PROGIF_FLAG_CHANNEL0_MODE_SWITCHABLE = 1 << 1,
-        PROGIF_FLAG_CHANNEL1_MODE_NATIVE     = 1 << 2,
-        PROGIF_FLAG_CHANNEL1_MODE_SWITCHABLE = 1 << 3,
-        PROGIF_FLAG_BUSMASTER_SUPPORTED      = 1 << 7,
-    };
     (void)venid;
     (void)devid;
     (void)data;
@@ -733,9 +734,9 @@ doinit:
      * DMA at the same time.
      */
     uint8_t bmstatus = archi586_in8(busmasteriobase + BUSMASTERREG_STATUS);
-    shared->dma_lock_needed = bmstatus & (1 << 7);
+    shared->dma_lock_needed = bmstatus & (1U << 7);
     if (channel0enabled) {
-        int ret = initcontroller(
+        int ret = init_controller(
             shared, channel0iobase, channel0ctrlbase,
             busmasteriobase, path, busmasterenabled,
             channel0irq, 0);
@@ -747,7 +748,7 @@ doinit:
         }
     }
     if (channel1enabled) {
-         int ret = initcontroller(
+         int ret = init_controller(
             shared, channel1iobase, channel1ctrlbase,
             busmasteriobase + 8, path,
             busmasterenabled, channel1irq, 1);
@@ -761,5 +762,5 @@ doinit:
 }
 
 void archi586_idebus_init(void) {
-    pci_probebus(pciprobecallback, NULL);
+    pci_probe_bus(pci_probe_callback, NULL);
 }

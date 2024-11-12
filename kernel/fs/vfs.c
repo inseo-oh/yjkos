@@ -1,14 +1,14 @@
 #include <assert.h>
+#include <dirent.h>
+#include <errno.h>
 #include <kernel/fs/vfs.h>
+#include <kernel/io/co.h>
 #include <kernel/io/disk.h>
 #include <kernel/io/iodev.h>
-#include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
 #include <kernel/mem/heap.h>
 #include <kernel/panic.h>
-#include <dirent.h>
-#include <errno.h>
 #include <limits.h>
 #include <stddef.h>
 #include <string.h>
@@ -56,7 +56,7 @@ static struct list s_fstypes; // struct vfs_fstype items
 static struct list s_mounts;  // struct vfs_fscontext items
 
 // Resolves and removes . and .. in the path.
-static WARN_UNUSED_RESULT int removerelpath(
+WARN_UNUSED_RESULT static int removerelpath(
     char **newpath_out, char const *path)
 {
     int ret = 0;
@@ -98,7 +98,8 @@ static WARN_UNUSED_RESULT int removerelpath(
             do {
                 if (strcmp(name, ".") == 0) {
                     break;
-                } else if (strcmp(name, "..") == 0) {
+                }
+                if (strcmp(name, "..") == 0) {
                     char *foundpos = strrchr(newpath, '/');
                     if (foundpos == NULL) {
                         dest = newpath;
@@ -125,7 +126,7 @@ out:
     return ret;
 }
 
-static WARN_UNUSED_RESULT int mount(
+WARN_UNUSED_RESULT static int mount(
     struct vfs_fstype *fstype, struct ldisk *disk, char const *mountpath)
 {
     struct vfs_fscontext *context;
@@ -155,7 +156,7 @@ out:
 }
 
 // Returns ERR_INVAL if `mountpath` is not a mount point.
-static WARN_UNUSED_RESULT int findmount(
+WARN_UNUSED_RESULT static int findmount(
     struct vfs_fscontext **out, char const *mountpath)
 {
     int ret = 0;
@@ -270,7 +271,7 @@ void vfs_mountroot(void) {
     }
 }
 
-static WARN_UNUSED_RESULT int resolvepath(
+WARN_UNUSED_RESULT static int resolvepath(
     char const *path,
     void (*callback)(struct vfs_fscontext *fscontext, char const *path,
         void *data),

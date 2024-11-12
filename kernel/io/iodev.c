@@ -1,11 +1,11 @@
+#include <errno.h>
 #include <kernel/arch/interrupts.h>
-#include <kernel/io/iodev.h>
 #include <kernel/io/co.h>
+#include <kernel/io/iodev.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
 #include <kernel/mem/heap.h>
 #include <kernel/panic.h>
-#include <errno.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <string.h>

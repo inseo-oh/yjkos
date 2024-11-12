@@ -6,19 +6,19 @@
 #include <stdint.h>
 
 // Lock key flags
-#define KBD_FLAG_LOCK_CAPS   (1U << 0U)
-#define KBD_FLAG_LOCK_NUM    (1U << 1U)
-#define KBD_FLAG_LOCK_SCROLL (1U << 2U)
+#define KBD_FLAG_LOCK_CAPS   (1U << 0)
+#define KBD_FLAG_LOCK_NUM    (1U << 1)
+#define KBD_FLAG_LOCK_SCROLL (1U << 2)
 
 // Modifier key flags
-#define KBD_FLAG_MOD_LSHIFT 1U << 8U
-#define KBD_FLAG_MOD_RSHIFT 1U << 9U
-#define KBD_FLAG_MOD_LCTRL  1U << 10U
-#define KBD_FLAG_MOD_RCTRL  1U << 11U
-#define KBD_FLAG_MOD_LALT   1U << 12U
-#define KBD_FLAG_MOD_RALT   1U << 13U
-#define KBD_FLAG_MOD_LSUPER 1U << 14U
-#define KBD_FLAG_MOD_RSUPER 1U << 15U
+#define KBD_FLAG_MOD_LSHIFT (1U << 8)
+#define KBD_FLAG_MOD_RSHIFT (1U << 9)
+#define KBD_FLAG_MOD_LCTRL  (1U << 10)
+#define KBD_FLAG_MOD_RCTRL  (1U << 11)
+#define KBD_FLAG_MOD_LALT   (1U << 12)
+#define KBD_FLAG_MOD_RALT   (1U << 13)
+#define KBD_FLAG_MOD_LSUPER (1U << 14)
+#define KBD_FLAG_MOD_RSUPER (1U << 15)
 
 #define KBD_FLAG_MOD_SHIFT (KBD_FLAG_MOD_LSHIFT | KBD_FLAG_MOD_RSHIFT)
 #define KBD_FLAG_MOD_CTRL  (KBD_FLAG_MOD_LCTRL  | KBD_FLAG_MOD_RCTRL )
@@ -68,8 +68,8 @@ enum kbd_key {
     KBD_KEY_T,
     KBD_KEY_Y,
     KBD_KEY_U,
-    KBD_KEY_I,
-    KBD_KEY_O,
+    KBD_KEY_I, // NOLINT(misc-confusable-identifiers)
+    KBD_KEY_O, // NOLINT(misc-confusable-identifiers)
     KBD_KEY_P,
     KBD_KEY_OPEN_BRACKET,
     KBD_KEY_CLOSE_BRACKET,
@@ -161,8 +161,8 @@ struct kbddev {
 };
 
 bool kbd_pullevent(struct kbd_keyevent *out);
-void kbd_keypressed(enum kbd_key key);
-void kbd_keyreleased(enum kbd_key key);
+void kbd_key_pressed(enum kbd_key key);
+void kbd_key_released(enum kbd_key key);
 WARN_UNUSED_RESULT int kbd_register(
     struct kbddev *dev_out, struct kbddev_ops const *ops, void *data);
 

@@ -19,7 +19,7 @@ static uint32_t calculatechecksum(struct traphandler const *handler) {
     for (size_t i = 0; i < (sizeof(*handler) / sizeof(uint32_t)); i++) {
         sum += val[i];
     }
-    return ((uint32_t)~0U) - sum;
+    return ((uint32_t)~0) - sum;
 }
 
 void trapmanager_register(struct traphandler *out, int trapnum, void (*callback)(int trapnum, void *trapframe, void *data), void *data) {

@@ -1,16 +1,16 @@
 #pragma once
-#include <kernel/lib/diagnostics.h>
 #include <kernel/io/disk.h>
-#include <stdint.h>
+#include <kernel/lib/diagnostics.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 // ACS-3 6.2 Status field
-#define ATA_STATUSFLAG_ERR 1U << 0U
-#define ATA_STATUSFLAG_DRQ 1U << 3U
-#define ATA_STATUSFLAG_DF  1U << 5U
-#define ATA_STATUSFLAG_RDY 1U << 6U
-#define ATA_STATUSFLAG_BSY 1U << 7U
+#define ATA_STATUSFLAG_ERR (1U << 0)
+#define ATA_STATUSFLAG_DRQ (1U << 3)
+#define ATA_STATUSFLAG_DF  (1U << 5)
+#define ATA_STATUSFLAG_RDY (1U << 6)
+#define ATA_STATUSFLAG_BSY (1U << 7)
 
 // ACS-3 6.3 ERROR field
 enum ata_cmd {
@@ -23,7 +23,8 @@ enum ata_cmd {
 };
 
 enum {
-    ATA_MAX_SECTORS_PER_TRANSFER = 256, // Maximum sector count for a 28-bit transfer command.
+    // Maximum sector count for a 28-bit transfer command.
+    ATA_MAX_SECTORS_PER_TRANSFER = 256,
     ATA_SECTOR_SIZE              = 512,
 };
 

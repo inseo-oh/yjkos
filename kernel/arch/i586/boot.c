@@ -12,15 +12,10 @@
 #include "thirdparty/multiboot.h"
 #include "vgatty.h"
 #include <kernel/arch/interrupts.h>
-#include <kernel/arch/thread.h>
 #include <kernel/io/co.h>
-#include <kernel/lib/noreturn.h>
 #include <kernel/kernel.h>
-#include <kernel/mem/heap.h>
-#include <kernel/mem/pmm.h>
+#include <kernel/lib/noreturn.h>
 #include <kernel/panic.h>
-#include <kernel/ticktime.h>
-#include <kernel/trapmanager.h>
 #include <kernel/types.h>
 #include <stdint.h>
 
@@ -96,7 +91,7 @@ NORETURN void archi586_kernelinit(uint32_t mbmagic, physptr mbinfoaddr) {
      * CR0.WP should've been enabled during early boot process, but if it 
      * isn't, the CPU probably doesn't support the feature.
      */
-    if (!(archi586_readcr0() & (1U << 16U))) {
+    if (!(archi586_readcr0() & (1U << 16))) {
         co_printf(
             "warning: CR0.WP dowsn't seem to work. write-protect will not work in ring-0 Mode.\n");
     }

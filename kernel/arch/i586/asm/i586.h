@@ -11,7 +11,7 @@ void archi586_rdtsc(uint32_t *upper, uint32_t *lower);
 void archi586_invlpg(void *ptr);
 void archi586_reloadcr3(void);
 uint32_t archi586_readcr0(void);
-uint32_t archi586_readcr2(void);
+void *archi586_readcr2(void);
 uint32_t archi586_readcr3(void);
 uint32_t archi586_readcr4(void);
 uint32_t archi586_readcr8(void);

@@ -10,7 +10,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-static WARN_UNUSED_RESULT size_t measure_dec_unsigned(uint32_t i) {
+WARN_UNUSED_RESULT static size_t measure_dec_unsigned(uint32_t i) {
     size_t len = 0;
     ulong divisor = 1;
     {
@@ -26,7 +26,7 @@ static WARN_UNUSED_RESULT size_t measure_dec_unsigned(uint32_t i) {
     return len;
 }
 
-static WARN_UNUSED_RESULT size_t measure_dec_signed(int64_t i) {
+WARN_UNUSED_RESULT static size_t measure_dec_signed(int64_t i) {
     size_t len = 0;
     if (i < 0) {
         len++;
@@ -35,7 +35,7 @@ static WARN_UNUSED_RESULT size_t measure_dec_signed(int64_t i) {
     return len + measure_dec_unsigned(i);
 }
 
-static WARN_UNUSED_RESULT ssize_t print_dec_unsigned(
+WARN_UNUSED_RESULT static ssize_t print_dec_unsigned(
     struct stream *self, uint64_t i)
 {
     size_t written_count = 0;
@@ -48,7 +48,7 @@ static WARN_UNUSED_RESULT ssize_t print_dec_unsigned(
         }
     }
     for (; divisor; divisor /= 10) {
-        int digit = (i / divisor) % 10;
+        int digit = (int)((i / divisor) % 10);
         int result = stream_put_char(self, '0' + digit);
         if (result < 0) {
             return result;
@@ -58,7 +58,7 @@ static WARN_UNUSED_RESULT ssize_t print_dec_unsigned(
     return (ssize_t)written_count;
 }
 
-static WARN_UNUSED_RESULT ssize_t print_dec_signed(
+WARN_UNUSED_RESULT static ssize_t print_dec_signed(
     struct stream *self, int64_t i)
 {
     size_t written_count = 0;
@@ -94,8 +94,8 @@ static size_t measurehex(ulong i) {
     return len;
 }
 
-static WARN_UNUSED_RESULT ssize_t print_hex(struct stream *self,
-    ulong i, bool uppercase
+WARN_UNUSED_RESULT static ssize_t print_hex(struct stream *self,
+    uint64_t i, bool uppercase
 ) {
     size_t written_count = 0;
     char a = uppercase ? 'A' : 'a';
@@ -108,7 +108,7 @@ static WARN_UNUSED_RESULT ssize_t print_hex(struct stream *self,
         }
     }
     for (; divisor; divisor /= 16) {
-        int digit = (i / divisor) % 16;
+        int digit = (int)((i / divisor) % 16);
         int result;
         if (digit < 10) {
             result = stream_put_char(self, '0' + digit);

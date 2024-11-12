@@ -41,57 +41,48 @@ union shellcmd {
 
 static struct list s_programs;
 
-// Returns shell exit code (See SHELL_EXITCODE_~)
-WARN_UNUSED_RESULT static int parse_cmd(
-    union shellcmd *out, struct smatcher *cmdstr)
-{
-    int result = SHELL_EXITCODE_OK;
-    size_t oldcurrentindex = cmdstr->currentindex;
+static int parse_cmd_runprogram(union shellcmd *out, struct smatcher *cmdstr) {
+    size_t old_current_index = cmdstr->currentindex;
+    int ret = SHELL_EXITCODE_OK;
     char **argv = NULL;
     int argc = 0;
-    memset(out, 0, sizeof(*out));
-    smatcher_skipwhitespaces(cmdstr);
-    if (cmdstr->currentindex == cmdstr->len) {
-        out->kind = CMDKIND_EMPTY;
-    } else {
-        while(1) {
-            smatcher_skipwhitespaces(cmdstr);
-            if (
-                (cmdstr->currentindex == cmdstr->len) ||
-                (smatcher_consumestringifmatch(cmdstr, ";"))
-            ) {
-                break;
-            }
-            char const *str = NULL;
-            size_t len = 0;
-            bool matchok = smatcher_consumeword(
-                &str, &len, cmdstr);
-            (void)matchok;
-            assert(matchok);
-            if (argc == INT_MAX) {
-                goto fail_alloc;
-            }
-            int newargc = argc + 1;
-            if ((SIZE_MAX / sizeof(void *)) < (size_t)argc) {
-                goto fail_alloc;
-            }
-            size_t newargvsize = newargc * sizeof(void *);
-            argv = heap_realloc(argv, newargvsize, 0);
-            if (argv == NULL) {
-                goto fail_alloc;
-            }
-            argv[newargc - 1] = heap_alloc(len + 1, 0);
-            if (argv[newargc - 1] == NULL) {
-                goto fail_alloc;
-            }
-            memcpy(argv[newargc - 1], str, len);
-            argv[newargc - 1][len] = '\0';
-            argc = newargc;
+    while(1) {
+        smatcher_skipwhitespaces(cmdstr);
+        if (
+            (cmdstr->currentindex == cmdstr->len) ||
+            (smatcher_consumestringifmatch(cmdstr, ";"))
+        ) {
+            break;
         }
-        out->runprogram.kind = CMDKIND_RUNPROGRAM;
-        out->runprogram.argc = argc;
-        out->runprogram.argv = argv;
+        char const *str = NULL;
+        size_t len = 0;
+        bool matchok = smatcher_consumeword(
+            &str, &len, cmdstr);
+        (void)matchok;
+        assert(matchok);
+        if (argc == INT_MAX) {
+            goto fail_alloc;
+        }
+        int newargc = argc + 1;
+        if ((SIZE_MAX / sizeof(void *)) < (size_t)argc) {
+            goto fail_alloc;
+        }
+        size_t newargvsize = newargc * sizeof(void *);
+        argv = heap_realloc(argv, newargvsize, 0);
+        if (argv == NULL) {
+            goto fail_alloc;
+        }
+        argv[newargc - 1] = heap_alloc(len + 1, 0);
+        if (argv[newargc - 1] == NULL) {
+            goto fail_alloc;
+        }
+        memcpy(argv[newargc - 1], str, len);
+        argv[newargc - 1][len] = '\0';
+        argc = newargc;
     }
+    out->runprogram.kind = CMDKIND_RUNPROGRAM;
+    out->runprogram.argc = argc;
+    out->runprogram.argv = argv;
     goto out;
 fail_alloc:
     if (argv != NULL) {
@@ -100,7 +91,24 @@ fail_alloc:
         }
         heap_free(argv);
     }
-    cmdstr->currentindex = oldcurrentindex;
+    cmdstr->currentindex = old_current_index;
+out:
+    return ret;
+}
+
+// Returns shell exit code (See SHELL_EXITCODE_~)
+WARN_UNUSED_RESULT static int parse_cmd(
+    union shellcmd *out, struct smatcher *cmdstr)
+{
+    int result = SHELL_EXITCODE_OK;
+    memset(out, 0, sizeof(*out));
+    smatcher_skipwhitespaces(cmdstr);
+    if (cmdstr->currentindex == cmdstr->len) {
+        out->kind = CMDKIND_EMPTY;
+    } else {
+        result = parse_cmd_runprogram(out, cmdstr);
+    }
+    goto out;
 out:
     return result;
 }
@@ -197,7 +205,7 @@ void shell_repl(void) {
         co_printf("kernel> ");
 
         while(1) {
-            char c = co_getchar();
+            int c = co_getchar();
             if (c == CON_BACKSPACE || c == CON_DELETE) {
                 if (cursorpos != 0) {
                     cursorpos--;
@@ -209,7 +217,7 @@ void shell_repl(void) {
                 break;
             } else {
                 if (cursorpos < (SHELL_MAX_CMDLINE_LEN - 1)) {
-                    cmdline[cursorpos] = c;
+                    cmdline[cursorpos] = (char)c;
                     co_printf("%c", c);
                     cursorpos++;
                 }

@@ -1,19 +1,14 @@
 #include "fsinit.h"
-#include <dirent.h>
+#include <errno.h>
 #include <kernel/fs/vfs.h>
 #include <kernel/io/disk.h>
-#include <kernel/io/iodev.h>
 #include <kernel/lib/diagnostics.h>
-#include <kernel/lib/miscmath.h>
 #include <kernel/mem/heap.h>
-#include <kernel/types.h>
-#include <errno.h>
 #include <stdint.h>
 #include <string.h>
-#include <sys/types.h>
 
 
-static WARN_UNUSED_RESULT int vfs_op_mount(
+WARN_UNUSED_RESULT static int vfs_op_mount(
     struct vfs_fscontext **out, struct ldisk *disk)
 {
     int ret = 0;
@@ -31,12 +26,12 @@ out:
     return ret;
 }
 
-static WARN_UNUSED_RESULT int vfs_op_umount(struct vfs_fscontext *self) {
+WARN_UNUSED_RESULT static int vfs_op_umount(struct vfs_fscontext *self) {
     heap_free(self);
     return 0;
 }
 
-static WARN_UNUSED_RESULT int vfs_op_open(
+WARN_UNUSED_RESULT static int vfs_op_open(
     struct fd **out, struct vfs_fscontext *self, char const *path, int flags)
 {
     (void)out;

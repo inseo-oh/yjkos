@@ -5,7 +5,7 @@
 
 // XXX: Move this to `gdt.c`?
 
-struct archi586_gdt_segmentdescriptor {
+struct archi586_gdt_segment_descriptor {
     uint16_t limit_b15tob0;
     uint16_t base_b15tob0;
     uint8_t base_b23tob16;
@@ -13,15 +13,15 @@ struct archi586_gdt_segmentdescriptor {
     uint8_t limit_b19tob16_and_flags;
     uint8_t base_b31tob24;
 };
-STATIC_ASSERT_SIZE(struct archi586_gdt_segmentdescriptor, 8);
+STATIC_ASSERT_SIZE(struct archi586_gdt_segment_descriptor, 8);
 
 struct archi586_gdt {
-    struct archi586_gdt_segmentdescriptor nulldescriptor;
-    struct archi586_gdt_segmentdescriptor kernelcode;
-    struct archi586_gdt_segmentdescriptor kerneldata;
-    struct archi586_gdt_segmentdescriptor tss;
+    struct archi586_gdt_segment_descriptor nulldescriptor;
+    struct archi586_gdt_segment_descriptor kernelcode;
+    struct archi586_gdt_segment_descriptor kerneldata;
+    struct archi586_gdt_segment_descriptor tss;
 };
-STATIC_ASSERT_SIZE(struct archi586_gdt, sizeof(struct archi586_gdt_segmentdescriptor) * 4);
+STATIC_ASSERT_SIZE(struct archi586_gdt, sizeof(struct archi586_gdt_segment_descriptor) * 4);
 
 enum {
     ARCHI586_GDT_KERNEL_CS = offsetof(struct archi586_gdt, kernelcode),

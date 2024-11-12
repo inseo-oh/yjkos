@@ -5,7 +5,6 @@
 #include <assert.h>
 #include <kernel/arch/mmu.h>
 #include <kernel/io/co.h>
-#include <kernel/lib/bitmap.h>
 #include <kernel/lib/pstring.h>
 #include <kernel/mem/heap.h>
 #include <kernel/mem/pmm.h>
@@ -57,9 +56,16 @@ static void excluderegion(struct memregion *before_out, struct memregion *after_
 }
 
 static struct memregion const REGIONS_TO_EXCLUDE[] = {
-    {.base = 0x0,                                   .len = 0x100000                           },
-    {.base = ARCHI586_KERNEL_PHYSICAL_ADDRESS_BEGIN, .len = ARCHI586_KERNEL_PHYSICAL_ADDRESS_END},
+    {
+        .base = 0x0,
+        .len = 0x100000,
+    },
+    {
+        .base = (uintptr_t)ARCHI586_KERNEL_PHYSICAL_ADDRESS_BEGIN,
+        .len = (uintptr_t)ARCHI586_KERNEL_PHYSICAL_ADDRESS_END,
+    },
 };
+#define EXCLUDE_COUNT   (sizeof(REGIONS_TO_EXCLUDE)/sizeof(*REGIONS_TO_EXCLUDE))
 
 enum addrlimitresult {
     ADDRLIMIT_IGNORE,
@@ -186,9 +192,6 @@ void archi586_bootinfo_process(physptr infoaddr) {
             if (type != MULTIBOOT_MEMORY_AVAILABLE) {
                 continue;
             }
-            enum {
-                EXCLUDE_COUNT = sizeof(REGIONS_TO_EXCLUDE)/sizeof(*REGIONS_TO_EXCLUDE)
-            };
 
             // Now we filter out the regions we should exclude.
             // Excluding each region can result 0 or 1 additional entries, meaning after processing one exclusion entry,
@@ -201,7 +204,8 @@ void archi586_bootinfo_process(physptr infoaddr) {
             for (size_t i = 0; i < EXCLUDE_COUNT; i++) {
                 size_t oldregionscount = resultregionscount;
                 for (size_t j = 0; j < oldregionscount; j++) {
-                    struct memregion r1, r2;
+                    struct memregion r1;
+                    struct memregion r2;
                     if (resultregions[j].len == 0) {
                         continue;
                     }
@@ -272,10 +276,10 @@ void archi586_bootinfo_process(physptr infoaddr) {
                 colors,
                 info.framebuffer_palette_num_colors,
                 info.framebuffer_addr,
-                info.framebuffer_width,
-                info.framebuffer_height,
-                info.framebuffer_pitch,
-                info.framebuffer_bpp
+                (int)info.framebuffer_width,
+                (int)info.framebuffer_height,
+                (int)info.framebuffer_pitch,
+                (int)info.framebuffer_bpp
             );
             
         } else if (info.framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_RGB) {
@@ -287,9 +291,9 @@ void archi586_bootinfo_process(physptr infoaddr) {
                 info.framebuffer_blue_field_position,
                 info.framebuffer_blue_mask_size,
                 info.framebuffer_addr,
-                info.framebuffer_width,
-                info.framebuffer_height,
-                info.framebuffer_pitch,
+                (int)info.framebuffer_width,
+                (int)info.framebuffer_height,
+                (int)info.framebuffer_pitch,
                 info.framebuffer_bpp
             );
         } else if (

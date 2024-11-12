@@ -1,16 +1,15 @@
 #include <assert.h>
+#include <errno.h>
 #include <kernel/arch/interrupts.h>
 #include <kernel/arch/iodelay.h>
 #include <kernel/dev/ps2.h>
 #include <kernel/dev/ps2kbd.h>
+#include <kernel/io/co.h>
 #include <kernel/io/iodev.h>
 #include <kernel/io/stream.h>
-#include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
 #include <kernel/lib/queue.h>
-#include <kernel/ticktime.h>
-#include <errno.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -34,13 +33,13 @@ WARN_UNUSED_RESULT ssize_t ps2port_stream_op_read(
     }
     interrupts_restore(previnterrupts);
     ////////////////////////////////////////////////////////////////////////
-    return writtensize;
+    return (ssize_t)writtensize;
 }
 
 /*
  * Returns 0, or IOERROR_~ value on failure.
  */
-static WARN_UNUSED_RESULT int sendandwaitack(
+WARN_UNUSED_RESULT static int sendandwaitack(
     struct ps2port *port, uint8_t cmd
 ) {
     int ret = stream_put_char(&port->stream, cmd);
@@ -83,7 +82,8 @@ static int identify_device(struct ps2port *port) {
         int ret = stream_waitchar(&port->stream, PS2_TIMEOUT);
         if (ret == STREAM_EOF) {
             break;
-        } else if (ret < 0) {
+        }
+        if (ret < 0) {
             goto out;
         }
         ident[i] = ret;
@@ -128,16 +128,13 @@ out:
     return ret;
 }
 
-/*
- * Returns 0, or IOERROR_~ value on failure.
- */
-static int init_device(struct ps2port *port) {
+static int reset_device(struct ps2port *port) {
     // Send reset command
     bool resetack = false;
     bool resetaa = false;
     bool badresponse = false;
     int ret = 0;
-    ret = stream_put_char(&port->stream, (uint8_t)PS2_CMD_RESET);
+    ret = stream_put_char(&port->stream, PS2_CMD_RESET);
     if (ret < 0) {
         goto fail_bad_ret;
     }
@@ -168,12 +165,31 @@ static int init_device(struct ps2port *port) {
             "device did not respond to reset command properly\n");
         goto fail_io;
     }
+fail_bad_ret:
+    goto out;
+fail_io:
+    ret = -EIO;
+out:
+    return ret;
+}
+
+/*
+ * Returns 0, or IOERROR_~ value on failure.
+ */
+static int init_device(struct ps2port *port) {
+    // Send reset command
+    int ret = 0;
+    ret = reset_device(port);
+    if (ret < 0) {
+        goto fail_bad_ret;
+    }
     // Some devices also send its ID when it resets. We throw that away here.
     while (1) {
         int ret = stream_waitchar(&port->stream, PS2_TIMEOUT);
         if (ret == STREAM_EOF) {
             break;
-        } else if (ret < 0) {
+        }
+        if (ret < 0) {
             return ret;
         }
     }
@@ -204,12 +220,12 @@ static int init_device(struct ps2port *port) {
             iodev_printf(
                 &port->device, "mouse is not supported yet\n");
             break;
+        default:
+            assert(false);
     }
     goto out;
 fail_bad_ret:
     goto out;
-fail_io:
-    ret = -EIO;
 out:
     return ret;
 }

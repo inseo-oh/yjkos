@@ -1,7 +1,7 @@
 #pragma once
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdarg.h>
 #include <stdint.h>
 
 struct stream;
@@ -16,4 +16,4 @@ void co_putc(char c);
 void co_puts(char const *s);
 void co_vprintf(char const *fmt, va_list ap);
 int co_getchar(void);
-void co_printf(char const *format, ...);
+void co_printf(char const *fmt, ...);

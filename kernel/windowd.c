@@ -30,7 +30,7 @@ static void tmain(void *arg) {
 }
 
 void windowd_start(void) {
-    bool threadstarted = false;
+    bool thread_started = false;
     struct thread *thread = thread_create(
         THREAD_STACK_SIZE, tmain,
         NULL);
@@ -43,10 +43,10 @@ void windowd_start(void) {
         co_printf("failed to queue thread (error %d)\n", ret);
         goto die;
     }
-    threadstarted = true;
+    thread_started = true;
     return;
 die:
-    if (threadstarted) {
+    if (thread_started) {
         thread->shutdown = true;
     }
 }

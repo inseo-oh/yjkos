@@ -41,7 +41,7 @@ static struct vmobject *takeobject(struct addressspace *self, struct objectgroup
     list_removenode(&group->objectlist, &object->node);
     if (group->objectlist.front == NULL) {
         // list is empty -> Remove the node
-        bst_removenode(&self->objectgrouptree, &group->node);
+        bst_removenode(&self->object_group_tree, &group->node);
         heap_free(group);
     }
     return object;
@@ -55,14 +55,14 @@ static struct vmobject *takeobject_with_minsize(
 ) {
     assert(pagecount != 0);
     struct vmobject *result = NULL;
-    if (self->objectgrouptree.root == NULL) {
+    if (self->object_group_tree.root == NULL) {
         // Tree is empty
         goto out;
     }
     struct bst_node *nextnode = NULL;
     for (
         struct bst_node *currentnode =
-            bst_minof_tree(&self->objectgrouptree);
+            bst_minof_tree(&self->object_group_tree);
             currentnode != NULL; currentnode = nextnode)
     {
         nextnode = bst_successor(currentnode);
@@ -89,24 +89,25 @@ out:
  * (Size between two are adjusted to nearest page size)
  */
 static struct vmobject *take_object_including(
-    struct addressspace *self, uintptr_t startaddress, uintptr_t endaddress
+    struct addressspace *self, void *start, void *end
 ) {
-    size_t pagecount = sizetoblocks(endaddress - startaddress + 1, ARCH_PAGESIZE);
+    size_t pagecount = size_to_blocks(
+        (uintptr_t)end - (uintptr_t)start + 1, ARCH_PAGESIZE);
     assert(pagecount != 0);
     struct vmobject *result = NULL;
-    if ((UINTPTR_MAX - startaddress) < (pagecount * ARCH_PAGESIZE)) {
+    if ((UINTPTR_MAX - (uintptr_t)start) < (pagecount * ARCH_PAGESIZE)) {
         // Too large
         goto out;
     }
-    endaddress = startaddress + (pagecount * ARCH_PAGESIZE - 1);
-    if (self->objectgrouptree.root == NULL) {
+    end = (char *)start + (pagecount * ARCH_PAGESIZE - 1);
+    if (self->object_group_tree.root == NULL) {
         // Tree is empty
         goto out;
     }
     struct bst_node *nextnode = NULL;
     for (
         struct bst_node *currentnode =
-            bst_minof_tree(&self->objectgrouptree);
+            bst_minof_tree(&self->object_group_tree);
         currentnode != NULL; currentnode = nextnode)
     {
         nextnode = bst_successor(currentnode);
@@ -124,10 +125,10 @@ static struct vmobject *take_object_including(
             struct vmobject *object = objectnode->data;
             assert(object);
             if (
-                (startaddress < object->startaddress) ||
-                (object->endaddress < startaddress) ||
-                (endaddress < object->startaddress) ||
-                (object->endaddress < endaddress)
+                ((uintptr_t)start < (uintptr_t)object->start) ||
+                ((uintptr_t)object->end < (uintptr_t)start) ||
+                ((uintptr_t)end < (uintptr_t)object->start) ||
+                ((uintptr_t)object->end < (uintptr_t)end)
             ) {
                 // Address is out of range
                 continue;
@@ -149,19 +150,19 @@ out:
  * Returns NULL on allocation failure.
  */
 static struct vmobject * create_object(
-    struct addressspace *self, uintptr_t startaddress, uintptr_t endaddress,
-    physptr physicalbase, uint8_t mapflags
+    struct addressspace *self, void *start, void *end, physptr physbase,
+    uint8_t mapflags
 ) {
     struct vmobject *object = heap_alloc(
         sizeof(*object), HEAP_FLAG_ZEROMEMORY);
     if (object == NULL) {
         return NULL;
     }
-    object->startaddress = startaddress;
-    object->endaddress = endaddress;
+    object->start = start;
+    object->end = end;
     object->addressspace = self;
     object->mapflags = mapflags;
-    object->physicalbase = physicalbase;
+    object->physbase = physbase;
     return object;
 }
 
@@ -187,16 +188,13 @@ static struct uncommitedobject *create_uncommitedobject(
     return uobject;
 }
 
-static WARN_UNUSED_RESULT bool add_object_to_tree(
+WARN_UNUSED_RESULT static bool add_object_to_tree(
     struct addressspace *self, struct vmobject *object)
 {
     while(1) {
-        assert(isaligned(
-            object->endaddress - object->startaddress + 1,
-            ARCH_PAGESIZE));
-        size_t pagecount = (object->endaddress - object->startaddress + 1)
-            / ARCH_PAGESIZE;
-        struct bst_node *groupnode = bst_findnode(&self->objectgrouptree, pagecount);
+        assert(is_aligned(vmm_object_size(object), ARCH_PAGESIZE));
+        size_t pagecount = vmm_object_size(object) / ARCH_PAGESIZE;
+        struct bst_node *groupnode = bst_findnode(&self->object_group_tree, pagecount);
         if (groupnode == NULL) {
             // Create a new object group
             struct objectgroup *group = heap_alloc(
@@ -206,7 +204,7 @@ static WARN_UNUSED_RESULT bool add_object_to_tree(
             }
             list_init(&group->objectlist);
             groupnode = &group->node;
-            bst_insertnode(&self->objectgrouptree, &group->node, pagecount, group);
+            bst_insertnode(&self->object_group_tree, &group->node, pagecount, group);
         }
         struct objectgroup *group = groupnode->data;
 
@@ -217,7 +215,7 @@ static WARN_UNUSED_RESULT bool add_object_to_tree(
         struct list_node *insertafter = NULL;
         LIST_FOREACH(&group->objectlist, currentnode) {
             struct vmobject *currentobject = currentnode->data;
-            if (currentobject->endaddress < object->startaddress) {
+            if (currentobject->end < object->start) {
                 insertafter = currentnode;
             } else {
                 break;
@@ -237,8 +235,8 @@ static WARN_UNUSED_RESULT bool add_object_to_tree(
         bool sizechanged = false;
         if (object->node.prev != NULL) {
             struct vmobject *prevobject = object->node.prev->data;
-            if ((prevobject->endaddress + 1) == object->startaddress) {
-                object->startaddress = prevobject->startaddress;
+            if (((uintptr_t)prevobject->end + 1) == (uintptr_t)object->start) {
+                object->start = prevobject->start;
                 list_removenode(&group->objectlist, &prevobject->node);
                 heap_free(prevobject);
                 sizechanged = true;
@@ -246,9 +244,9 @@ static WARN_UNUSED_RESULT bool add_object_to_tree(
         }
         if (object->node.next != NULL) {
             struct vmobject *nextobject = object->node.next->data;
-            assert(nextobject->startaddress != 0);
-            if ((nextobject->startaddress - 1) == object->endaddress) {
-                object->endaddress = nextobject->endaddress;
+            assert(nextobject->start != 0);
+            if (((uintptr_t)nextobject->start - 1) == (uintptr_t)object->end) {
+                object->end = nextobject->end;
                 list_removenode(&group->objectlist, &nextobject->node);
                 heap_free(nextobject);
                 sizechanged = true;
@@ -265,7 +263,7 @@ static WARN_UNUSED_RESULT bool add_object_to_tree(
         list_removenode(&group->objectlist, &object->node);
         if (group->objectlist.front == NULL) {
             // list is empty -> Remove the group.
-            bst_removenode(&self->objectgrouptree, &group->node);
+            bst_removenode(&self->object_group_tree, &group->node);
             heap_free(group);
         }
     }
@@ -277,23 +275,34 @@ oom:
 /*
  * Returns NULL if not found.
  */
-static struct uncommitedobject *find_object_in_uncommited(struct addressspace *self, uintptr_t addr) {
-    uintptr_t page_base = aligndown(addr, ARCH_PAGESIZE);
-    LIST_FOREACH(&self->uncommitedobjects, objectnode) {
+static struct uncommitedobject *find_object_in_uncommited(
+    struct addressspace *self, void *ptr)
+{
+    void *page_base = align_ptr_down(ptr, ARCH_PAGESIZE);
+    LIST_FOREACH(&self->uncommited_objects, objectnode) {
         struct uncommitedobject *uobject = objectnode->data;
         assert(uobject != NULL);
-        if ((uobject->object->startaddress <= page_base) && (page_base <= uobject->object->endaddress)) {
+        if (((uintptr_t)uobject->object->start <= (uintptr_t)page_base) &&
+            ((uintptr_t)page_base <= (uintptr_t)uobject->object->end))
+        {
             return uobject;
         }
     }
     return NULL;
 }
 
-WARN_UNUSED_RESULT bool vmm_init_addressspace(struct addressspace *out, uintptr_t startaddress, uintptr_t endaddress, bool is_user) {
+
+WARN_UNUSED_RESULT size_t vmm_object_size(struct vmobject *object) {
+    return (uintptr_t)object->end - (uintptr_t)object->start + 1;
+}
+
+WARN_UNUSED_RESULT bool vmm_init_addressspace(
+    struct addressspace *out, void *start, void *end, bool is_user)
+{
     memset(out, 0, sizeof(*out));
     out->is_user = is_user;
     struct vmobject *object = create_object(
-        out, startaddress, endaddress, VMM_PHYSADDR_NOMAP,
+        out, start, end, VMM_PHYSADDR_NOMAP,
         0);
     if (object == NULL) {
         goto fail_oom;
@@ -307,12 +316,10 @@ fail_oom:
     return false;
 }
 
-
-
 void vmm_deinit_addressspace(struct addressspace *self) {
     for (
         struct bst_node *currentnode =
-            bst_minof_tree(&self->objectgrouptree); currentnode != NULL;
+            bst_minof_tree(&self->object_group_tree); currentnode != NULL;
             currentnode = bst_successor(currentnode))
     {
         struct objectgroup *group = currentnode->data;
@@ -329,14 +336,14 @@ void vmm_deinit_addressspace(struct addressspace *self) {
 }
 
 WARN_UNUSED_RESULT struct vmobject *vmm_alloc_object(
-    struct addressspace *self, physptr physicalbase, size_t size,
+    struct addressspace *self, physptr physbase, size_t size,
     uint8_t mapflags
 ) {
     struct vmobject *oldobject = NULL;
 
-    size_t pagecount = sizetoblocks(size, ARCH_PAGESIZE);
-    if (physicalbase != VMM_PHYSADDR_NOMAP) {
-        assert(isaligned(physicalbase, ARCH_PAGESIZE));
+    size_t pagecount = size_to_blocks(size, ARCH_PAGESIZE);
+    if (physbase != VMM_PHYSADDR_NOMAP) {
+        assert(is_aligned(physbase, ARCH_PAGESIZE));
     }
 
     /*
@@ -346,19 +353,19 @@ WARN_UNUSED_RESULT struct vmobject *vmm_alloc_object(
      * operation can technically also fail)
      */
     struct vmobject *newobject = create_object(
-        self, 0, 0, physicalbase, mapflags);
+        self, 0, 0, physbase, mapflags);
     struct uncommitedobject *uobject = create_uncommitedobject(
         newobject, pagecount);
     oldobject = takeobject_with_minsize(self, pagecount);
-    if ((newobject == NULL) || (oldobject == NULL) || (oldobject == NULL)) {
+    if ((newobject == NULL) || (oldobject == NULL)) {
         goto fail_oom;
     }
     size_t newsize = pagecount * ARCH_PAGESIZE;
-    newobject->startaddress = oldobject->startaddress;
-    newobject->endaddress = newobject->startaddress + newsize - 1;
+    newobject->start = oldobject->start;
+    newobject->end = (char *)newobject->start + newsize - 1;
     // Shrink the existing object
-    oldobject->startaddress += newsize;
-    if (oldobject->endaddress < oldobject->startaddress) {
+    oldobject->start = (char *)oldobject->start + newsize;
+    if (oldobject->end < oldobject->start) {
         // The object is no longer valid. Remove it.
         heap_free(oldobject);
     } else {
@@ -371,7 +378,7 @@ WARN_UNUSED_RESULT struct vmobject *vmm_alloc_object(
         }
     }
     oldobject = NULL;
-    list_insertback(&self->uncommitedobjects, &uobject->node, uobject);
+    list_insertback(&self->uncommited_objects, &uobject->node, uobject);
     goto out;
 fail_oom:
     heap_free(uobject);
@@ -382,25 +389,25 @@ out:
 }
 
 WARN_UNUSED_RESULT struct vmobject *vmm_alloc_object_at(
-    struct addressspace *self, uintptr_t virtualbase, physptr physicalbase,
+    struct addressspace *self, void *virtbase, physptr physbase,
     size_t size, uint8_t mapflags)
 {
     bool previnterrupts = arch_interrupts_disable();
-    assert(virtualbase);
-    size_t pagecount = sizetoblocks(size, ARCH_PAGESIZE);
-    if (physicalbase != VMM_PHYSADDR_NOMAP) {
-        assert(isaligned(physicalbase, ARCH_PAGESIZE));
+    assert(virtbase);
+    size_t pagecount = size_to_blocks(size, ARCH_PAGESIZE);
+    if (physbase != VMM_PHYSADDR_NOMAP) {
+        assert(is_aligned(physbase, ARCH_PAGESIZE));
     }
-    assert(!isaligned(virtualbase, ARCH_PAGESIZE));
+    assert(!is_aligned((uintptr_t)virtbase, ARCH_PAGESIZE));
 
     if ((SIZE_MAX / ARCH_PAGESIZE) < pagecount) {
         goto fail_badsize;
     }
     size_t actualsize = ARCH_PAGESIZE * pagecount;
-    if ((UINTPTR_MAX - virtualbase) < actualsize) {
+    if ((UINTPTR_MAX - (uintptr_t)virtbase) < actualsize) {
         goto fail_badsize;
     }
-    uintptr_t endaddress = virtualbase + actualsize - 1;
+    void *end = (char *)virtbase + actualsize - 1;
 
     /*
      * We create objects first with dummy values, so that we just have to free
@@ -408,9 +415,9 @@ WARN_UNUSED_RESULT struct vmobject *vmm_alloc_object_at(
      * (It's a good idea to avoid undoing takeobject~, because that undo
      * operation can technically also fail)
      */
-    struct vmobject *leftobject = NULL;
+    struct vmobject *lobject = NULL;
     struct vmobject *newobject = create_object(
-        self, 0, 0, physicalbase, mapflags);
+        self, 0, 0, physbase, mapflags);
     struct vmobject *rightobject = create_object(
         self, 0, 0, VMM_PHYSADDR_NOMAP,
         0);
@@ -420,35 +427,34 @@ WARN_UNUSED_RESULT struct vmobject *vmm_alloc_object_at(
         goto fail_oom;
     } 
 
-    leftobject = take_object_including(
-        self, virtualbase, endaddress);
-    if (leftobject == NULL) {
+    lobject = take_object_including(self, virtbase, end);
+    if (lobject == NULL) {
         goto fail_oom;
     }
-    uintptr_t oldendaddr = leftobject->endaddress;
+    void *old_end = lobject->end;
 
     size_t newsize = pagecount * ARCH_PAGESIZE;
-    newobject->startaddress = virtualbase;
-    newobject->endaddress = newobject->startaddress + newsize - 1;
+    newobject->start = virtbase;
+    newobject->end = (char *)newobject->start + newsize - 1;
 
     // Split into two objects
-    leftobject->endaddress = virtualbase - 1;
-    rightobject->startaddress = virtualbase + (pagecount * ARCH_PAGESIZE);
-    rightobject->endaddress = oldendaddr;
+    lobject->end = (char *)virtbase - 1;
+    rightobject->start = (char *)virtbase + (pagecount * ARCH_PAGESIZE);
+    rightobject->end = old_end;
 
-    if (leftobject->endaddress < leftobject->startaddress) {
-        heap_free(leftobject);
+    if (lobject->end < lobject->start) {
+        heap_free(lobject);
     } else {
         // Add modified object back to the tree.
-        int ret = add_object_to_tree(self, leftobject);
+        int ret = add_object_to_tree(self, lobject);
         if (ret < 0) {
             co_printf(
                 "vmm: could not add modified vm object back to vmm(error %d)\n",
                 ret);
         }
     }
-    leftobject = NULL;
-    if (rightobject->endaddress < rightobject->startaddress) {
+    lobject = NULL;
+    if (rightobject->end < rightobject->start) {
         heap_free(rightobject);
     } else {
         // Add modified object back to the tree.
@@ -460,12 +466,12 @@ WARN_UNUSED_RESULT struct vmobject *vmm_alloc_object_at(
         }
     }
     rightobject = NULL;
-    list_insertback(&self->uncommitedobjects, &uobject->node, uobject);
+    list_insertback(&self->uncommited_objects, &uobject->node, uobject);
     goto out;
 fail_oom:
     heap_free(uobject);
     heap_free(newobject);
-    heap_free(leftobject);
+    heap_free(lobject);
     heap_free(rightobject);
 fail_badsize:
     newobject = NULL;
@@ -477,22 +483,27 @@ out:
 void vmm_free(struct vmobject *object) {
     bool previnterrupts = arch_interrupts_disable();
     // Remove from uncommited memory list
-    struct uncommitedobject *uobject = find_object_in_uncommited(object->addressspace, object->startaddress);
+    struct uncommitedobject *uobject = find_object_in_uncommited(
+        object->addressspace, object->start);
     if (uobject != NULL) {
-        list_removenode(&object->addressspace->uncommitedobjects, &uobject->node);
+        list_removenode(&object->addressspace->uncommited_objects, &uobject->node);
         heap_free(uobject);
     }
     // Free commited physical pages and unmap it.
-    for (uintptr_t addr = object->startaddress; addr <= object->endaddress; addr += ARCH_PAGESIZE) {
+    for (
+        char *ptr = object->start; (uintptr_t)ptr <= (uintptr_t)object->end;
+        ptr += ARCH_PAGESIZE)
+    {
         physptr physaddr;
-        if (arch_mmu_virttophys(&physaddr, addr) == 0) {
-            if (object->physicalbase == VMM_PHYSADDR_NOMAP) {
+        if (arch_mmu_virt_to_phys(&physaddr, ptr) == 0)
+        {
+            if (object->physbase == VMM_PHYSADDR_NOMAP) {
                 pmm_free(physaddr, 1);
             }
-            int ret = arch_mmu_unmap(addr, 1);
+            int ret = arch_mmu_unmap(ptr, 1);
             if (ret < 0) {
                 co_printf(
-                    "vmm: commited page %#lx doesn't exist?\n", addr);
+                    "vmm: commited page %p doesn't exist?\n", ptr);
                 panic("failed to unmap commited pages");
             }
         }
@@ -511,18 +522,26 @@ WARN_UNUSED_RESULT struct vmobject *vmm_alloc(
 {
     return vmm_alloc_object(self, VMM_PHYSADDR_NOMAP, size, mapflags);
 }
-WARN_UNUSED_RESULT struct vmobject *vmm_alloc_at(struct addressspace *self, uintptr_t virtualbase, size_t size, uint8_t mapflags) {
-    return vmm_alloc_object_at(self, virtualbase, VMM_PHYSADDR_NOMAP, size, mapflags);
+WARN_UNUSED_RESULT struct vmobject *vmm_alloc_at(
+    struct addressspace *self, void *virtbase, size_t size,
+    uint8_t mapflags)
+{
+    return vmm_alloc_object_at(
+        self, virtbase, VMM_PHYSADDR_NOMAP, size, mapflags);
 }
 WARN_UNUSED_RESULT struct vmobject *vmm_map(
-    struct addressspace *self, uintptr_t physicalbase, size_t size, uint8_t mapflags)
+    struct addressspace *self, physptr physbase, size_t size,
+    uint8_t mapflags)
 {
-    assert(physicalbase != VMM_PHYSADDR_NOMAP);
-    return vmm_alloc_object(self, physicalbase, size, mapflags);
+    assert(physbase != VMM_PHYSADDR_NOMAP);
+    return vmm_alloc_object(self, physbase, size, mapflags);
 }
-WARN_UNUSED_RESULT struct vmobject *vmm_map_at(struct addressspace *self, uintptr_t virtualbase, uintptr_t physicalbase, size_t size, uint8_t mapflags) {
-    assert(physicalbase != VMM_PHYSADDR_NOMAP);
-    return vmm_alloc_object_at(self, virtualbase, physicalbase, size, mapflags);
+WARN_UNUSED_RESULT struct vmobject *vmm_map_at(
+    struct addressspace *self, void *virtbase, physptr physbase,
+    size_t size, uint8_t mapflags)
+{
+    assert(physbase != VMM_PHYSADDR_NOMAP);
+    return vmm_alloc_object_at(self, virtbase, physbase, size, mapflags);
 }
 
 void *vmm_ezmap(physptr base, size_t size) {
@@ -535,7 +554,7 @@ void *vmm_ezmap(physptr base, size_t size) {
     if (object == NULL) {
         panic("vmm: failed to ezmap virtual memory");
     }
-    return (void *)(object->startaddress + offset);
+    return (char *)object->start + offset;
 }
 
 struct addressspace *vmm_get_kernel_addressspace(void) {
@@ -554,12 +573,15 @@ struct addressspace *vmm_get_kernel_addressspace(void) {
     return &addressspace;
 }
 
-struct addressspace *vmm_addressspace_for(uintptr_t addr) {
-    if ((ARCH_KERNEL_VM_START <= addr) && (addr <= ARCH_KERNEL_VM_END)) {
+struct addressspace *vmm_addressspace_for(void *ptr) {
+    if (
+        ((uintptr_t)ARCH_KERNEL_VM_START <= (uintptr_t)ptr) &&
+        ((uintptr_t)ptr <= (uintptr_t)ARCH_KERNEL_VM_END))
+    {
         // Kernel VM
         return vmm_get_kernel_addressspace();
     }
-    if (addr < ARCH_KERNEL_SPACE_BASE) {
+    if ((uintptr_t)ptr < (uintptr_t)ARCH_KERNEL_SPACE_BASE) {
         // Userspace address
         co_printf(
             "vmm_addressspace_for: userspace addresses are not supported yet\n");
@@ -570,34 +592,34 @@ struct addressspace *vmm_addressspace_for(uintptr_t addr) {
 }
 
 void vmm_pagefault(
-    uintptr_t addr, bool was_present, bool was_write, bool was_user,
+    void *ptr, bool was_present, bool was_write, bool was_user,
     void *trapframe) {
     if (CONFIG_PRINT_PAGE_FAULTS) {
         co_printf(
-            "[PF] addr=%#lx, was_present=%d, was_write=%d, was_user=%d\n",
-            addr, was_present, was_write, was_user);
+            "[PF] addr=%p, was_present=%d, was_write=%d, was_user=%d\n",
+            ptr, was_present, was_write, was_user);
     }
-    uintptr_t page_base = aligndown(addr, ARCH_PAGESIZE);
+    void *page_base = align_ptr_down(ptr, ARCH_PAGESIZE);
     physptr physaddr = 0;
     int ret = arch_mmu_emulate(
-        &physaddr, addr,
+        &physaddr, ptr,
         MAP_PROT_READ | (was_write ? MAP_PROT_WRITE : 0U),
         was_user);
     if (ret == 0) {
         // It's a valid access, but TLB was out of sync.
-        arch_mmu_flushtlb_for((void *)addr);
+        arch_mmu_flushtlb_for(ptr);
         return;
     }
     if (was_present) {
         co_printf(
-            "privilege violation: attempted to %s on page at %#lx\n",
-            was_write ? "read" : "write", addr);
+            "privilege violation: attempted to %s on page at %p\n",
+            was_write ? "read" : "write", ptr);
         goto realfault;
     }
     if (page_base == 0) {
         co_printf(
-            "NULL dereference: attempted to %s on page at %#lx\n",
-            was_write ? "read" : "write", addr);
+            "NULL dereference: attempted to %s on page at %p\n",
+            was_write ? "read" : "write", ptr);
         goto realfault;
     }
     // See if it's uncommited object.
@@ -607,23 +629,24 @@ void vmm_pagefault(
         goto nonpresent;
     }
     struct uncommitedobject *uobject =
-        find_object_in_uncommited(addressspace, addr);
+        find_object_in_uncommited(addressspace, ptr);
     if (uobject == NULL) {
         // Not part of an uncommited object.
         goto nonpresent;
     }
-    long pageindex =
-        (long)((page_base - uobject->object->startaddress) / ARCH_PAGESIZE);
-    if (!bitmap_isbitset(&uobject->bitmap, pageindex)) {
+    long page_index =
+        (long)(((uintptr_t)page_base - (uintptr_t)uobject->object->start)
+            / ARCH_PAGESIZE);
+    if (!bitmap_isbitset(&uobject->bitmap, page_index)) {
         // Already commited page...?
-        co_printf("non-present page %#lx(base: %#lx) but it's already commited. WTF?\n", addr, page_base);
+        co_printf("non-present page %p(base: %p) but it's already commited. WTF?\n", ptr, page_base);
         panic("non-present page on already commited page");
     }
     // Uncommited page
-    bitmap_clearbit(&uobject->bitmap, pageindex);
+    bitmap_clearbit(&uobject->bitmap, page_index);
     size_t pagecount = 1;
-    if (uobject->object->physicalbase != VMM_PHYSADDR_NOMAP) {
-        physaddr = uobject->object->physicalbase + (pageindex * ARCH_PAGESIZE);
+    if (uobject->object->physbase != VMM_PHYSADDR_NOMAP) {
+        physaddr = uobject->object->physbase + (page_index * ARCH_PAGESIZE);
     } else {
         physaddr = pmm_alloc(&pagecount);
         if (physaddr == PHYSICALPTR_NULL) {
@@ -631,18 +654,22 @@ void vmm_pagefault(
             panic("ran out of memory while trying to commit the page");
         }
     }
-    ret = arch_mmu_map(page_base, physaddr, 1, uobject->object->mapflags, uobject->object->addressspace->is_user);
+    ret = arch_mmu_map(
+        page_base, physaddr, 1,
+        uobject->object->mapflags, uobject->object->addressspace->is_user);
     if (ret < 0) {
         co_printf("arch_mmu_map failed (error %d)\n", ret);
         panic("failed to map allocated memory");
     }
     if (bitmap_findfirstsetbit(&uobject->bitmap, 0) < 0) {
-        list_removenode(&uobject->object->addressspace->uncommitedobjects, &uobject->node);
+        list_removenode(&uobject->object->addressspace->uncommited_objects, &uobject->node);
         heap_free(uobject);
     }
     return;
 nonpresent:
-    co_printf("attempted to %s on non-present page at %#lx\n", was_write ? "read" : "write", addr);
+    co_printf(
+        "attempted to %s on non-present page at %p\n",
+        was_write ? "read" : "write", ptr);
 realfault:
     arch_stacktrace_for_trapframe(trapframe);
     panic("fatal memory access fault");
@@ -671,14 +698,14 @@ bool vmm_random_test(void) {
     }
     for (size_t i = 0; i < RAND_TEST_ALLOC_COUNT; i++) {
         size_t ptrcount = allocsizes[i] / sizeof(void *); 
-        void **ptr = (void *)allocobjects[i]->startaddress;
+        void **ptr = allocobjects[i]->start;
         for (size_t j = 0; j < ptrcount; j++) {
             ptr[j] = &ptr[j];
         }
     }
     for (size_t i = 0; i < RAND_TEST_ALLOC_COUNT; i++) {
         size_t ptrcount = allocsizes[i] / sizeof(void *); 
-        void **ptr = (void *)allocobjects[i]->startaddress;
+        void **ptr = allocobjects[i]->start;
         for (size_t j = 0; j < ptrcount; j++) {
             void *expectedvalue = &ptr[j];
             void *gotvalue = ptr[j];
