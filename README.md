@@ -56,7 +56,7 @@ And you also need a HDD image (Root permissions are required):
 ```
 > sudo support/tools/makehd.py
 ```
-If you want to also copy your own files to the HDD image, copy them to `customrootfs` before running above command.
+If you want to also copy your own files to the HDD image, create `customrootfs` at the project root and copy files to there, before running the command.
 
 To run the OS under QEMU:
 ```
