@@ -6,7 +6,7 @@
 #define static_assert       _Static_assert
 #endif
 
-void __assert_fail(const char *assertion, const char *file, unsigned int line, const char *function);
+_Noreturn void __assert_fail(const char *assertion, const char *file, unsigned int line, const char *function);
 
 #ifdef NDEBUG
 #define assert(_x)  ((void)0)
