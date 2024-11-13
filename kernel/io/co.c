@@ -21,12 +21,12 @@ void co_setdebug(struct stream *device) {
 void co_putc(char c) {
     bool previnterrupts =  arch_interrupts_disable();
     if (s_primarystream != NULL) {
-        int ret = stream_put_char(s_primarystream, c);
+        int ret = stream_putchar(s_primarystream, c);
         (void)ret;
         stream_flush(s_primarystream);
     }
     if (s_debugstream != NULL && (s_primarystream != s_debugstream)) {
-        int ret = stream_put_char(s_debugstream, c);
+        int ret = stream_putchar(s_debugstream, c);
         (void)ret;
         stream_flush(s_debugstream);
     }

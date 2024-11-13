@@ -34,7 +34,7 @@ struct stream {
     void *data;
 };
 
-WARN_UNUSED_RESULT int stream_put_char(
+WARN_UNUSED_RESULT int stream_putchar(
     struct stream *self, int c);
 WARN_UNUSED_RESULT ssize_t stream_putstr(
     struct stream *self, char const *s);
@@ -47,10 +47,10 @@ WARN_UNUSED_RESULT ssize_t stream_printf(
  *
  * Returns STREAM_EOF on timeout.
  */
-WARN_UNUSED_RESULT int stream_waitchar(struct stream *self, ticktime timeout);
+int stream_waitchar(struct stream *self, ticktime timeout);
 /*
  * Returns STREAM_EOF on EOF.
  */
-WARN_UNUSED_RESULT int stream_getchar(struct stream *self);
+int stream_getchar(struct stream *self);
 
 void stream_flush(struct stream *self);

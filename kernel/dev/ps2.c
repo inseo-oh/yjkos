@@ -42,7 +42,7 @@ WARN_UNUSED_RESULT ssize_t ps2port_stream_op_read(
 WARN_UNUSED_RESULT static int send_and_wait_ack(
     struct ps2port *port, uint8_t cmd
 ) {
-    int ret = stream_put_char(&port->stream, cmd);
+    int ret = stream_putchar(&port->stream, cmd);
     if (ret < 0) {
         return ret;
     }
@@ -134,7 +134,7 @@ static int reset_device(struct ps2port *port) {
     bool reset_aa = false;
     bool bad_response = false;
     int ret = 0;
-    ret = stream_put_char(&port->stream, PS2_CMD_RESET);
+    ret = stream_putchar(&port->stream, PS2_CMD_RESET);
     if (ret < 0) {
         goto fail_bad_ret;
     }

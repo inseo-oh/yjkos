@@ -49,7 +49,7 @@ WARN_UNUSED_RESULT static ssize_t print_dec_unsigned(
     }
     for (; divisor; divisor /= 10) {
         int digit = (int)((i / divisor) % 10);
-        int result = stream_put_char(self, '0' + digit);
+        int result = stream_putchar(self, '0' + digit);
         if (result < 0) {
             return result;
         }
@@ -63,7 +63,7 @@ WARN_UNUSED_RESULT static ssize_t print_dec_signed(
 {
     size_t written_count = 0;
     if (i < 0) {
-        int result = stream_put_char(self, '-');
+        int result = stream_putchar(self, '-');
         if (result < 0) {
             return result;
         }
@@ -111,9 +111,9 @@ WARN_UNUSED_RESULT static ssize_t print_hex(struct stream *self,
         int digit = (int)((i / divisor) % 16);
         int result;
         if (digit < 10) {
-            result = stream_put_char(self, '0' + digit);
+            result = stream_putchar(self, '0' + digit);
         } else {
-            result = stream_put_char(self, a + (digit - 10));
+            result = stream_putchar(self, a + (digit - 10));
         }
         if (result < 0) {
             return result;
@@ -123,7 +123,7 @@ WARN_UNUSED_RESULT static ssize_t print_hex(struct stream *self,
     return (ssize_t)written_count;
 }
 
-WARN_UNUSED_RESULT int stream_put_char(struct stream *self, int c) {
+WARN_UNUSED_RESULT int stream_putchar(struct stream *self, int c) {
     ssize_t result = self->ops->write(self, &c, 1);
     if (result < 0) {
         return result;
@@ -141,7 +141,7 @@ WARN_UNUSED_RESULT ssize_t stream_putstr(struct stream *self, char const *s) {
         char const *nextchar = s; *nextchar != '\0';
         nextchar++, written_count++
     ) {
-        int result = stream_put_char(self, *nextchar);
+        int result = stream_putchar(self, *nextchar);
         if (result < 0) {
             return result;
         }
@@ -188,7 +188,7 @@ percentorchar:
         padchar = ' ';
         goto fmtflag;
     }
-    ret = stream_put_char(self, fmt[0]);
+    ret = stream_putchar(self, fmt[0]);
     if (ret < 0) {
         return ret;
     }
@@ -281,7 +281,7 @@ doformat:
         // NOLINTBEGIN(bugprone-branch-clone)
         case 'c': {
             char c = va_arg(ap, int);
-            ret = stream_put_char(self, c);
+            ret = stream_putchar(self, c);
             if (ret < 0) {
                 return ret;
             }
@@ -324,7 +324,7 @@ doformat:
             if (flags & FMTFLAG_MINWIDTH_PRESENT) {
                 measureresult = measure_dec_signed(val);
                 for (size_t i = measureresult; i < minwidth; i++) {
-                    ret = stream_put_char(self, padchar);
+                    ret = stream_putchar(self, padchar);
                     if (ret < 0) {
                         return ret;
                     }
@@ -365,7 +365,7 @@ doformat:
             if (flags & FMTFLAG_MINWIDTH_PRESENT) {
                 measureresult = measure_dec_unsigned(val);
                 for (size_t i = measureresult; i < minwidth; i++) {
-                    ret = stream_put_char(self, padchar);
+                    ret = stream_putchar(self, padchar);
                     if (ret < 0) {
                         return ret;
                     }
@@ -422,7 +422,7 @@ doformat:
             }
             if (flags & FMTFLAG_MINWIDTH_PRESENT) {
                 for (size_t i = measureresult; i < minwidth; i++) {
-                    ret = stream_put_char(self, padchar);
+                    ret = stream_putchar(self, padchar);
                     if (ret < 0) {
                         return ret;
                     }
@@ -452,7 +452,7 @@ doformat:
         }
         // NOLINTEND(bugprone-branch-clone)
         default:
-            ret = stream_put_char(self, fmt[0]);
+            ret = stream_putchar(self, fmt[0]);
             if (ret < 0) {
                 return ret;
             }
