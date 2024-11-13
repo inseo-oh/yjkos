@@ -14,12 +14,12 @@
 
 // ACS-3 6.3 ERROR field
 enum ata_cmd {
-    ATA_CMD_FLUSHCACHE     = 0xe7, // ACS-3 7.10
-    ATA_CMD_IDENTIFYDEVICE = 0xec, // ACS-3 7.12
-    ATA_CMD_READDMA        = 0xc8, // ACS-3 7.21
-    ATA_CMD_READSECTORS    = 0x20, // ACS-3 7.28
-    ATA_CMD_WRITEDMA       = 0xca, // ACS-3 7.58
-    ATA_CMD_WRITESECTORS   = 0x30, // ACS-3 7.67
+    ATA_CMD_FLUSH_CACHE     = 0xe7, // ACS-3 7.10
+    ATA_CMD_IDENTIFY_DEVICE = 0xec, // ACS-3 7.12
+    ATA_CMD_READ_DMA        = 0xc8, // ACS-3 7.21
+    ATA_CMD_READ_SECTORS    = 0x20, // ACS-3 7.28
+    ATA_CMD_WRITE_DMA       = 0xca, // ACS-3 7.58
+    ATA_CMD_WRITE_SECTORS   = 0x30, // ACS-3 7.67
 };
 
 enum {

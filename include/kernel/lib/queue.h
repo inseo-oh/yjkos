@@ -25,4 +25,4 @@ WARN_UNUSED_RESULT void *queue_peek(struct queue const *self, size_t itemsize);
     __queue_dequeue((_out_buf), (_self), sizeof(*(_out_buf)))
 
 // Helper macro for initialize array-backed queues.
-#define QUEUE_INIT_FOR_ARRAY(_queue, _buf)    queue_init((_queue), (_buf), sizeof(*_buf), sizeof(_buf)/sizeof(*_buf))
+#define QUEUE_INIT_FOR_ARRAY(_queue, _buf)    queue_init((_queue), (_buf), sizeof(*(_buf)), sizeof(_buf)/sizeof(*(_buf)))

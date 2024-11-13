@@ -41,7 +41,7 @@ static struct vmobject *takeobject(struct addressspace *self, struct objectgroup
     list_removenode(&group->objectlist, &object->node);
     if (group->objectlist.front == NULL) {
         // list is empty -> Remove the node
-        bst_removenode(&self->object_group_tree, &group->node);
+        bst_remove_node(&self->object_group_tree, &group->node);
         heap_free(group);
     }
     return object;
@@ -62,7 +62,7 @@ static struct vmobject *takeobject_with_minsize(
     struct bst_node *nextnode = NULL;
     for (
         struct bst_node *currentnode =
-            bst_minof_tree(&self->object_group_tree);
+            bst_min_of_tree(&self->object_group_tree);
             currentnode != NULL; currentnode = nextnode)
     {
         nextnode = bst_successor(currentnode);
@@ -107,7 +107,7 @@ static struct vmobject *take_object_including(
     struct bst_node *nextnode = NULL;
     for (
         struct bst_node *currentnode =
-            bst_minof_tree(&self->object_group_tree);
+            bst_min_of_tree(&self->object_group_tree);
         currentnode != NULL; currentnode = nextnode)
     {
         nextnode = bst_successor(currentnode);
@@ -204,7 +204,7 @@ WARN_UNUSED_RESULT static bool add_object_to_tree(
             }
             list_init(&group->objectlist);
             groupnode = &group->node;
-            bst_insertnode(&self->object_group_tree, &group->node, pagecount, group);
+            bst_insert_node(&self->object_group_tree, &group->node, pagecount, group);
         }
         struct objectgroup *group = groupnode->data;
 
@@ -263,7 +263,7 @@ WARN_UNUSED_RESULT static bool add_object_to_tree(
         list_removenode(&group->objectlist, &object->node);
         if (group->objectlist.front == NULL) {
             // list is empty -> Remove the group.
-            bst_removenode(&self->object_group_tree, &group->node);
+            bst_remove_node(&self->object_group_tree, &group->node);
             heap_free(group);
         }
     }
@@ -319,7 +319,7 @@ fail_oom:
 void vmm_deinit_addressspace(struct addressspace *self) {
     for (
         struct bst_node *currentnode =
-            bst_minof_tree(&self->object_group_tree); currentnode != NULL;
+            bst_min_of_tree(&self->object_group_tree); currentnode != NULL;
             currentnode = bst_successor(currentnode))
     {
         struct objectgroup *group = currentnode->data;

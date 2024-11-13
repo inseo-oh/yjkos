@@ -25,6 +25,27 @@
 
 #define PRD_FLAG_LAST_ENTRY_IN_PRDT (1U << 15)
 
+//------------------------------- Configuration -------------------------------
+
+/*
+ * This is will reprogram Prog-IF if the card is in legacy mode and can be 
+ * switched to native mode. Note that I personally had mixed results with this:
+ * - VirtualBox claims that it can be switched to native mode, but writing 
+ *   modified Prog-IF back didn't actually update it.
+ * - Under HP Elitebook 2570p, it can be modified, and reports native I/O 
+ *   address through BAR, but the machine itself uses SATA. Older SATA drives 
+ *   may work, but mine is SSD and it didn't. The OS can't see the drive at all.
+ *
+ * And honestly, if legacy ports are there - Just use it. There's no real 
+ * advantage I can see with PCI native mode ports.
+ *
+ * Set to true to enable reprogramming.
+ */
+static const bool CONFIG_REPROGRAM_PROGIF = false;
+
+//-----------------------------------------------------------------------------
+
+
 // Physical Region Descriptor
 struct prd {
     uint32_t buffer_physaddr;
@@ -398,7 +419,7 @@ static enum ata_dmastatus atadisk_op_dma_check_transfer(struct atadisk *self) {
         }
         return ATA_DMASTATUS_FAIL_OTHER_IO;
     }
-    if (!(bmstatus & (1 << 0))) {
+    if (!(bmstatus & (1U << 0))) {
         pci_writestatusreg(bus->pcipath, PCI_STATUSFLAG_MASTER_DATA_PARITY_ERROR | PCI_STATUSFLAG_RECEIVED_TARGET_ABORT | PCI_STATUSFLAG_RECEIVED_MASTER_ABORT);
         return ATA_DMASTATUS_SUCCESS;
     }
@@ -462,92 +483,102 @@ static void irq_handler(int irqnum,  void *data) {
     archi586_pic_sendeoi(irqnum);
 }
 
+static bool init_busmaster(struct bus *bus) {
+    // This should be enough to store allocated page counts.
+    size_t page_counts[
+        (MAX_DMA_TRANSFER_SIZE_NEEDED / MAX_TRANSFTER_SIZE_PER_PRD) + 1];
+    // Allocate resources needed for busmaster_ing DMA
+    bus->prd_count = size_to_blocks(
+        MAX_DMA_TRANSFER_SIZE_NEEDED,
+        MAX_TRANSFTER_SIZE_PER_PRD);
+    size_t prdtsize = bus->prd_count * sizeof(*bus->prdt);
+    assert(prdtsize < MAX_TRANSFTER_SIZE_PER_PRD);
+    size_t prdtpagecount = size_to_blocks(
+        prdtsize, ARCH_PAGESIZE);
+    bool physallocok = false;
+    struct vmobject *prdtvmobject = NULL;
+    size_t allocated_prdt_count = 0;
+    bus->prdt_physbase = pmm_alloc( &prdtpagecount);
+    if (bus->prdt_physbase == PHYSICALPTR_NULL) {
+        goto fail_oom;
+    }
+    physallocok = true;
+    prdtvmobject = vmm_map(
+        vmm_get_kernel_addressspace(),
+        bus->prdt_physbase,
+        prdtpagecount * ARCH_PAGESIZE,
+        MAP_PROT_READ | MAP_PROT_WRITE | MAP_PROT_NOCACHE
+    );
+    if (prdtvmobject == NULL) {
+        bus_printf(bus, "not enough memory for busmaster PRDT\n");
+        goto fail_oom;
+    }
+    bus->prdt = prdtvmobject->start;
+    memset(bus->prdt, 0, prdtsize);
+    size_t remainingsize = MAX_DMA_TRANSFER_SIZE_NEEDED;
+    for (size_t i = 0; i < bus->prd_count; i++) {
+        size_t currentsize = remainingsize;
+        if (MAX_TRANSFTER_SIZE_PER_PRD < currentsize) {
+            currentsize = MAX_TRANSFTER_SIZE_PER_PRD;
+        }
+        /*
+         * NOTE: We setup PRD's len and flags when we initialize DMA
+         * transfer
+         */
+        size_t currentpagecount =
+            size_to_blocks(currentsize, ARCH_PAGESIZE);
+        bus->prdt[i].buffer_physaddr =
+            pmm_alloc(&currentpagecount);
+        if (bus->prdt[i].buffer_physaddr == PHYSICALPTR_NULL) {
+            goto fail_oom;
+        }
+        page_counts[i] = currentpagecount;
+        pmemset(
+            bus->prdt[i].buffer_physaddr, 0x00, currentsize,
+            true);
+        allocated_prdt_count++;
+        remainingsize -= currentsize;
+    }
+    return true;
+fail_oom:
+    bus_printf(
+        bus,
+        "not enough memory for busmaster PRDT. falling back to PIO-only.\n");
+    for (size_t i = 0; i < allocated_prdt_count; i++) {
+        pmm_free(
+            bus->prdt[i].buffer_physaddr, page_counts[i]);
+    }
+    if (prdtvmobject != NULL) {
+        vmm_free(prdtvmobject);
+    }
+    if (physallocok) {
+        pmm_free(bus->prdt_physbase, prdtpagecount);
+    }
+    return false;
+}
+
 static int init_controller(
-    struct shared *shared, uint16_t iobase, uint16_t ctrlbase,
-    uint16_t busmastrerbase, pcipath pcipath, bool busmasterenabled,
-    uint8_t irq, size_t channalindex)
+    struct shared *shared, uint16_t io_base, uint16_t ctrl_base,
+    uint16_t busmastrer_base, pcipath pcipath, bool busmaster_enabled,
+    uint8_t irq, size_t channel_index)
 {
     int result = 0;
-    struct bus *bus = heap_alloc(sizeof(*bus), HEAP_FLAG_ZEROMEMORY);
+    struct bus *bus = heap_alloc(
+        sizeof(*bus), HEAP_FLAG_ZEROMEMORY);
     if (bus == NULL) {
         result = -ENOMEM;
         goto fail;
     }
     bus->shared = shared;
     bus->pcipath = pcipath;
-    bus->io_iobase = iobase;
-    bus->ctrl_iobase = ctrlbase;
-    bus->busmastrer_iobase = busmastrerbase;
+    bus->io_iobase = io_base;
+    bus->ctrl_iobase = ctrl_base;
+    bus->busmastrer_iobase = busmastrer_base;
     bus->last_selected_drive = -1;
 
-    if (busmasterenabled) {
-        // This should be enough to store allocated page counts.
-        size_t pagecounts[(MAX_DMA_TRANSFER_SIZE_NEEDED / MAX_TRANSFTER_SIZE_PER_PRD) + 1];
-        // Allocate resources needed for busmaster_ing DMA
-        bus->prd_count = size_to_blocks(MAX_DMA_TRANSFER_SIZE_NEEDED, MAX_TRANSFTER_SIZE_PER_PRD);
-        size_t prdtsize = bus->prd_count * sizeof(*bus->prdt);
-        assert(prdtsize < MAX_TRANSFTER_SIZE_PER_PRD);
-        size_t prdtpagecount = size_to_blocks(prdtsize, ARCH_PAGESIZE);
-        bool physallocok = false;
-        struct vmobject *prdtvmobject = NULL;
-        size_t allocatedprdtcount = 0;
-        bus->prdt_physbase = pmm_alloc( &prdtpagecount);
-        if (bus->prdt_physbase == PHYSICALPTR_NULL) {
-            goto fail_oom;
-        }
-        physallocok = true;
-        prdtvmobject = vmm_map(
-            vmm_get_kernel_addressspace(),
-            bus->prdt_physbase,
-            prdtpagecount * ARCH_PAGESIZE,
-            MAP_PROT_READ | MAP_PROT_WRITE | MAP_PROT_NOCACHE
-        );
-        if (prdtvmobject == NULL) {
-            bus_printf(bus, "not enough memory for busmaster PRDT\n");
-            goto fail_oom;
-        }
-        bus->prdt = prdtvmobject->start;
-        memset(bus->prdt, 0, prdtsize);
-        size_t remainingsize = MAX_DMA_TRANSFER_SIZE_NEEDED;
-        for (size_t i = 0; i < bus->prd_count; i++) {
-            size_t currentsize = remainingsize;
-            if (MAX_TRANSFTER_SIZE_PER_PRD < currentsize) {
-                currentsize = MAX_TRANSFTER_SIZE_PER_PRD;
-            }
-            /*
-             * NOTE: We setup PRD's len and flags when we initialize DMA
-             * transfer
-             */
-            size_t currentpagecount = size_to_blocks(currentsize, ARCH_PAGESIZE);
-            bus->prdt[i].buffer_physaddr = pmm_alloc(&currentpagecount);
-            if (bus->prdt[i].buffer_physaddr == PHYSICALPTR_NULL) {
-                goto fail_oom;
-            }
-            pagecounts[i] = currentpagecount;
-            pmemset(bus->prdt[i].buffer_physaddr, 0x00, currentsize, true);
-            allocatedprdtcount++;
-            remainingsize -= currentsize;
-        }
-        goto cont;
-    fail_oom:
-        bus_printf(
-            bus,
-            "not enough memory for busmaster PRDT. falling back to PIO-only.\n");
-        for (size_t i = 0; i < allocatedprdtcount; i++) {
-            pmm_free(
-                bus->prdt[i].buffer_physaddr, pagecounts[i]);
-        }
-        if (prdtvmobject != NULL) {
-            vmm_free(prdtvmobject);
-        }
-        if (physallocok) {
-            pmm_free(bus->prdt_physbase, prdtpagecount);
-        }
-        busmasterenabled = false;
+    if (busmaster_enabled) {
+        bus->busmaster_enabled = init_busmaster(bus);
     }
-cont:
-    bus->busmaster_enabled = busmasterenabled;
-
     uint8_t busstatus = read_status(bus);
     if ((busstatus & 0x7f) == 0x7f) {
         bus_printf(bus,
@@ -557,7 +588,7 @@ cont:
     }
     // Prepare to receive IRQs
     archi586_pic_registerhandler(&bus->irq_handler, irq, irq_handler, bus);
-    shared->buses[channalindex] = bus;
+    shared->buses[channel_index] = bus;
     archi586_pic_unmaskirq(irq);
     reset_bus(bus);
     // Some systems seem to fire IRQ after reset.
@@ -612,6 +643,86 @@ out:
 #define PROGIF_FLAG_CHANNEL1_MODE_SWITCHABLE    (1U << 3)
 #define PROGIF_FLAG_BUSMASTER_SUPPORTED         (1U << 7)
 
+static void reprogram_progif(pcipath path, uint8_t progif) {
+    uint8_t new_progif = progif;
+    if (
+        !(progif & PROGIF_FLAG_CHANNEL0_MODE_NATIVE) &&
+        (progif & PROGIF_FLAG_CHANNEL0_MODE_SWITCHABLE))
+    {
+        new_progif |= PROGIF_FLAG_CHANNEL0_MODE_NATIVE;
+    }
+    if (
+        !(progif & PROGIF_FLAG_CHANNEL1_MODE_NATIVE) &&
+        (progif & PROGIF_FLAG_CHANNEL1_MODE_SWITCHABLE))
+    {
+        new_progif |= PROGIF_FLAG_CHANNEL1_MODE_NATIVE;
+    }
+    // I don't even know if this is right way to reprogram Prog IF.
+    if (progif != new_progif) {
+        pci_printf(
+            path, "idebus: reprogramming Prog IF value: %02x -> %02x\n",
+            progif, new_progif);
+        pci_writeprogif(path, new_progif);
+        progif = pci_readprogif(path);
+        if (progif != new_progif) {
+            pci_printf(
+                path, "idebus: failed to reprogram Prog IF - Using the value as-is\n");
+        }
+    }
+}
+
+static int read_chan_bar(
+    uint16_t *io_base_out, uint16_t *ctrl_base_out, uint8_t *irq_out,
+    pcipath path, int io_bar, int ctrl_bar, int chan)
+{
+    uintptr_t io_base = 0;
+    uintptr_t ctrl_base = 0;
+    uint8_t irq = 0;
+    irq = pci_readinterruptline(path);
+    int ret = pci_read_io_bar(&io_base, path, io_bar);
+    if (ret < 0) {
+        goto out;
+    }
+    ret = pci_read_io_bar(&ctrl_base, path, ctrl_bar);
+    if (ret < 0) {
+        goto out;
+    }
+    // Only the port at offset 2 is the real control port.
+    ctrl_base += 2;
+    ret = 0;
+    pci_printf(
+        path,
+        "idebus: [channel%d] I/O base %#x, control base %#x, IRQ %d\n",
+        chan, io_base, ctrl_base, irq);
+out:
+    if (ret < 0) {
+        pci_printf(
+            path, "idebus: could not read one of BARs for channel%d\n",
+            chan);
+    }
+    *io_base_out = io_base;
+    *ctrl_base_out = ctrl_base;
+    *irq_out = irq;
+    return ret;
+}
+
+static int read_busmaster_bar(uint16_t *base_out, pcipath path) {
+    uintptr_t base = 0;
+    int ret = pci_read_io_bar(&base, path, 4);
+    if (ret < 0) {
+        goto out;
+    }
+    ret = 0;
+        pci_printf(path, "idebus: [busmaster] base %#x\n", base);
+out:
+    if (ret < 0) {
+        pci_printf(
+            path, "idebus: could not read the BAR for bus mastering");
+    }
+    *base_out = base;
+    return ret;
+}
+
 static void pci_probe_callback(
     pcipath path, uint16_t venid, uint16_t devid, uint8_t baseclass,
     uint8_t subclass, void *data)
@@ -623,107 +734,49 @@ static void pci_probe_callback(
         return;
     }
     uint8_t progif = pci_readprogif(path);
-    uint8_t channel0irq = 14;
-    uint8_t channel1irq = 15;
-    // These are uintptr_t instead of uint16_t, because PCI APIs want pointers to uintptr_t values.
-    uintptr_t channel0iobase = 0x1F0;
-    uintptr_t channel0ctrlbase = 0x3F6;
-    uintptr_t channel1iobase = 0x170;
-    uintptr_t channel1ctrlbase = 0x376;
-    uintptr_t busmasteriobase = 0;
-    bool channel0enabled = true;
-    bool channel1enabled = true;
-    bool busmasterenabled = true;
+    uint8_t channel0_irq = 14;
+    uint8_t channel1_irq = 15;
+    uint16_t channel0_io_base = 0x1F0;
+    uint16_t channel0_ctrl_base = 0x3F6;
+    uint16_t channel1_io_base = 0x170;
+    uint16_t channel1_ctrl_base = 0x376;
+    uint16_t busmaster_io_base = 0;
+    bool channel0_enabled = true;
+    bool channel1_enabled = true;
+    bool busmaster_enabled = true;
 
     uint16_t pcicmd = pci_readcmdreg(path);
     pcicmd |= PCI_CMDFLAG_IO_SPACE | PCI_CMDFLAG_MEMORY_SPACE | PCI_CMDFLAG_BUS_MASTER;
     pci_writecmdreg(path, pcicmd);
 
-#if 0
-    uint8_t newprogif = progif;
-    if (!(progif & PROGIF_FLAG_CHANNEL0_MODE_NATIVE) && (progif & PROGIF_FLAG_CHANNEL0_MODE_SWITCHABLE)) {
-        newprogif |= PROGIF_FLAG_CHANNEL0_MODE_NATIVE;
+    if (CONFIG_REPROGRAM_PROGIF) {
+        reprogram_progif(path, progif);
     }
-    if (!(progif & PROGIF_FLAG_CHANNEL1_MODE_NATIVE) && (progif & PROGIF_FLAG_CHANNEL1_MODE_SWITCHABLE)) {
-        newprogif |= PROGIF_FLAG_CHANNEL1_MODE_NATIVE;
-    }
-    // I don't even know if this is right way to reprogram Prog IF.
-    if (progif != newprogif) {
-        pci_printf(path, "idebus: reprogramming Prog IF value: %02x -> %02x\n", progif, newprogif);
-        pci_writeprogif(path, newprogif);
-        progif = pci_readprogif(path);
-        if (progif != newprogif) {
-            pci_printf(path, "idebus: failed to reprogram Prog IF - Using the value as-is\n");
-        }
-    }
-#endif
     if (progif & PROGIF_FLAG_CHANNEL0_MODE_NATIVE) {
-        channel0irq = pci_readinterruptline(path);
-        // Channel 0 is in native mode
-        int ret = pci_readiobar(&channel0iobase, path, 0);
+        int ret = read_chan_bar(
+            &channel0_io_base, &channel0_ctrl_base,
+            &channel0_irq, path, 0, 1, 0);
         if (ret < 0) {
-            goto channel0barfail;
+            channel0_enabled = false;
         }
-        ret = pci_readiobar(&channel0ctrlbase, path, 1);
-        if (ret < 0) {
-            goto channel0barfail;
-        }
-        // Only the port at offset 2 is the real control port.
-        channel0ctrlbase += 2;
     }
-    goto channel1;
-channel0barfail:
-    channel0enabled = false;
-    pci_printf(path, "idebus: could not read one of BARs for channel 0\n");
-channel1:
     if (progif & PROGIF_FLAG_CHANNEL1_MODE_NATIVE) {
-        channel1irq = pci_readinterruptline(path);
-        // Channel 1 is in native mode
-        int ret = pci_readiobar(&channel1iobase, path, 2);
+        int ret = read_chan_bar(
+            &channel1_io_base, &channel1_ctrl_base,
+            &channel1_irq, path, 2, 3, 1);
         if (ret < 0) {
-            goto channel1barfail;
+            channel1_enabled = false;
         }
-        ret = pci_readiobar(&channel1ctrlbase, path, 3);
-        if (ret < 0) {
-            goto channel1barfail;
-        }
-        // Only the port at offset 2 is the real control port.
-        channel1ctrlbase += 2;
     }
-    goto busmaster;
-channel1barfail:
-    channel1enabled = false;
-    pci_printf(path, "idebus: could not read one of BARs for channel 1\n");
-busmaster:
     if (progif & PROGIF_FLAG_BUSMASTER_SUPPORTED) {
-        int ret = pci_readiobar(&busmasteriobase, path, 4);
+        int ret = read_busmaster_bar(
+            &busmaster_io_base, path);
         if (ret < 0) {
-            goto busmasterbarfail;
+            busmaster_enabled = false;
         }
-    } else {
-        busmasterenabled = false;
     }
-    goto doinit;
-busmasterbarfail:
-    busmasterenabled = false;
-    pci_printf(path, "idebus: could not read one of BARs for bus mastering\n");
-doinit:
-    if (channel0enabled) {
-        pci_printf(
-            path,
-            "idebus: [channel0] I/O base %#x, control base %#x, IRQ %d\n",
-            channel0iobase, channel0ctrlbase, channel0irq);
-    }
-    if (channel1enabled) {
-        pci_printf(
-            path,
-            "idebus: [channel1] I/O base %#x, control base %#x, IRQ %d\n",
-            channel1iobase, channel1ctrlbase, channel1irq);
-    }
-    if (busmasterenabled) {
-        pci_printf(path, "idebus: [busmaster] base %#x\n", busmasteriobase);
-    }
-    struct shared *shared = heap_alloc(sizeof(*shared), HEAP_FLAG_ZEROMEMORY);
+    struct shared *shared = heap_alloc(
+        sizeof(*shared), HEAP_FLAG_ZEROMEMORY);
     if (shared == NULL) {
         pci_printf(path, "idebus: not enough memory\n");
         return;
@@ -733,13 +786,14 @@ doinit:
      * If Simplex Only is set, we need DMA lock to prevent both channels using 
      * DMA at the same time.
      */
-    uint8_t bmstatus = archi586_in8(busmasteriobase + BUSMASTERREG_STATUS);
-    shared->dma_lock_needed = bmstatus & (1U << 7);
-    if (channel0enabled) {
+    uint8_t bm_status = archi586_in8(
+        busmaster_io_base + BUSMASTERREG_STATUS);
+    shared->dma_lock_needed = bm_status & (1U << 7);
+    if (channel0_enabled) {
         int ret = init_controller(
-            shared, channel0iobase, channel0ctrlbase,
-            busmasteriobase, path, busmasterenabled,
-            channel0irq, 0);
+            shared, channel0_io_base, channel0_ctrl_base,
+            busmaster_io_base, path, busmaster_enabled,
+            channel0_irq, 0);
         if (ret < 0) {
             pci_printf(
                 path,
@@ -747,11 +801,11 @@ doinit:
                 ret);
         }
     }
-    if (channel1enabled) {
+    if (channel1_enabled) {
          int ret = init_controller(
-            shared, channel1iobase, channel1ctrlbase,
-            busmasteriobase + 8, path,
-            busmasterenabled, channel1irq, 1);
+            shared, channel1_io_base, channel1_ctrl_base,
+            busmaster_io_base + 8, path,
+            busmaster_enabled, channel1_irq, 1);
         if (ret < 0) {
             pci_printf(
                 path,

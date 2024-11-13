@@ -1,6 +1,6 @@
 #pragma once
-#include <kernel/lib/diagnostics.h>
 #include <kernel/io/iodev.h>
+#include <kernel/lib/diagnostics.h>
 #include <kernel/types.h>
 #include <stddef.h>
 #include <stdint.h>

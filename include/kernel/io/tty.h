@@ -1,6 +1,6 @@
 #pragma once
-#include <kernel/io/stream.h>
 #include <kernel/io/iodev.h>
+#include <kernel/io/stream.h>
 #include <kernel/lib/diagnostics.h>
 
 struct tty {

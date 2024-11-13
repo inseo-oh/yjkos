@@ -38,5 +38,5 @@ void fb_init_indexed(
     int width,
     int height,
     int pitch,
-    int8_t bpp
+    int bpp
 );

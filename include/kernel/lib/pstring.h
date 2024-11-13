@@ -1,8 +1,8 @@
 #pragma once
 #include <kernel/types.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdbool.h>
 
 // memcpy, memset for physical pointers.
 void pmemcpy_in(void *dest, physptr src, size_t len, bool nocache);

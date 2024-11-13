@@ -1,8 +1,8 @@
 #pragma once
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 static char const *const IODEV_TYPE_PHYSICAL_DISK = "pdisk";
 static char const *const IODEV_TYPE_LOGICAL_DISK  = "ldisk";

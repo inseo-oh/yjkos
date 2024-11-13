@@ -1,7 +1,7 @@
 #pragma once
 #include <kernel/lib/diagnostics.h>
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 struct arch_thread;
 

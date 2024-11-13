@@ -1,10 +1,10 @@
 #pragma once
-#include <kernel/io/stream.h>
 #include <kernel/io/iodev.h>
 #include <kernel/io/kbd.h>
+#include <kernel/io/stream.h>
 #include <kernel/lib/diagnostics.h>
-#include <kernel/lib/queue.h>
 #include <kernel/lib/list.h>
+#include <kernel/lib/queue.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <sys/types.h>

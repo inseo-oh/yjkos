@@ -1,33 +1,32 @@
 #include "fsinit.h"
-#include <assert.h>
-#include <dirent.h>
-#include <errno.h>
 #include <kernel/fs/vfs.h>
 #include <kernel/io/disk.h>
 #include <kernel/io/iodev.h>
 #include <kernel/io/stream.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/miscmath.h>
+#include <kernel/lib/pathreader.h>
 #include <kernel/mem/heap.h>
-#include <limits.h>
+
+#include <assert.h>
+#include <dirent.h>
+#include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <time.h>
 
-enum {
-    EXT2_SIGNATURE = 0xef53,
+#define EXT2_SIGNATURE      0xef53
 
-    FSSTATE_CLEAN = 1,
-    FSSTATE_ERROR = 2,
+#define FSSTATE_CLEAN       1
+#define FSSTATE_ERROR       2
 
-    ERRACTION_IGNORE     = 1,
-    ERRACTION_REMOUNT_RO = 2,
-    ERRACTION_PANIC      = 3,
+#define ERRACTION_IGNORE        1
+#define ERRACTION_REMOUNT_RO    2
+#define ERRACTION_PANIC         3
 
-    INODE_ROOTDIRECTORY = 2,
-};
+#define INODE_ROOTDIRECTORY     2
 
 #define REQUIRED_FEATUREFLAG_COMPRESSION                    (1U << 0U)
 #define REQUIRED_FEATUREFLAG_DIRENTRY_CONTAINS_TYPE_FIELD   (1U << 1U)
@@ -51,47 +50,47 @@ struct fscontext {
     //--------------------------------------------------------------------------
     // Superblock
     //--------------------------------------------------------------------------
-    uint32_t superblkblknum;
-    size_t totalinodes;
-    blkcnt_t totalblks;
-    blkcnt_t totalunallocatedblocks;
-    size_t totalunallocatedinodes;
-    blkcnt_t reservedblksforsu;
+    uint32_t superblock_block_num;
+    size_t total_inodes;
+    blkcnt_t total_blocks;
+    blkcnt_t total_unallocated_blocks;
+    size_t total_unallocated_inodes;
+    blkcnt_t reserved_blocks_for_su;
     blksize_t blocksize;
-    blkcnt_t blksinblkgroup;
-    size_t inodesinblkgroup;
-    time_t lastmounttime;
-    time_t laswrittentime;
-    uint16_t mountssincelastfsck;
-    uint16_t mountsbeforefsckrequired;
+    blkcnt_t blocks_in_blockgroup;
+    size_t inodes_in_blockgroup;
+    time_t last_mount_time;
+    time_t last_written_time;
+    uint16_t mounts_since_last_fsck;
+    uint16_t mounts_before_fsck_required;
     uint16_t signature;
-    uint16_t fsstate;   // See FSSTATE_~ values
-    uint16_t erraction; // See ERRACTION_~ values
-    uint16_t minorver;
-    time_t lastfscktime;
-    time_t fsckinterval;
-    uint32_t creatorosid;
-    uint32_t majorver;
-    uid_t reservedblkuid;
-    gid_t reservedblkgid;
+    uint16_t fs_state;   // See FSSTATE_~ values
+    uint16_t err_action; // See ERRACTION_~ values
+    uint16_t minor_ver;
+    time_t last_fsck_time;
+    time_t fsck_interval;
+    uint32_t creator_os_id;
+    uint32_t major_ver;
+    uid_t reserved_block_uid;
+    gid_t reserved_block_gid;
 
     // Below are superblk fields for 1.0 <= Version
-    uint32_t blkgroup;      // If it's a backup copy
-    ino_t firstnonreservedinode;    // Pre-1.0: 11
-    size_t inodesize;               // Pre-1.0: 128
-    uint32_t optionalfeatures;
-    uint32_t requiredfeatures;      // Required features for both R/W and R/O mount 
-    uint32_t requiredfeatures_rw;   // Required features for R/W mount
+    uint32_t block_group;      // If it's a backup copy
+    ino_t first_non_reserved_inode;    // Pre-1.0: 11
+    size_t inode_size;               // Pre-1.0: 128
+    uint32_t optional_features;
+    uint32_t required_features;      // Required features for both R/W and R/O mount 
+    uint32_t required_features_rw;   // Required features for R/W mount
     uint32_t compressionalgorithms; // If compression is used
     uint8_t preallocatefileblks;
     uint8_t preallocatedirblks;
     uint32_t journalinode;
     uint32_t journaldevice;
     uint32_t orphaninodelisthead;
-    uint8_t filesystemid[16];       // 16-byte UUID
+    uint8_t filesystem_id[16];       // 16-byte UUID
     uint8_t journalid[16];          // 16-byte UUID
     char volumename[16];
-    char lastmountpath[64];
+    char last_mount_path[64];
 
     //--------------------------------------------------------------------------
     // Other fields needed for FS management
@@ -157,7 +156,7 @@ struct inocontext {
 
 
 // `buf` must be able to hold `blkcount * self->blocksize` bytes.
-WARN_UNUSED_RESULT static int readblocks(
+WARN_UNUSED_RESULT static int read_blocks(
     struct fscontext *self, void *buf, uint32_t blockaddr, blkcnt_t blkcount)
 {
     int ret = 0;
@@ -174,10 +173,9 @@ WARN_UNUSED_RESULT static int readblocks(
         self->disk, buf, diskblockaddr,
         diskblkcount));
     if (ret < 0) {
-        goto fail;
+        goto out;
     }
     goto out;
-fail:
 out:
     return ret;
 }
@@ -203,7 +201,7 @@ WARN_UNUSED_RESULT static int readblocks_alloc(
         ret = -ENOMEM;
         goto fail;
     }
-    ret = readblocks(self, buf, blockaddr, blkcount);
+    ret = read_blocks(self, buf, blockaddr, blkcount);
     if (ret < 0) {
         goto fail;
     }
@@ -251,7 +249,7 @@ out:
 }
 
 static uint32_t blockgroup_of_inode(struct fscontext *self, ino_t inodeaddr) {
-    return (inodeaddr - 1) / self->inodesinblkgroup;
+    return (inodeaddr - 1) / self->inodes_in_blockgroup;
 }
 
 WARN_UNUSED_RESULT static int locateinode(
@@ -264,11 +262,11 @@ WARN_UNUSED_RESULT static int locateinode(
     if (ret < 0) {
         goto fail;
     }
-    off_t index = (inodeaddr - 1) % self->inodesinblkgroup;
-    assert(index < (SIZE_MAX / self->inodesize));
+    off_t index = (inodeaddr - 1) % self->inodes_in_blockgroup;
+    assert(index < (SIZE_MAX / self->inode_size));
     *blk_out = blkgroup.inodetable +
-        ((index * self->inodesize) / self->blocksize);
-    *off_out = (index * self->inodesize) % self->blocksize;
+        ((index * self->inode_size) / self->blocksize);
+    *off_out = (index * self->inode_size) % self->blocksize;
     goto out;
 fail:
 out:
@@ -653,7 +651,7 @@ WARN_UNUSED_RESULT static int read_inode_blocks(
             goto out;
         }
         if (self->currentblockaddr != lastbase + contiguous_len) {
-            ret = readblocks(
+            ret = read_blocks(
                 self->fs, dest, lastbase,
                 contiguous_len);
             if (ret < 0) {
@@ -668,7 +666,7 @@ WARN_UNUSED_RESULT static int read_inode_blocks(
             contiguous_len++;
         }
     }
-    ret = readblocks(
+    ret = read_blocks(
         self->fs, dest, lastbase,
         contiguous_len);
     if (ret < 0) {
@@ -720,9 +718,8 @@ WARN_UNUSED_RESULT static int read_inode(
                 &remaining_len);
             if (ret < 0) {
                 goto out;
-            } else {
-                ret = 0;
             }
+            assert(ret == 0);
         }
         if (remaining_len == 0) {
             break;
@@ -799,8 +796,8 @@ WARN_UNUSED_RESULT static int openinode(
     out->doublyindirecttable        = uint32_le_at(&inodedata[0x5c]);
     out->triplyindirecttable        = uint32_le_at(&inodedata[0x60]);
     out->generationnumber           = uint32_le_at(&inodedata[0x64]);
-    if (1 <= self->majorver) {
-        if (self->requiredfeatures_rw & RWMOUNT_FEATUREFLAG_64BIT_FILE_SIZE) {
+    if (1 <= self->major_ver) {
+        if (self->required_features_rw & RWMOUNT_FEATUREFLAG_64BIT_FILE_SIZE) {
             sizeh                   = uint32_le_at(&inodedata[0x6c]);
         }
     }
@@ -839,7 +836,7 @@ struct directory {
 };
 
 // Returns -ENOENT when it reaches end of the directory.
-WARN_UNUSED_RESULT static int readdirectory(struct dirent *out, DIR *self) {
+WARN_UNUSED_RESULT static int read_directory(struct dirent *out, DIR *self) {
     struct directory *dir = self->data;
     int ret = 0;
     while(1) {
@@ -852,7 +849,7 @@ WARN_UNUSED_RESULT static int readdirectory(struct dirent *out, DIR *self) {
         out->d_ino       = uint32_le_at(&header[0x0]);
         size_t entrysize = uint16_le_at(&header[0x4]);
         size_t namelen   = header[0x6];
-        if (!(dir->inocontext.fs->requiredfeatures &
+        if (!(dir->inocontext.fs->required_features &
             REQUIRED_FEATUREFLAG_DIRENTRY_CONTAINS_TYPE_FIELD))
         {
             // YJK/OS does not support names longer than 255 characters.
@@ -882,13 +879,15 @@ out:
     return ret;
 }
 
-WARN_UNUSED_RESULT static int opendirectory(
+WARN_UNUSED_RESULT static int open_directory(
     DIR **dir_out, struct fscontext *self, ino_t inode)
 {
     int ret = 0;
+    *dir_out = NULL;
     struct directory *dir = heap_alloc(
         sizeof(*dir), HEAP_FLAG_ZEROMEMORY);
     if (dir == NULL) {
+        ret = -ENOMEM;
         goto fail;
     }
     ret = openinode(&dir->inocontext, self, inode);
@@ -914,7 +913,7 @@ out:
     return ret;
 }
 
-static void closedirectory(DIR *self) {
+static void close_directory(DIR *self) {
     if (self == NULL) {
         return;
     }
@@ -956,58 +955,46 @@ WARN_UNUSED_RESULT static int resolve_path(
 {
     int ret = 0;
     DIR *dir;
-    ino_t currentino = parent;
-    char namebuf[NAME_MAX + 1];
-    char const *remainingpath = path;
-    while(*remainingpath != '\0') {
-        char *nextslash = strchr(remainingpath, '/');
+    ino_t current_ino = parent;
+    struct pathreader reader;
+    pathreader_init(&reader, path);
+    while(1) {
         char const *name;
-        char const *newremainingpath;
-        if (nextslash == NULL) {
-            name = remainingpath;
-            newremainingpath = strchr(path, '\0');
-        } else {
-            size_t len = nextslash - remainingpath;
-            if (NAME_MAX < len) {
-                ret = -ENAMETOOLONG;
-                goto fail;
-            }
-            memcpy(namebuf, remainingpath, len);
-            name = namebuf;
-            namebuf[len] = '\0';
-            newremainingpath = &nextslash[1];
+        ret = pathreader_next(&name, &reader);
+        if (ret == -ENOENT) {
+            ret = 0;
+            break;
         }
-        if (name[0] != '\0') {
-            ret = opendirectory(&dir, self, currentino);
-            if (ret < 0) {
-                goto fail;
+        if (ret < 0) {
+            goto out;
+        }
+        ret = open_directory(&dir, self, current_ino);
+        if (ret < 0) {
+            goto out;
+        }
+        while (1) {
+            struct dirent ent;
+            ret = read_directory(&ent, dir);
+            if (ret == -ENOENT) {
+                ret = -ENOENT;
+                break;
             }
-            while (1) {
-                struct dirent ent;
-                ret = readdirectory(&ent, dir);
-                if (ret == -ENOENT) {
-                    ret = -ENOENT;
-                    break;
-                }
-                if (ret < 0) {
-                    break;
-                }
-                currentino = ent.d_ino;
-                if (strcmp(name, ent.d_name) == 0) {
-                    ret = 0;
-                    break;
-                }
-            }
-            closedirectory(dir);
             if (ret < 0) {
-                goto fail;
+                break;
+            }
+            current_ino = ent.d_ino;
+            if (strcmp(name, ent.d_name) == 0) {
+                ret = 0;
+                break;
             }
         }
-        remainingpath = newremainingpath;
+        close_directory(dir);
+        if (ret < 0) {
+            goto out;
+        }
     }
-    *ino_out = currentino;
+    *ino_out = current_ino;
     goto out;
-fail:
 out:
     return ret;
 }
@@ -1102,12 +1089,12 @@ WARN_UNUSED_RESULT static int vfs_op_mount(
         goto fail;
     }
     context->disk                      = disk;
-    context->totalinodes               = uint32_le_at(&superblk[0x000]);
-    context->totalblks                 = uint32_le_at(&superblk[0x004]);
-    context->reservedblksforsu         = uint32_le_at(&superblk[0x008]);
-    context->totalunallocatedblocks    = uint32_le_at(&superblk[0x00c]);
-    context->totalunallocatedinodes    = uint32_le_at(&superblk[0x010]);
-    context->superblkblknum            = uint32_le_at(&superblk[0x014]);
+    context->total_inodes              = uint32_le_at(&superblk[0x000]);
+    context->total_blocks              = uint32_le_at(&superblk[0x004]);
+    context->reserved_blocks_for_su    = uint32_le_at(&superblk[0x008]);
+    context->total_unallocated_blocks  = uint32_le_at(&superblk[0x00c]);
+    context->total_unallocated_inodes  = uint32_le_at(&superblk[0x010]);
+    context->superblock_block_num      = uint32_le_at(&superblk[0x014]);
     uint32_t blocksize_raw             = uint32_le_at(&superblk[0x018]);
     if (21 < blocksize_raw) {
         iodev_printf(
@@ -1115,50 +1102,53 @@ WARN_UNUSED_RESULT static int vfs_op_mount(
         ret = -EINVAL;
         goto fail;
     }
-    context->blocksize                 = (blksize_t)(1024UL << blocksize_raw);
-    context->blksinblkgroup            = uint32_le_at(&superblk[0x020]);
-    context->inodesinblkgroup          = uint32_le_at(&superblk[0x028]);
-    context->lastmounttime             = uint32_le_at(&superblk[0x02c]);
-    context->laswrittentime            = uint32_le_at(&superblk[0x030]);
-    context->mountssincelastfsck       = uint16_le_at(&superblk[0x034]);
-    context->mountsbeforefsckrequired  = uint16_le_at(&superblk[0x036]);
-    context->fsstate                   = uint16_le_at(&superblk[0x03a]);
-    context->erraction                 = uint16_le_at(&superblk[0x03c]);
-    context->minorver                  = uint16_le_at(&superblk[0x03e]);
-    context->lastfscktime              = uint32_le_at(&superblk[0x040]);
-    context->fsckinterval              = uint32_le_at(&superblk[0x044]);
-    context->creatorosid               = uint32_le_at(&superblk[0x048]);
-    context->majorver                  = uint32_le_at(&superblk[0x04c]);
-    context->reservedblkuid            = uint16_le_at(&superblk[0x050]);
-    context->reservedblkgid            = uint16_le_at(&superblk[0x052]);
+    context->blocksize                  = (blksize_t)(1024UL << blocksize_raw);
+    context->blocks_in_blockgroup       = uint32_le_at(&superblk[0x020]);
+    context->inodes_in_blockgroup       = uint32_le_at(&superblk[0x028]);
+    context->last_mount_time            = uint32_le_at(&superblk[0x02c]);
+    context->last_written_time          = uint32_le_at(&superblk[0x030]);
+    context->mounts_since_last_fsck     = uint16_le_at(&superblk[0x034]);
+    context->mounts_before_fsck_required = uint16_le_at(&superblk[0x036]);
+    context->fs_state                   = uint16_le_at(&superblk[0x03a]);
+    context->err_action                 = uint16_le_at(&superblk[0x03c]);
+    context->minor_ver                  = uint16_le_at(&superblk[0x03e]);
+    context->last_fsck_time             = uint32_le_at(&superblk[0x040]);
+    context->fsck_interval              = uint32_le_at(&superblk[0x044]);
+    context->creator_os_id              = uint32_le_at(&superblk[0x048]);
+    context->major_ver                  = uint32_le_at(&superblk[0x04c]);
+    context->reserved_block_uid         = uint16_le_at(&superblk[0x050]);
+    context->reserved_block_gid         = uint16_le_at(&superblk[0x052]);
 
-    if (1 <= context->majorver) {
-        context->firstnonreservedinode = uint16_le_at(&superblk[0x054]);
-        context->inodesize             = uint16_le_at(&superblk[0x058]);
-        context->blkgroup              = uint16_le_at(&superblk[0x05a]);
-        context->optionalfeatures      = uint32_le_at(&superblk[0x05c]);
-        context->requiredfeatures      = uint32_le_at(&superblk[0x060]);
-        context->requiredfeatures_rw   = uint32_le_at(&superblk[0x064]);
+    if (1 <= context->major_ver) {
+        context->first_non_reserved_inode = uint16_le_at(&superblk[0x054]);
+        context->inode_size               = uint16_le_at(&superblk[0x058]);
+        context->block_group              = uint16_le_at(&superblk[0x05a]);
+        context->optional_features        = uint32_le_at(&superblk[0x05c]);
+        context->required_features        = uint32_le_at(&superblk[0x060]);
+        context->required_features_rw     = uint32_le_at(&superblk[0x064]);
         memcpy(
-            context->filesystemid,  &superblk[0x068],
-            sizeof(context->filesystemid));
+            context->filesystem_id, &superblk[0x068],
+            sizeof(context->filesystem_id));
         memcpy(
             context->volumename,   
             &superblk[0x078], sizeof(context->volumename));
         memcpy(
-            context->lastmountpath, &superblk[0x088],
-            sizeof(context->lastmountpath));
-        bool notterminated = false;
+            context->last_mount_path, &superblk[0x088],
+            sizeof(context->last_mount_path));
+        bool not_terminated = false;
         if (context->volumename[sizeof(context->volumename) - 1] != '\0') {
             context->volumename[sizeof(context->volumename) - 1] = '\0';
-            notterminated = true;
+            not_terminated = true;
         }
-        if (context->lastmountpath[sizeof(context->lastmountpath) - 1] != '\0')
+        if (
+            context->last_mount_path[sizeof(context->last_mount_path) - 1]
+                != '\0')
         {
-            context->lastmountpath[sizeof(context->lastmountpath) - 1] = '\0';
-            notterminated = true;
+            context->last_mount_path[sizeof(context->last_mount_path) - 1] =
+                '\0';
+            not_terminated = true;
         }
-        if (notterminated) {
+        if (not_terminated) {
             iodev_printf(
                 &disk->iodev,
                 "ext2: some strings in superblock were not terminated - terminating at the last character\n");
@@ -1174,21 +1164,21 @@ WARN_UNUSED_RESULT static int vfs_op_mount(
         context->journaldevice         = uint32_le_at(&superblk[0x0e4]);
         context->orphaninodelisthead   = uint32_le_at(&superblk[0x0e8]);
     } else {
-        context->firstnonreservedinode = 11;
-        context->inodesize = 128;
+        context->first_non_reserved_inode = 11;
+        context->inode_size = 128;
     }
-    uint8_t const *id = context->filesystemid;
+    uint8_t const *id = context->filesystem_id;
     iodev_printf(
         &disk->iodev,
         "ext2 V%u-%02u, ID: %02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x\n",
-        context->majorver, context->minorver,
+        context->major_ver, context->minor_ver,
         id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7], id[8], id[9],
         id[10], id[11], id[12], id[13], id[14], id[15]);
 
     size_t blkgroupcount = size_to_blocks(
-        context->totalblks, context->blksinblkgroup);
+        context->total_blocks, context->blocks_in_blockgroup);
     size_t blkgroupcount2 = size_to_blocks(
-        context->totalinodes, context->inodesinblkgroup);
+        context->total_inodes, context->inodes_in_blockgroup);
     if (blkgroupcount != blkgroupcount2) {
         iodev_printf(
             &disk->iodev,
@@ -1219,19 +1209,19 @@ WARN_UNUSED_RESULT static int vfs_op_mount(
     //--------------------------------------------------------------------------
     // Check feature flags
     //--------------------------------------------------------------------------
-    if (context->requiredfeatures & ~SUPPORTED_REQUIRED_FLAGS) {
+    if (context->required_features & ~SUPPORTED_REQUIRED_FLAGS) {
         iodev_printf(
             &disk->iodev,
             "ext2: found unsupported required features(flag %x)\n",
-            context->requiredfeatures & ~SUPPORTED_REQUIRED_FLAGS);
+            context->required_features & ~SUPPORTED_REQUIRED_FLAGS);
         ret = -EINVAL;
         goto fail;
     }
-    if (context->requiredfeatures_rw & ~SUPPORTED_RWMOUNT_FLAGS) {
+    if (context->required_features_rw & ~SUPPORTED_RWMOUNT_FLAGS) {
         iodev_printf(
             &disk->iodev,
             "ext2: found unsupported required features for R/W mount(flag %x)\n",
-            context->requiredfeatures_rw & ~SUPPORTED_RWMOUNT_FLAGS);
+            context->required_features_rw & ~SUPPORTED_RWMOUNT_FLAGS);
         ret = -EINVAL;
         goto fail;
     }
@@ -1293,7 +1283,7 @@ WARN_UNUSED_RESULT static int vfs_op_opendir(
     if (ret < 0) {
         goto fail;
     }
-    ret = opendirectory(out, fscontext, inode);
+    ret = open_directory(out, fscontext, inode);
     if (ret < 0) {
         goto fail;
     }
@@ -1304,12 +1294,12 @@ out:
 }
 
 WARN_UNUSED_RESULT static int vfs_op_closedir(DIR *self) {
-    closedirectory(self);
+    close_directory(self);
     return 0;
 }
 
 WARN_UNUSED_RESULT static int vfs_op_readdir(struct dirent *out, DIR *self) {
-    return readdirectory(out, self);
+    return read_directory(out, self);
 }
 
 static struct vfs_fstype_ops const FSTYPE_OPS = {

@@ -1,8 +1,8 @@
 #pragma once
-#include <kernel/tasks/sched.h>
-#include <kernel/tasks/mutex.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
+#include <kernel/tasks/mutex.h>
+#include <kernel/tasks/sched.h>
 #include <stdint.h>
 
 #define THREAD_STACK_SIZE   (1024*16)

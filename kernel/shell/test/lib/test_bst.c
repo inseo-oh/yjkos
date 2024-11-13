@@ -21,7 +21,7 @@ static bool do_insertnode_unbalenced(void) {
     struct bst_node nodes[5];
     memset(nodes, 0, sizeof(nodes));
     // Insert root node
-    bst_insertnode_unbalenced(&bst, &nodes[0], 1000, NULL);
+    bst_insert_node_unbalenced(&bst, &nodes[0], 1000, NULL);
     TEST_EXPECT(bst.root == &nodes[0]);
     TEST_EXPECT(bst.root->parent == NULL);
     TEST_EXPECT(bst.root->children[BST_DIR_LEFT] == NULL);
@@ -32,7 +32,7 @@ static bool do_insertnode_unbalenced(void) {
      *   /
      * 500
     */
-    bst_insertnode_unbalenced(&bst, &nodes[1], 500, NULL);
+    bst_insert_node_unbalenced(&bst, &nodes[1], 500, NULL);
     TEST_EXPECT(bst.root == &nodes[0]);
     TEST_EXPECT(bst.root->parent == NULL);
     TEST_EXPECT(bst.root->children[BST_DIR_LEFT] == &nodes[1]);
@@ -50,7 +50,7 @@ static bool do_insertnode_unbalenced(void) {
     bst.root->children[BST_DIR_LEFT] = NULL;
     bst.root->height = 0;
     bst.root->bf = 0;
-    bst_insertnode_unbalenced(&bst, &nodes[2], 1500, NULL);
+    bst_insert_node_unbalenced(&bst, &nodes[2], 1500, NULL);
     TEST_EXPECT(bst.root == &nodes[0]);
     TEST_EXPECT(bst.root->parent == NULL);
     TEST_EXPECT(bst.root->children[BST_DIR_LEFT] == NULL)
@@ -71,8 +71,8 @@ static bool do_insertnode_unbalenced(void) {
     nodes[2].parent = NULL;
     bst.root->height = 0;
     bst.root->bf = 0;
-    bst_insertnode_unbalenced(&bst, &nodes[1], nodes[1].key, NULL);
-    bst_insertnode_unbalenced(&bst, &nodes[2], nodes[2].key,NULL);
+    bst_insert_node_unbalenced(&bst, &nodes[1], nodes[1].key, NULL);
+    bst_insert_node_unbalenced(&bst, &nodes[2], nodes[2].key,NULL);
     TEST_EXPECT(bst.root == &nodes[0]);
     TEST_EXPECT(bst.root->parent == NULL);
     TEST_EXPECT(bst.root->children[BST_DIR_LEFT] == &nodes[1]);
@@ -94,8 +94,8 @@ static bool do_insertnode_unbalenced(void) {
      *   \     /
      *   600  1400
     */
-    bst_insertnode_unbalenced(&bst, &nodes[3], 600, NULL);
-    bst_insertnode_unbalenced(&bst, &nodes[4], 1400, NULL);
+    bst_insert_node_unbalenced(&bst, &nodes[3], 600, NULL);
+    bst_insert_node_unbalenced(&bst, &nodes[4], 1400, NULL);
     TEST_EXPECT(bst.root == &nodes[0]);
     TEST_EXPECT(bst.root->parent == NULL);
     TEST_EXPECT(bst.root->children[BST_DIR_LEFT] == &nodes[1]);
@@ -145,9 +145,9 @@ static bool do_balencing(void) {
     struct bst_node *node1000 = &nodes[0];
     struct bst_node *node900 = &nodes[1];
     struct bst_node *node800 = &nodes[2];
-    bst_insertnode(&bst, node1000, 1000, NULL);
-    bst_insertnode(&bst, node900, 900, NULL);
-    bst_insertnode(&bst, node800, 800, NULL);
+    bst_insert_node(&bst, node1000, 1000, NULL);
+    bst_insert_node(&bst, node900, 900, NULL);
+    bst_insert_node(&bst, node800, 800, NULL);
 
     TEST_EXPECT(bst.root == node900);
     TEST_EXPECT(node900->parent == NULL);
@@ -175,8 +175,8 @@ static bool do_balencing(void) {
      */
     struct bst_node *node700 = &nodes[3];
     struct bst_node *node600 = &nodes[4];
-    bst_insertnode(&bst, node700, 700, NULL);
-    bst_insertnode(&bst, node600, 600, NULL);
+    bst_insert_node(&bst, node700, 700, NULL);
+    bst_insert_node(&bst, node600, 600, NULL);
 
     TEST_EXPECT(bst.root == node900);
     TEST_EXPECT(node900->parent == NULL);
@@ -220,8 +220,8 @@ static bool do_balencing(void) {
      */
     struct bst_node *node500 = &nodes[5];
     struct bst_node *node550 = &nodes[6];
-    bst_insertnode(&bst, node500, 500, NULL);
-    bst_insertnode(&bst, node550, 550, NULL);
+    bst_insert_node(&bst, node500, 500, NULL);
+    bst_insert_node(&bst, node550, 550, NULL);
 
     TEST_EXPECT(bst.root == node700);
     TEST_EXPECT(node700->parent == NULL);
@@ -275,8 +275,8 @@ static bool do_balencing(void) {
      */
     struct bst_node *node1100 = &nodes[7];
     struct bst_node *node1200 = &nodes[8];
-    bst_insertnode(&bst, node1100, 1100, NULL);
-    bst_insertnode(&bst, node1200, 1200, NULL);
+    bst_insert_node(&bst, node1100, 1100, NULL);
+    bst_insert_node(&bst, node1200, 1200, NULL);
 
     TEST_EXPECT(bst.root == node700);
     TEST_EXPECT(node700->parent == NULL);
@@ -327,8 +327,8 @@ static bool do_balencing(void) {
      */
     struct bst_node *node1300 = &nodes[9];
     struct bst_node *node1290 = &nodes[10];
-    bst_insertnode(&bst, node1300, 1300, NULL);
-    bst_insertnode(&bst, node1290, 1290, NULL);
+    bst_insert_node(&bst, node1300, 1300, NULL);
+    bst_insert_node(&bst, node1290, 1290, NULL);
 
     TEST_EXPECT(bst.root == node700);
     TEST_EXPECT(node700->parent == NULL);
@@ -386,7 +386,7 @@ static bool do_balencing(void) {
      *                             1400
      */
     struct bst_node *node1400 = &nodes[11];
-    bst_insertnode(&bst, node1400, 1400, NULL);
+    bst_insert_node(&bst, node1400, 1400, NULL);
 
     TEST_EXPECT(bst.root == node1100);
     TEST_EXPECT(node1100->parent == NULL);
@@ -454,11 +454,11 @@ static void inittesttree(struct testtree *out) {
     // Note that to calculate subtree height of node X, its children height must be there first.
     // We only need to recalculate on leaf nodes, because recalculating them will also recalculate
     // height of its parent nodes.
-    bst_recalculateheight(&out->nodes[6]);
-    bst_recalculateheight(&out->nodes[5]);
-    bst_recalculateheight(&out->nodes[4]);
-    bst_recalculateheight(&out->nodes[3]);
-    bst_recalculatebf_tree(&out->bst);
+    bst_recalculate_height(&out->nodes[6]);
+    bst_recalculate_height(&out->nodes[5]);
+    bst_recalculate_height(&out->nodes[4]);
+    bst_recalculate_height(&out->nodes[3]);
+    bst_recalculate_bf_tree(&out->bst);
 }
 
 static bool do_removenode_unbalenced(void) {
@@ -475,7 +475,7 @@ static bool do_removenode_unbalenced(void) {
      *             69 <--- Removed
      */
     inittesttree(&tree);
-    bst_removenode_unbalenced(&tree.bst, ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 69)));
+    bst_remove_node_unbalenced(&tree.bst, ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 69)));
     TEST_EXPECT(bst_findnode(&tree.bst, 69) == NULL);
     struct bst_node *node63 = ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 63));
     TEST_EXPECT(node63->children[BST_DIR_LEFT] == NULL);
@@ -494,7 +494,7 @@ static bool do_removenode_unbalenced(void) {
      *          +-------- Removed
      */
     inittesttree(&tree);
-    bst_removenode_unbalenced(&tree.bst, ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 63)));
+    bst_remove_node_unbalenced(&tree.bst, ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 63)));
     TEST_EXPECT(bst_findnode(&tree.bst, 63) == NULL);
     struct bst_node *node75 = ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 75));
     struct bst_node *node69 = ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 69));
@@ -512,7 +512,7 @@ static bool do_removenode_unbalenced(void) {
      *   /  \   |
      *  12  37  69
      */
-    bst_removenode_unbalenced(&tree.bst, ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 75)));
+    bst_remove_node_unbalenced(&tree.bst, ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 75)));
     TEST_EXPECT(bst_findnode(&tree.bst, 75) == NULL);
     struct bst_node *node25 = ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 25));
     struct bst_node *node50 = ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 50));
@@ -541,8 +541,8 @@ static bool do_minmaxof(void) {
     struct testtree tree;
     inittesttree(&tree);
 
-    TEST_EXPECT(ASSERT_NONNULL_BSTNODE(bst_minof_tree(&tree.bst))->key == 12);
-    TEST_EXPECT(ASSERT_NONNULL_BSTNODE(bst_maxof_tree(&tree.bst))->key == 75);
+    TEST_EXPECT(ASSERT_NONNULL_BSTNODE(bst_min_of_tree(&tree.bst))->key == 12);
+    TEST_EXPECT(ASSERT_NONNULL_BSTNODE(bst_max_of_tree(&tree.bst))->key == 75);
 
     return true;
 }
@@ -551,10 +551,10 @@ static bool do_dirinparent(void) {
     struct testtree tree;
     inittesttree(&tree);
 
-    TEST_EXPECT(bst_dirinparent(ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 25))) == BST_DIR_LEFT);
-    TEST_EXPECT(bst_dirinparent(ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 75))) == BST_DIR_RIGHT);
-    TEST_EXPECT(bst_dirinparent(ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 12))) == BST_DIR_LEFT);
-    TEST_EXPECT(bst_dirinparent(ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 37))) == BST_DIR_RIGHT);
+    TEST_EXPECT(bst_dir_in_parent(ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 25))) == BST_DIR_LEFT);
+    TEST_EXPECT(bst_dir_in_parent(ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 75))) == BST_DIR_RIGHT);
+    TEST_EXPECT(bst_dir_in_parent(ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 12))) == BST_DIR_LEFT);
+    TEST_EXPECT(bst_dir_in_parent(ASSERT_NONNULL_BSTNODE(bst_findnode(&tree.bst, 37))) == BST_DIR_RIGHT);
 
     return true;
 }
@@ -563,7 +563,7 @@ static bool do_successor(void) {
     struct testtree tree;
     inittesttree(&tree);
 
-    struct bst_node *node = ASSERT_NONNULL_BSTNODE(bst_minof_tree(&tree.bst));
+    struct bst_node *node = ASSERT_NONNULL_BSTNODE(bst_min_of_tree(&tree.bst));
     TEST_EXPECT(node->key == 12);
     node = ASSERT_NONNULL_BSTNODE(bst_successor(node));
     TEST_EXPECT(node->key == 25);

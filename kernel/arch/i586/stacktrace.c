@@ -36,6 +36,7 @@ void arch_stacktrace_for_trapframe(void *trapframe) {
     }
     co_printf("pc: %#lx\n", ((struct trapframe *)trapframe)->eip);
     stacktrace_with_frame(
+        /* NOLINTNEXTLINE(performance-no-int-to-ptr) */
         (void *)((struct trapframe *)trapframe)->ebp);
 }
 

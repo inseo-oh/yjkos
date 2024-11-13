@@ -1,9 +1,9 @@
 #pragma once
 #include <kernel/types.h>
 #include <stdalign.h>
-#include <stdint.h>
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 void pmm_register(physptr base, size_t pagecount);
 /*

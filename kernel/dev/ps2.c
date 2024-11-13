@@ -39,7 +39,7 @@ WARN_UNUSED_RESULT ssize_t ps2port_stream_op_read(
 /*
  * Returns 0, or IOERROR_~ value on failure.
  */
-WARN_UNUSED_RESULT static int sendandwaitack(
+WARN_UNUSED_RESULT static int send_and_wait_ack(
     struct ps2port *port, uint8_t cmd
 ) {
     int ret = stream_put_char(&port->stream, cmd);
@@ -70,11 +70,11 @@ enum {
  */
 static int identify_device(struct ps2port *port) {
     int ret;
-    ret = sendandwaitack(port, PS2_CMD_DISABLESCANNING);
+    ret = send_and_wait_ack(port, PS2_CMD_DISABLESCANNING);
     if (ret < 0) {
         goto out;
     }
-    ret = sendandwaitack(port, PS2_CMD_IDENTIFY);
+    ret = send_and_wait_ack(port, PS2_CMD_IDENTIFY);
     int result = DEVICETYPE_KEYBOARD;
     size_t identlen = 0;
     uint8_t ident[2];
@@ -118,7 +118,7 @@ static int identify_device(struct ps2port *port) {
     ret = result;
 out:
     {
-        int ret = sendandwaitack(port, PS2_CMD_ENABLESCANNING);
+        int ret = send_and_wait_ack(port, PS2_CMD_ENABLESCANNING);
         if (ret != 0) {
             iodev_printf(
                 &port->device,
@@ -130,9 +130,9 @@ out:
 
 static int reset_device(struct ps2port *port) {
     // Send reset command
-    bool resetack = false;
-    bool resetaa = false;
-    bool badresponse = false;
+    bool reset_ack = false;
+    bool reset_aa = false;
+    bool bad_response = false;
     int ret = 0;
     ret = stream_put_char(&port->stream, PS2_CMD_RESET);
     if (ret < 0) {
@@ -145,21 +145,21 @@ static int reset_device(struct ps2port *port) {
             goto fail_bad_ret;
         }
         if (ret == PS2_RESPONSE_ACK) {
-            if (resetack) {
-                badresponse = true;
+            if (reset_ack) {
+                bad_response = true;
                 break;
             }
-            resetack = true;
+            reset_ack = true;
         }
         if (ret == 0xaa) {
-            if (resetaa) {
-                badresponse = true;
+            if (reset_aa) {
+                bad_response = true;
                 break;
             }
-            resetaa = true;
+            reset_aa = true;
         }
     }
-    if (badresponse) {
+    if (bad_response) {
         iodev_printf(
             &port->device,
             "device did not respond to reset command properly\n");

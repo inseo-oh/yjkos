@@ -20,10 +20,12 @@ static int32_t height_of_subtree(struct bst_node *subtreeroot) {
     int32_t lheight = 0;
     int32_t rheight = 0;
     if (subtreeroot->children[BST_DIR_LEFT] != NULL) {
-        lheight = height_of_subtree(subtreeroot->children[BST_DIR_LEFT]) + 1;
+        lheight = height_of_subtree(
+            subtreeroot->children[BST_DIR_LEFT]) + 1;
     }
     if (subtreeroot->children[BST_DIR_RIGHT] != NULL) {
-        rheight = height_of_subtree(subtreeroot->children[BST_DIR_RIGHT]) + 1;
+        rheight = height_of_subtree(
+            subtreeroot->children[BST_DIR_RIGHT]) + 1;
     }
     return (lheight < rheight) ? rheight : lheight;
 }
@@ -32,10 +34,12 @@ static int32_t balence_factor(struct bst_node *subtreeroot) {
     int32_t lheight = 0;
     int32_t rheight = 0;
     if (subtreeroot->children[BST_DIR_LEFT]) {
-        lheight = height_of_subtree(subtreeroot->children[BST_DIR_LEFT]) + 1;
+        lheight = height_of_subtree(
+            subtreeroot->children[BST_DIR_LEFT]) + 1;
     }
     if (subtreeroot->children[BST_DIR_RIGHT]) {
-        rheight = height_of_subtree(subtreeroot->children[BST_DIR_RIGHT]) + 1;
+        rheight = height_of_subtree(
+            subtreeroot->children[BST_DIR_RIGHT]) + 1;
     }
     return lheight - rheight;
 }
@@ -55,13 +59,19 @@ static void check_subtree(
     if (root->parent != parent) {
         if (parent != NULL) {
             if (root->parent != NULL) {
-                co_printf("[%#lx] expected parent %#lx, got %#lx\n", root->key, parent->key, root->parent->key);
+                co_printf(
+                    "[%#lx] expected parent %#lx, got %#lx\n",
+                    root->key, parent->key, root->parent->key);
             } else {
-                co_printf("[%#lx] expected parent %#lx, got no parent\n", root->key, parent->key);
+                co_printf(
+                    "[%#lx] expected parent %#lx, got no parent\n",
+                    root->key, parent->key);
             }
         } else {
             if (parent != NULL) {
-                co_printf("[%#lx] expected no parent, got %#lx\n", root->key, root->parent->key);
+                co_printf(
+                    "[%#lx] expected no parent, got %#lx\n",
+                    root->key, root->parent->key);
             } else {
                 assert(!"huh?");
             }
@@ -73,7 +83,9 @@ static void check_subtree(
         if (root->height != expectedheight) {
             co_printf("expectedheight %d\n", expectedheight);
             co_printf("  root->height %d\n", root->height);
-            co_printf("[%#lx] expected height %d, got %d\n", root->key, expectedheight, root->height);
+            co_printf(
+                "[%#lx] expected height %d, got %d\n",
+                root->key, expectedheight, root->height);
             failed = true;
         }
     }
@@ -81,7 +93,9 @@ static void check_subtree(
     if (!(flags & CHECK_FLAG_NO_BF)) {
         int32_t expectedbf = balence_factor(root);
         if (root->bf != expectedbf) {
-            co_printf("[%#lx] expected BF %d, got %d\n", root->key, expectedbf, root->bf);
+            co_printf(
+                "[%#lx] expected BF %d, got %d\n", root->key, expectedbf,
+                root->bf);
             failed = true;
         }
     }
@@ -107,7 +121,9 @@ static void check_tree(struct bst *self, bool preaction, uint8_t flags) {
     check_subtree(self->root, NULL, preaction, flags);
 }
 
-void bst_insertnode_unbalenced(struct bst *self, struct bst_node *node, intmax_t key, void *data) {
+void bst_insert_node_unbalenced(
+    struct bst *self, struct bst_node *node, intmax_t key, void *data)
+{
     check_tree(self, true, 0);
     // Find where to insert
     node->children[BST_DIR_LEFT] = NULL;
@@ -140,79 +156,115 @@ void bst_insertnode_unbalenced(struct bst *self, struct bst_node *node, intmax_t
     insertparent->children[childindex] = node;
     node->parent = insertparent;
     if (node->parent != NULL) {
-        bst_recalculateheight(node->parent);
-        bst_recalculatebf(node->parent);
+        bst_recalculate_height(node->parent);
+        bst_recalculate_bf(node->parent);
     }
     check_tree(self, false, 0);
 }
 
-void bst_removenode_unbalenced(struct bst *self, struct bst_node *node) {
-    check_tree(self, true, 0);
-    struct bst_node *parentnode = node->parent;
-    if ((node->children[BST_DIR_LEFT] == NULL) && (node->children[BST_DIR_RIGHT] == NULL)) {
-        // Terminal node
-        if (node->parent != NULL) {
-            node->parent->children[bst_dirinparent(node)] = NULL;
-        } else {
-            assert(self->root == node);
-            self->root = NULL;
-        }
-    } else if ((node->children[BST_DIR_LEFT] != NULL) && node->children[BST_DIR_RIGHT] == NULL) {
-        // Only has left child
-        if (node->parent != NULL) {
-            node->parent->children[bst_dirinparent(node)] = node->children[BST_DIR_LEFT];
-            node->children[BST_DIR_LEFT]->parent = node->parent;
-        } else {
-            node->children[BST_DIR_LEFT]->parent = NULL;
-            assert(self->root == node);
-            self->root = node->children[BST_DIR_LEFT];
-        }
-    } else if ((node->children[BST_DIR_LEFT] == NULL) && (node->children[BST_DIR_RIGHT] != NULL)) {
-        // Only has right child
-        if (node->parent != NULL) {
-            node->parent->children[bst_dirinparent(node)] = node->children[BST_DIR_RIGHT];
-            node->children[BST_DIR_RIGHT]->parent = node->parent;
-        } else {
-            node->children[BST_DIR_RIGHT]->parent = NULL;
-            assert(self->root == node);
-            self->root = node->children[BST_DIR_RIGHT];
-        }
+static void remove_terminal_node(struct bst *self, struct bst_node *node) {
+    if (node->parent != NULL) {
+        node->parent->children[bst_dir_in_parent(node)] = NULL;
     } else {
-        // Has two children
-        struct bst_node *replacement = bst_maxof(node->children[BST_DIR_LEFT]);
-        assert(replacement);
-        assert(replacement->parent);
-        struct bst_node *oldparent = replacement->parent;
-        replacement->parent->children[bst_dirinparent(replacement)] = NULL;
-        if (node->parent != NULL) {
-            node->parent->children[bst_dirinparent(node)] = replacement;
-        } else {
-            self->root = replacement;
-        }
-        replacement->parent = node->parent;
-        replacement->children[BST_DIR_LEFT] = node->children[BST_DIR_LEFT];
-        replacement->children[BST_DIR_RIGHT] = node->children[BST_DIR_RIGHT];
-
-        if (replacement->children[BST_DIR_LEFT] != NULL) {
-            replacement->children[BST_DIR_LEFT]->parent = replacement;
-        }
-        if (replacement->children[BST_DIR_RIGHT] != NULL) {
-            replacement->children[BST_DIR_RIGHT]->parent = replacement;
-        }
-        // We have to update height of the replacement node's old parent(since it is no
-        // longer a child of that parent), but there is also a case where the replacement
-        // was direct child of the node we removed. So we have to check for that one.
-        if (oldparent != node) {
-            // height of `replacement` will also be calculated as part of below recalculation.
-            bst_recalculateheight(oldparent);
-        } else {
-            bst_recalculateheight(replacement);
-        }
-        bst_recalculatebf(replacement);
+        assert(self->root == node);
+        self->root = NULL;
     }
-    if (parentnode != NULL) {
-        bst_recalculateheight(parentnode);
-        bst_recalculatebf(parentnode);
+}
+
+static void remove_node_with_left_child(
+    struct bst *self, struct bst_node *node)
+{
+    if (node->parent != NULL) {
+        node->parent->children[bst_dir_in_parent(node)] =
+            node->children[BST_DIR_LEFT];
+        node->children[BST_DIR_LEFT]->parent = node->parent;
+    } else {
+        node->children[BST_DIR_LEFT]->parent = NULL;
+        assert(self->root == node);
+        self->root = node->children[BST_DIR_LEFT];
+    }
+}
+
+static void remove_node_with_right_child(
+    struct bst *self, struct bst_node *node)
+{
+    if (node->parent != NULL) {
+        node->parent->children[bst_dir_in_parent(node)] =
+            node->children[BST_DIR_RIGHT];
+        node->children[BST_DIR_RIGHT]->parent = node->parent;
+    } else {
+        node->children[BST_DIR_RIGHT]->parent = NULL;
+        assert(self->root == node);
+        self->root = node->children[BST_DIR_RIGHT];
+    }
+}
+
+static void remove_node_with_both_children(
+    struct bst *self, struct bst_node *node)
+{
+    struct bst_node *replacement =
+        bst_max_of(node->children[BST_DIR_LEFT]);
+    assert(replacement);
+    assert(replacement->parent);
+    struct bst_node *old_parent = replacement->parent;
+    replacement->parent->children[bst_dir_in_parent(replacement)] = NULL;
+    if (node->parent != NULL) {
+        node->parent->children[bst_dir_in_parent(node)] = replacement;
+    } else {
+        self->root = replacement;
+    }
+    replacement->parent = node->parent;
+    replacement->children[BST_DIR_LEFT] = node->children[BST_DIR_LEFT];
+    replacement->children[BST_DIR_RIGHT] = node->children[BST_DIR_RIGHT];
+
+    if (replacement->children[BST_DIR_LEFT] != NULL) {
+        replacement->children[BST_DIR_LEFT]->parent = replacement;
+    }
+    if (replacement->children[BST_DIR_RIGHT] != NULL) {
+        replacement->children[BST_DIR_RIGHT]->parent = replacement;
+    }
+    /*
+     * We have to update height of the replacement node's old parent(since it 
+     * is no longer a child of that parent), but there is also a case where the 
+     * replacement was direct child of the node we removed. So we have to check 
+     * for that one.
+     */
+    if (old_parent != node) {
+        /*
+         * height of `replacement` will also be calculated as part of below 
+         * recalculation.
+         */
+        bst_recalculate_height(old_parent);
+    } else {
+        bst_recalculate_height(replacement);
+    }
+    bst_recalculate_bf(replacement);
+}
+
+void bst_remove_node_unbalenced(struct bst *self, struct bst_node *node) {
+    check_tree(self, true, 0);
+    struct bst_node *parent_node = node->parent;
+    if (
+        (node->children[BST_DIR_LEFT] == NULL) &&
+        (node->children[BST_DIR_RIGHT] == NULL))
+    {
+        remove_terminal_node(self, node);
+    } else if (
+        (node->children[BST_DIR_LEFT] != NULL) &&
+        node->children[BST_DIR_RIGHT] == NULL)
+    {
+        remove_node_with_left_child(self, node);
+    } else if (
+        (node->children[BST_DIR_LEFT] == NULL) &&
+        (node->children[BST_DIR_RIGHT] != NULL))
+    {
+        remove_node_with_right_child(self, node);
+    } else {
+        remove_node_with_both_children(self, node);
+    }
+    if (parent_node != NULL) {
+        bst_recalculate_height(parent_node);
+        bst_recalculate_bf(parent_node);
     }
     check_tree(self, false, 0);
 }
@@ -221,20 +273,22 @@ void bst_init(struct bst *self) {
     memset(self, 0, sizeof(*self));
 }
 
-void bst_insertnode(struct bst *self, struct bst_node *node, intmax_t key, void *data) {
+void bst_insert_node(
+    struct bst *self, struct bst_node *node, intmax_t key, void *data)
+{
     check_tree(self, true, 0);
-    bst_insertnode_unbalenced(self, node, key, data);
+    bst_insert_node_unbalenced(self, node, key, data);
     if (node->parent != NULL) {
-        bst_checkandrebalence(self, node->parent);
+        bst_check_and_rebalence(self, node->parent);
     }
     check_tree(self, false, 0);
 }
 
-void bst_removenode(struct bst *self, struct bst_node *node) {
+void bst_remove_node(struct bst *self, struct bst_node *node) {
     check_tree(self, true, 0);
-    bst_removenode_unbalenced(self, node);
+    bst_remove_node_unbalenced(self, node);
     if (node->parent != NULL) {
-        bst_checkandrebalence(self, node->parent);
+        bst_check_and_rebalence(self, node->parent);
     }
     check_tree(self, false, 0);
 }
@@ -256,15 +310,15 @@ struct bst_node *bst_findnode(struct bst *self, intmax_t key) {
     return NULL;
 }
 
-struct bst_node *bst_minof_tree(struct bst *self) {
-    return bst_minof(self->root);
+struct bst_node *bst_min_of_tree(struct bst *self) {
+    return bst_min_of(self->root);
 }
 
-struct bst_node *bst_maxof_tree(struct bst *self) {
-    return bst_maxof(self->root);
+struct bst_node *bst_max_of_tree(struct bst *self) {
+    return bst_max_of(self->root);
 }
 
-struct bst_node *bst_minof(struct bst_node *subtreeroot) {
+struct bst_node *bst_min_of(struct bst_node *subtreeroot) {
     struct bst_node *result = NULL;
     struct bst_node *current = subtreeroot;
     while (current != NULL) {
@@ -274,7 +328,7 @@ struct bst_node *bst_minof(struct bst_node *subtreeroot) {
     return result;
 }
 
-struct bst_node *bst_maxof(struct bst_node *subtreeroot) {
+struct bst_node *bst_max_of(struct bst_node *subtreeroot) {
     struct bst_node *result = NULL;
     struct bst_node *current = subtreeroot;
     while (current != NULL) {
@@ -284,7 +338,7 @@ struct bst_node *bst_maxof(struct bst_node *subtreeroot) {
     return result;
 }
 
-enum bst_dir bst_dirinparent(struct bst_node *node) {
+enum bst_dir bst_dir_in_parent(struct bst_node *node) {
     struct bst_node *parent = node->parent;
     if (parent == NULL) {
         panic("bst: attempted to child index on a node without parent");
@@ -295,7 +349,8 @@ enum bst_dir bst_dirinparent(struct bst_node *node) {
     if (parent->children[BST_DIR_RIGHT] == node) {
         return BST_DIR_RIGHT;
     }
-    panic("bst: attempted to child index, but parent doesn't have the node as child");
+    panic(
+        "bst: attempted to child index, but parent doesn't have the node as child");
 }
 
 struct bst_node *bst_successor(struct bst_node *node) {
@@ -304,15 +359,18 @@ struct bst_node *bst_successor(struct bst_node *node) {
         struct bst_node *current = node->parent;
         while (current != NULL) {
             if (node->key < current->key) {
-                check_subtree(node, node->parent, false, 0);
+                check_subtree(
+                    node, node->parent, false,
+                    0);
                 return current;
             }
             current = current->parent;
         }
-        check_subtree(node, node->parent, false, 0);
+        check_subtree(
+            node, node->parent, false, 0);
         return NULL;
     }
-    return bst_minof(right_subtree);
+    return bst_min_of(right_subtree);
 }
 
 struct bst_node *bst_predecessor(struct bst_node *node) {
@@ -327,10 +385,12 @@ struct bst_node *bst_predecessor(struct bst_node *node) {
             current = current->parent;
         }
     }
-    return bst_maxof(left_subtree);
+    return bst_max_of(left_subtree);
 }
 
-void bst_rotate(struct bst *self, struct bst_node *subtreeroot, enum bst_dir dir) {
+void bst_rotate(
+    struct bst *self, struct bst_node *subtreeroot, enum bst_dir dir)
+{
     check_tree(self, true, 0);
     enum bst_dir oppositedir = 1 - dir;
     /*
@@ -352,8 +412,10 @@ void bst_rotate(struct bst *self, struct bst_node *subtreeroot, enum bst_dir dir
         // can't do anything if nothing is there.
         panic("bst: the subtree cannot be rotated");
     }
-    // Note that Node C and P doesn't need to exist, but if they do, we have to relink them
-    // to right nodes.
+    /*
+     * Note that Node C and P doesn't need to exist, but if they do, we have to 
+     * relink them to right nodes.
+     */
     struct bst_node *nodec = nodeb->children[dir];
     struct bst_node *nodep = nodea->parent;
     
@@ -368,7 +430,7 @@ void bst_rotate(struct bst *self, struct bst_node *subtreeroot, enum bst_dir dir
      *  [...]
      */
     if (nodep != NULL) {
-        nodep->children[bst_dirinparent(nodea)] = nodeb;
+        nodep->children[bst_dir_in_parent(nodea)] = nodeb;
         nodeb->parent = nodep;
     } else {
         nodeb->parent = NULL;
@@ -380,7 +442,8 @@ void bst_rotate(struct bst *self, struct bst_node *subtreeroot, enum bst_dir dir
      * Give Node C a new parent.
      * - Since Node C was left child of B, C's key is less than B.
      * - And Node B was right child of A, B's key is greater than A.
-     * So it is A < B and C < B, and that means A's right child is perfect place for it.
+     * So it is A < B and C < B, and that means A's right child is perfect 
+     * place for it.
      * (Of course this is assuming it is right rotation)
      *         [P]
      *          |
@@ -394,14 +457,16 @@ void bst_rotate(struct bst *self, struct bst_node *subtreeroot, enum bst_dir dir
     if (nodec != NULL) {
         nodec->parent = nodea;
     }
-    bst_recalculateheight(nodea); // This will calculate of its parents as well(including nodeb)
-    bst_recalculatebf(nodeb);
+    // This will calculate of its parents as well(including nodeb)
+    bst_recalculate_height(nodea);
+    bst_recalculate_bf(nodeb);
     check_tree(self, false, 0);
 }
 
-void bst_recalculateheight(struct bst_node *subtreeroot) {
+void bst_recalculate_height(struct bst_node *subtreeroot) {
     check_subtree(
-        subtreeroot, subtreeroot->parent, true, CHECK_FLAG_NO_HEIGHT | CHECK_FLAG_NO_BF);
+        subtreeroot, subtreeroot->parent, true,
+        CHECK_FLAG_NO_HEIGHT | CHECK_FLAG_NO_BF);
     struct bst_node *current = subtreeroot;
 
     while (current != NULL) {
@@ -416,12 +481,14 @@ void bst_recalculateheight(struct bst_node *subtreeroot) {
         current->height = (lheight < rheight) ? rheight : lheight;
         current = current->parent;
     }
-    check_subtree(subtreeroot, subtreeroot->parent, false, CHECK_FLAG_NO_BF);
+    check_subtree(
+        subtreeroot, subtreeroot->parent, false,
+        CHECK_FLAG_NO_BF);
 }
 
-void bst_recalculatebf_tree(struct bst *self) {
+void bst_recalculate_bf_tree(struct bst *self) {
     check_tree(self, true, CHECK_FLAG_NO_BF);
-    struct bst_node *current = bst_minof_tree(self);
+    struct bst_node *current = bst_min_of_tree(self);
     while (current) {
         int32_t lheight = 0;
         int32_t rheight = 0;
@@ -437,11 +504,13 @@ void bst_recalculatebf_tree(struct bst *self) {
     check_tree(self, false, 0);
 }
 
-void bst_recalculatebf(struct bst_node *subtreeroot) {
-    check_subtree(subtreeroot, subtreeroot->parent, true, CHECK_FLAG_NO_BF);
+void bst_recalculate_bf(struct bst_node *subtreeroot) {
+    check_subtree(
+        subtreeroot, subtreeroot->parent, true, 
+        CHECK_FLAG_NO_BF);
     // Recalculate BF of current subtree
-    struct bst_node *current = bst_minof(subtreeroot);
-    struct bst_node *last = bst_maxof(subtreeroot);
+    struct bst_node *current = bst_min_of(subtreeroot);
+    struct bst_node *last = bst_max_of(subtreeroot);
     while (1) {
         int32_t lheight = 0;
         int32_t rheight = 0;
@@ -472,10 +541,12 @@ void bst_recalculatebf(struct bst_node *subtreeroot) {
         current->bf = lheight - rheight;
         current = current->parent;
     }
-    check_subtree(subtreeroot, subtreeroot->parent, false, 0);
+    check_subtree(
+        subtreeroot, subtreeroot->parent, false,
+        0);
 }
 
-void bst_checkandrebalence(struct bst *self, struct bst_node *startnode) {
+void bst_check_and_rebalence(struct bst *self, struct bst_node *startnode) {
     check_tree(self, true, 0);
     struct bst_node *current= startnode;
     while (current != NULL) {

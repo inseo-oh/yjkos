@@ -26,16 +26,16 @@ static bool const CONFIG_COMM_DEBUG = false;
 #define CMD_PORT    0x64 // Write only
 
 // PS/2 controller commands
-#define CMD_READCTRLCONFIG  0x20
-#define CMD_WRITECTRLCONFIG 0x60
-#define CMD_DISABLEPORT1    0xa7
-#define CMD_ENABLEPORT1     0xa8
-#define CMD_TESTPORT1       0xa9
-#define CMD_TESTCTRL        0xaa
-#define CMD_TESTPORT0       0xab
-#define CMD_DISABLEPORT0    0xad
-#define CMD_ENABLEPORT0     0xae
-#define CMD_WRITEPORT1      0xd4
+#define CMD_READ_CTRL_CONFIG    0x20
+#define CMD_WRITE_CTRL_CONFIG   0x60
+#define CMD_DISABLE_PORT1       0xa7
+#define CMD_ENABLE_PORT1        0xa8
+#define CMD_TEST_PORT1          0xa9
+#define CMD_TEST_CTRL           0xaa
+#define CMD_TEST_PORT0          0xab
+#define CMD_DISABLE_PORT0       0xad
+#define CMD_ENABLE_PORT0        0xae
+#define CMD_WRITE_PORT1         0xd4
 
 #define IRQ_PORT0   1
 #define IRQ_PORT1   12
@@ -97,7 +97,7 @@ WARN_UNUSED_RESULT static int waitforsend(void) {
     return 0;
 }
 
-static int recvfromctrl(uint8_t *out) {
+static int recv_from_ctrl(uint8_t *out) {
     if (CONFIG_COMM_DEBUG) {
         co_printf("ps2: receive data from controller\n");
     }
@@ -112,7 +112,7 @@ static int recvfromctrl(uint8_t *out) {
     return 0;
 }
 
-static int sendtoctrl(uint8_t cmd) {
+static int send_to_ctrl(uint8_t cmd) {
     if (CONFIG_COMM_DEBUG) {
         co_printf("ps2: send command %#x to controller\n", cmd);
     }
@@ -124,7 +124,7 @@ static int sendtoctrl(uint8_t cmd) {
     return 0;
 }
 
-static int senddatatoctrl(uint8_t data) {
+static int send_data_to_ctrl(uint8_t data) {
     if (CONFIG_COMM_DEBUG) {
         co_printf("ps2: send data %#x to controller\n", data);
     }
@@ -144,12 +144,12 @@ static ssize_t stream_op_write(struct stream *self, void *data, size_t size) {
         uint8_t c = ((uint8_t *)data)[idx];
         assert(port->portidx < 2);
         if (port->portidx == 1) {
-            int ret = sendtoctrl(CMD_WRITEPORT1);
+            int ret = send_to_ctrl(CMD_WRITE_PORT1);
             if (ret < 0) {
                 return ret;
             }
         }
-        int ret = senddatatoctrl(c);
+        int ret = send_data_to_ctrl(c);
         if (ret < 0) {
             return ret;
         }
@@ -172,24 +172,32 @@ static struct stream_ops const OPS = {
     .write = stream_op_write,
 };
 
-WARN_UNUSED_RESULT static int discoveredport(size_t portindex) {
-    assert(portindex < 2);
-    int result = 0;
-    struct portcontext *port = heap_alloc(sizeof(*port), HEAP_FLAG_ZEROMEMORY);
+WARN_UNUSED_RESULT static int discovered_port(size_t port_index) {
+    assert(port_index < 2);
+    int ret = 0;
+    struct portcontext *port = heap_alloc(
+        sizeof(*port), HEAP_FLAG_ZEROMEMORY);
     if (port == NULL) {
         goto fail;
     }
-    port->portidx = portindex;
+    port->portidx = port_index;
     int irq;
-    if (portindex == 0) {
+    uint8_t enable_cmd;
+    if (port_index == 0) {
         irq = IRQ_PORT0;
+        enable_cmd = CMD_ENABLE_PORT0;
     } else {
         irq = IRQ_PORT1;
+        enable_cmd = CMD_ENABLE_PORT1;
+    }
+    ret = send_to_ctrl(enable_cmd);
+    if (ret < 0) {
+        goto fail;
     }
     archi586_pic_registerhandler(&port->irqhandler, irq, irqhandler, port);
     archi586_pic_unmaskirq(irq);
-    result = ps2port_register(&port->ps2port, &OPS, port);
-    if (result < 0) {
+    ret = ps2port_register(&port->ps2port, &OPS, port);
+    if (ret < 0) {
         goto fail;
     }
     /* 
@@ -200,12 +208,173 @@ WARN_UNUSED_RESULT static int discoveredport(size_t portindex) {
 fail:
     heap_free(port);
 out:
-    return result;
+    return ret;
+}
+
+WARN_UNUSED_RESULT static int disable_all(void) {
+    int ret = 0;
+
+    // Disable PS/2 devices
+    ret = send_to_ctrl(CMD_DISABLE_PORT0);
+    if (ret < 0) {
+        return ret;
+    }
+    ret = send_to_ctrl(CMD_DISABLE_PORT1);
+    if (ret < 0) {
+        return ret;
+    }
+    return 0;
+}
+
+static void empty_output_buffer(void) {
+    while(archi586_in8(STATUS_PORT) & STATUS_FLAG_OUTBUF_FULL) {
+        archi586_in8(DATA_PORT);
+    }
+}
+
+WARN_UNUSED_RESULT static int read_ctrl_config(uint8_t *out) {
+    int ret = 0;
+    uint8_t ctrl_config = 0;
+    ret = send_to_ctrl(CMD_READ_CTRL_CONFIG);
+    if (ret < 0) {
+        goto out;
+    }
+    ret = recv_from_ctrl(&ctrl_config);
+    if (ret < 0) {
+        goto out;
+    }
+out:
+    *out = ctrl_config;
+    return ret;
+}
+
+static int write_ctrl_config(uint8_t ctrl_config) {
+    int ret = 0;
+    ret = send_to_ctrl(CMD_WRITE_CTRL_CONFIG);
+    if (ret < 0) {
+        goto out;
+    }
+    ret = send_data_to_ctrl(ctrl_config);
+    if (ret < 0) {
+        goto out;
+    }
+out:
+    return ret;
+}
+
+static int init_port0_config(void) {
+    int ret;
+    uint8_t ctrl_config;
+    ret = read_ctrl_config(&ctrl_config);
+    if (ret < 0) {
+        return ret;
+    }
+    ctrl_config &= ~(
+        CONFIG_FLAG_PORT0_INT | CONFIG_FLAG_PORT0_TRANS |
+        CONFIG_FLAG_PORT0_CLK_OFF);
+    write_ctrl_config(ctrl_config);
+    if (ret < 0) {
+        return ret;
+    }
+    return 0;
+}
+
+static int init_port1_config(void) {
+    uint8_t ctrl_config;
+    int ret;
+    ret = send_to_ctrl(CMD_DISABLE_PORT1);
+    if (ret < 0) {
+        return ret;
+    }
+    ret = read_ctrl_config(&ctrl_config);
+    if (ret < 0) {
+        return ret;
+    }
+    ctrl_config &= ~(CONFIG_FLAG_PORT1_INT | CONFIG_FLAG_PORT1_CLK_OFF);
+    write_ctrl_config(ctrl_config);
+    if (ret < 0) {
+        return ret;
+    }
+    return 0;
+}
+
+static int configure_second_port(void) {
+    int ret;
+    uint8_t ctrl_config;
+
+    ret = send_to_ctrl(CMD_ENABLE_PORT1);
+    if (ret < 0) {
+        return ret;
+    }
+    ret = read_ctrl_config(&ctrl_config);
+    if (ret < 0) {
+        return ret;
+    }
+    if (ctrl_config & CONFIG_FLAG_PORT1_CLK_OFF) {
+        return -ENODEV;
+    }
+    ret = init_port1_config();
+    if (ret < 0) {
+        return ret;
+    }
+    return true;
+}
+
+static int ctrl_self_test(void) {
+    int ret = 0;
+    ret = send_to_ctrl(CMD_TEST_CTRL);
+    if (ret < 0) {
+        return ret;
+    }
+    uint8_t response;
+    ret = recv_from_ctrl(&response);
+    if (ret < 0) {
+        return ret;
+    }
+    if (response != 0x55) {
+        co_printf(
+            "ps2: controller self test failed(response: %#x)\n",
+            response);
+        ret = -EIO;
+        return ret;
+    }
+    return 0;    
+}
+
+static int port_self_test(int port) {
+    uint8_t cmd = 0;
+    uint8_t response;
+    int ret;
+
+    switch(port) {
+        case 0:
+            cmd = CMD_TEST_PORT0;
+            break;
+        case 1:
+            cmd = CMD_TEST_PORT1;
+            break;
+        default:
+            assert(false);
+    }
+    ret = send_to_ctrl(cmd);
+    if (ret < 0) {
+        return ret;
+    }
+    ret = recv_from_ctrl(&response);
+    if (ret < 0) {
+        return ret;
+    }
+    if (response != 0x00) {
+        co_printf(
+            "ps2: port %d self test failed(response: %#x)\n",
+            port, response);
+        return -EIO;
+    }
+    return 0;
 }
 
 void archi586_ps2ctrl_init(void) {
-    int result;
-    bool singleport = false;
+    int ret;
     // https://wiki.osdev.org/%228042%22_PS/2_Controller#Initialising_the_PS/2_Controller
 
     // Disable interrupts
@@ -213,55 +382,23 @@ void archi586_ps2ctrl_init(void) {
     archi586_pic_maskirq(IRQ_PORT1);
 
     // Disable PS/2 devices
-    result = sendtoctrl(CMD_DISABLEPORT0);
-    if (result < 0) {
+    ret = disable_all();
+    if (ret < 0) {
         goto fail;
     }
-    result = sendtoctrl(CMD_DISABLEPORT1);
-    if (result < 0) {
-        goto fail;
-    }
-
     // Empty the output buffer
-    while(archi586_in8(STATUS_PORT) & STATUS_FLAG_OUTBUF_FULL) {
-        archi586_in8(DATA_PORT);
-    }
+    empty_output_buffer();
 
     // Reconfigure controller (Only configure port 0)
-    result = sendtoctrl(CMD_READCTRLCONFIG);
-    if (result < 0) {
-        goto fail;
-    }
-    uint8_t ctrlconfig;
-    result = recvfromctrl(&ctrlconfig);
-    if (result < 0) {
-        goto fail;
-    }
-    ctrlconfig &= ~(CONFIG_FLAG_PORT0_INT | CONFIG_FLAG_PORT0_TRANS | CONFIG_FLAG_PORT0_CLK_OFF);
-    result = sendtoctrl(CMD_WRITECTRLCONFIG);
-    if (result < 0) {
-        goto fail;
-    }
-    result = senddatatoctrl(ctrlconfig);
-    if (result < 0) {
+    uint8_t ctrl_config;
+    ret = init_port0_config();
+    if (ret < 0) {
         goto fail;
     }
 
     // Run self-test
-    result = sendtoctrl(CMD_TESTCTRL);
-    if (result < 0) {
-        goto fail;
-    }
-    uint8_t response;
-    result = recvfromctrl(&response);
-    if (result < 0) {
-        goto fail;
-    }
-    if (response != 0x55) {
-        co_printf(
-            "ps2: controller self test failed(response: %#x)\n",
-            response);
-        result = -EIO;
+    ret = ctrl_self_test();
+    if (ret < 0) {
         goto fail;
     }
 
@@ -269,159 +406,67 @@ void archi586_ps2ctrl_init(void) {
      * Self-test may have resetted the controller, so we reconfigure
      * Port 0 again. 
      */
-    result = sendtoctrl(CMD_READCTRLCONFIG);
-    if (result < 0) {
-        goto fail;
-    }
-    result = recvfromctrl(&ctrlconfig);
-    if (result < 0) {
-        goto fail;
-    }
-    ctrlconfig &= ~(
-        CONFIG_FLAG_PORT0_INT | CONFIG_FLAG_PORT0_TRANS |
-        CONFIG_FLAG_PORT0_CLK_OFF);
-    result = sendtoctrl(CMD_WRITECTRLCONFIG);
-    if (result < 0) {
-        goto fail;
-    }
-    result = senddatatoctrl(ctrlconfig);
-    if (result < 0) {
+    ret = init_port0_config();
+    if (ret < 0) {
         goto fail;
     }
 
     // Check if it's dual-port controller.
-    result = sendtoctrl(CMD_ENABLEPORT1);
-    if (result < 0) {
-        goto fail;
-    }
-    result = sendtoctrl(CMD_READCTRLCONFIG);
-    if (result < 0) {
-        goto fail;
-    }
-    result = recvfromctrl(&ctrlconfig);
-    if (result < 0) {
-        goto fail;
-    }
-    if (ctrlconfig & CONFIG_FLAG_PORT1_CLK_OFF) {
-        singleport = true;
-    } else {
-        // If it is, configure second port as well.
-        result = sendtoctrl(CMD_DISABLEPORT1);
-        if (result < 0) {
-            goto fail;
-        }
-        result = sendtoctrl(CMD_READCTRLCONFIG);
-        if (result < 0) {
-            goto fail;
-        }
-        result = recvfromctrl(&ctrlconfig);
-        if (result < 0) {
-            goto fail;
-        }
-        ctrlconfig &= ~(CONFIG_FLAG_PORT1_INT | CONFIG_FLAG_PORT1_CLK_OFF);
-        result = sendtoctrl(CMD_WRITECTRLCONFIG);
-        if (result < 0) {
-            goto fail;
-        }
-        result = senddatatoctrl(ctrlconfig);
-        if (result < 0) {
-            goto fail;
-        }
+    int port_count = 2;
+    ret = configure_second_port();
+    if (ret < 0) {
+        co_printf(
+            "ps2: failed to configure second port(error %d)\n", ret);
+        port_count = 1;
     }
     co_printf(
-        "ps2: detected as %s-port controller\n",
-        singleport ? "single" : "dual");
+        "ps2: detected as %d-port controller\n", port_count);
 
     // Test each port
-    bool port0ok, port1ok;
-    result = sendtoctrl(CMD_TESTPORT0);
-    if (result < 0) {
-        goto fail;
-    }
-    result = recvfromctrl(&response);
-    if (result < 0) {
-        goto fail;
-    }
-    if (response != 0x00) {
-        co_printf(
-            "ps2: port 0 self test failed(response: %#x)\n", response);
-        port0ok = false;
-    } else {
-        port0ok = true;
-    }
-    if (!singleport) {
-        result = sendtoctrl(CMD_TESTPORT1);
-        if (result < 0) {
-            goto fail;
+    bool port_ok[] = {true, true};
+    bool any_ok = false;
+    for (int i = 0; i < port_count; i++) {
+        ret = port_self_test(0);
+        if (ret < 0) {
+            co_printf("ps2: port %d self test failed(error %d)\n", i, ret);
+            port_ok[i] = false;
         }
-        result = recvfromctrl(&response);
-        if (result < 0) {
-            goto fail;
-        }
-        if (response != 0x00) {
-            co_printf(
-                "ps2: port 1 self test failed(response: %#x)\n",
-                response);
-            port1ok = false;
-        } else {
-            port1ok = true;
-        }
-    } else {
-        port1ok = false;
+        any_ok = true;
     }
-    if (!port0ok && !port1ok) {
-        result = -EIO;
+    if (!any_ok) {
+        ret = -EIO;
         goto fail;
     }
 
     // Enable interrupts
-    result = sendtoctrl(CMD_READCTRLCONFIG);
-    if (result < 0) {
+    ret = read_ctrl_config(&ctrl_config);
+    if (ret < 0) {
         goto fail;
     }
-    result = recvfromctrl(&ctrlconfig);
-    if (result < 0) {
-        goto fail;
+    if (port_ok[0]) {
+        ctrl_config |= CONFIG_FLAG_PORT0_INT;
     }
-    if (port0ok) {
-        ctrlconfig |= CONFIG_FLAG_PORT0_INT;
+    if (port_ok[1]) {
+        ctrl_config |= CONFIG_FLAG_PORT1_INT;
     }
-    if (port1ok) {
-        ctrlconfig |= CONFIG_FLAG_PORT1_INT;
-    }
-    result = sendtoctrl(CMD_WRITECTRLCONFIG);
-    if (result < 0) {
-        goto fail;
-    }
-    result = senddatatoctrl(ctrlconfig);
-    if (result < 0) {
+    write_ctrl_config(ctrl_config);
+    if (ret < 0) {
         goto fail;
     }
 
-    // Register port
-    if (port0ok) {
-        result = sendtoctrl(CMD_ENABLEPORT0);
-        if (result < 0) {
-            goto fail;
+    // Register ports
+    for (int i = 0; i < port_count; i++) {
+        if (!port_ok[i]) {
+            continue;
         }
-        int ret = discoveredport(0);
+        int ret = discovered_port(i);
         if (ret < 0) {
-            co_printf("ps2: failed to register port 0\n");
-        }
-    }
-    if (port1ok) {
-        result = sendtoctrl(CMD_ENABLEPORT1);
-        if (result < 0) {
-            goto fail;
-        }
-        int ret = discoveredport(1);
-        if (ret < 0) {
-            co_printf("ps2: failed to register port 1\n");
+            co_printf("ps2: failed to register port %d\n", i);
         }
     }
     return;
 fail:
     co_printf(
         "ps2: error %d occured. aborting controller initialization\n",
-        result);
+        ret);
 }

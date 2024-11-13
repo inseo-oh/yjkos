@@ -1,9 +1,9 @@
 #pragma once
+#include <dirent.h>
 #include <kernel/io/disk.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
 #include <sys/types.h>
-#include <dirent.h>
 
 struct vfs_fscontext;
 struct fd;

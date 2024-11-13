@@ -236,7 +236,9 @@ WARN_UNUSED_RESULT int pci_readbar(uintptr_t *addr_out, bool *isiobar_out, bool 
     return 0;
 }
 
-WARN_UNUSED_RESULT int pci_readmembar(uintptr_t *addr_out, bool *isprefetchable_out, pcipath path, uint8_t bar) {
+WARN_UNUSED_RESULT int pci_read_mem_bar(
+    uintptr_t *addr_out, bool *isprefetchable_out, pcipath path, int bar)
+{
     bool isiobar;
     int ret = pci_readbar(
         addr_out, &isiobar, isprefetchable_out, path, bar);
@@ -250,7 +252,9 @@ WARN_UNUSED_RESULT int pci_readmembar(uintptr_t *addr_out, bool *isprefetchable_
     return 0;
 }
 
-WARN_UNUSED_RESULT int pci_readiobar(uintptr_t *addr_out, pcipath path, uint8_t bar) {
+WARN_UNUSED_RESULT int pci_read_io_bar(
+    uintptr_t *addr_out, pcipath path, int bar)
+{
     bool isiobar, isprefetchable_out;
     int ret = pci_readbar(
         addr_out, &isiobar,
@@ -265,11 +269,14 @@ WARN_UNUSED_RESULT int pci_readiobar(uintptr_t *addr_out, pcipath path, uint8_t 
     return 0;
 }
 
-static void printcallback(pcipath path, uint16_t venid, uint16_t devid, uint8_t baseclass, uint8_t subclass, void *data) {
+static void print_callback(
+    pcipath path, uint16_t venid, uint16_t devid, uint8_t baseclass,
+    uint8_t subclass, void *data)
+{
     (void)data;
     pci_printf(path, "%04x:%04x class %02x:%02x\n", venid, devid, baseclass, subclass);
 }
 
 void pci_printbus(void) {
-    pci_probe_bus(printcallback, NULL);
+    pci_probe_bus(print_callback, NULL);
 }

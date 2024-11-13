@@ -1,14 +1,16 @@
-#include <assert.h>
-#include <dirent.h>
-#include <errno.h>
 #include <kernel/fs/vfs.h>
 #include <kernel/io/co.h>
 #include <kernel/io/disk.h>
 #include <kernel/io/iodev.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
+#include <kernel/lib/pathreader.h>
 #include <kernel/mem/heap.h>
 #include <kernel/panic.h>
+
+#include <assert.h>
+#include <dirent.h>
+#include <errno.h>
 #include <limits.h>
 #include <stddef.h>
 #include <string.h>
@@ -56,72 +58,57 @@ static struct list s_fstypes; // struct vfs_fstype items
 static struct list s_mounts;  // struct vfs_fscontext items
 
 // Resolves and removes . and .. in the path.
-WARN_UNUSED_RESULT static int removerelpath(
+WARN_UNUSED_RESULT static int remove_rel_path(
     char **newpath_out, char const *path)
 {
     int ret = 0;
-    char *newpath = NULL;
+    char *new_path = NULL;
     size_t size = strlen(path) + 2; // Leave room for / and NULL terminator.
     if (size == 0) {
         ret = -ENOMEM;
         goto fail;
     }
-    newpath = heap_alloc(size, 0);
-    if (newpath == NULL) {
+    new_path = heap_alloc(size, 0);
+    if (new_path == NULL) {
         ret = -ENOMEM;
         goto fail;
     }
-    char namebuf[NAME_MAX + 1];
-    char const *remainingpath = path;
-    char *dest = newpath;
-    while(*remainingpath != '\0') {
-        char *nextslash = strchr(remainingpath, '/');
+    struct pathreader reader;
+    pathreader_init(&reader, path);
+    char *dest = new_path;
+    while(1) {
         char const *name;
-        char const *newremainingpath;
-        size_t namelen;
-        if (nextslash == NULL) {
-            name = remainingpath;
-            newremainingpath = strchr(path, '\0');
-            namelen = newremainingpath - name;
-        } else {
-            namelen = nextslash - remainingpath;
-            if (NAME_MAX < namelen) {
-                ret = -ENAMETOOLONG;
-                goto fail;
+        ret = pathreader_next(&name, &reader);
+        if (ret == -ENOENT) {
+            ret = 0;
+            break;
+        }
+        if (ret < 0) {
+            goto out;
+        }
+        if (strcmp(name, ".") == 0) {
+            // Do nothing
+        } else if (strcmp(name, "..") == 0) {
+            char *found_pos = strrchr(new_path, '/');
+            if (found_pos == NULL) {
+                dest = new_path;
+            } else {
+                dest = found_pos;
             }
-            memcpy(namebuf, remainingpath, namelen);
-            namebuf[namelen] = '\0';
-            name = namebuf;
-            newremainingpath = &nextslash[1];
+            *dest = '\0';
+        } else if (name[0] != '\0') {
+            *dest = '/';
+            dest++;
+            size_t name_len = strlen(name);
+            memcpy(dest, name, name_len);
+            dest += name_len;
         }
-        if (name[0] != '\0') {
-            do {
-                if (strcmp(name, ".") == 0) {
-                    break;
-                }
-                if (strcmp(name, "..") == 0) {
-                    char *foundpos = strrchr(newpath, '/');
-                    if (foundpos == NULL) {
-                        dest = newpath;
-                    } else {
-                        dest = foundpos;
-                    }
-                    *dest = '\0';
-                } else {
-                    *dest = '/';
-                    dest++;
-                    memcpy(dest, name, namelen);
-                    dest += namelen;
-                }
-            } while(0);
-        }
-        remainingpath = newremainingpath;
     }
     *dest = '\0';
-    *newpath_out = newpath;
+    *newpath_out = new_path;
     goto out;
 fail:
-    heap_free(newpath);
+    heap_free(new_path);
 out:
     return ret;
 }
@@ -132,7 +119,7 @@ WARN_UNUSED_RESULT static int mount(
     struct vfs_fscontext *context;
     char *newmountpath;
     int ret;
-    ret = removerelpath(&newmountpath, mountpath);
+    ret = remove_rel_path(&newmountpath, mountpath);
 
     if (ret < 0) {
         goto fail;
@@ -161,7 +148,7 @@ WARN_UNUSED_RESULT static int findmount(
 {
     int ret = 0;
     char *newmountpath = NULL;
-    ret = removerelpath(&newmountpath, mountpath);
+    ret = remove_rel_path(&newmountpath, mountpath);
     if (ret < 0) {
         goto out;
     }
@@ -280,7 +267,7 @@ WARN_UNUSED_RESULT static int resolvepath(
     int ret = 0;
     char *newpath = NULL;
 
-    ret = removerelpath(&newpath, path);
+    ret = remove_rel_path(&newpath, path);
     if (ret < 0) {
         goto fail;
     }

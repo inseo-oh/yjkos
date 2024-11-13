@@ -1,7 +1,7 @@
 #pragma once
 #include <kernel/lib/diagnostics.h>
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 // PCI path consists of Bus, Device, and Function number.
 typedef uint16_t pcipath;
@@ -60,8 +60,8 @@ void pci_printf(pcipath path, char const *fmt, ...);
 WARN_UNUSED_RESULT int pci_readbar(
     uintptr_t *addr_out, bool *isiobar_out, bool *isprefetchable_out,
     pcipath path, uint8_t bar);
-WARN_UNUSED_RESULT int pci_readmembar(
-    uintptr_t *addr_out, bool *isprefetchable_out, pcipath path, uint8_t bar);
-WARN_UNUSED_RESULT int pci_readiobar(
-    uintptr_t *addr_out, pcipath path, uint8_t bar);
+WARN_UNUSED_RESULT int pci_read_mem_bar(
+    uintptr_t *addr_out, bool *isprefetchable_out, pcipath path, int bar);
+WARN_UNUSED_RESULT int pci_read_io_bar(
+    uintptr_t *addr_out, pcipath path, int bar);
 void pci_printbus(void);

@@ -677,7 +677,7 @@ out:
  * If the command sends back additional result bytes, set `result_out` non-NULL
  * value where the result will be stored.
  */
-WARN_UNUSED_RESULT static int requestcmd(
+WARN_UNUSED_RESULT static int request_cmd(
     uint8_t *result_out, struct ps2port *port, uint8_t cmdbyte, bool noretry,
     bool async)
 {
@@ -699,15 +699,20 @@ WARN_UNUSED_RESULT static int requestcmd(
     cmd->state = CMDSTATE_QUEUED;
     if (result_out) {
         cmd->needdata = true;
+        *result_out = 0;
     }
     if (isqueueempty) {
         cmd->state = CMDSTATE_WAITINGRESPONSE;
         if (CONFIG_COMMDEBUG) {
-            iodev_printf(&ctx->device.iodev, "executing command %#x\n", cmd->cmdbyte);
+            iodev_printf(
+                &ctx->device.iodev,
+                "executing command %#x\n", cmd->cmdbyte);
         }
     } else {
         if (CONFIG_COMMDEBUG) {
-            iodev_printf(&ctx->device.iodev, "adding command %#x to Queue\n", cmd->cmdbyte);
+            iodev_printf(
+                &ctx->device.iodev,
+                "adding command %#x to Queue\n", cmd->cmdbyte);
         }
     }
     ////////////////////////////////////////////////////////////////////////////
@@ -744,7 +749,7 @@ out:
 }
 
 WARN_UNUSED_RESULT static int echo(struct ps2port *port, bool async) {
-    return requestcmd(NULL, port, CMD_ECHO, false, async);
+    return request_cmd(NULL, port, CMD_ECHO, false, async);
 }
 
 static uint8_t const LED_SCROLL = 1 << 0;
@@ -755,12 +760,12 @@ WARN_UNUSED_RESULT static int setledstate(
     struct ps2port *port, uint8_t leds, bool async)
 {
     int ret = 0;
-    ret = requestcmd(
+    ret = request_cmd(
         NULL, port, CMD_SETLEDS, false, async);
     if (ret < 0) {
         goto fail;
     }
-    ret = requestcmd(NULL, port, leds, true, async);
+    ret = request_cmd(NULL, port, leds, true, async);
     if (ret < 0) {
         goto fail;
     }
@@ -770,16 +775,19 @@ out:
     return ret;
 }
 
-WARN_UNUSED_RESULT static int getscancodeset(
+WARN_UNUSED_RESULT static int get_scancode_set(
     uint8_t *result_out, struct ps2port *port)
 {
     assert(result_out != NULL);
     int ret = 0;
-    ret = requestcmd(NULL, port, CMD_SCANCODESET, false, false);
+    ret = request_cmd(
+        NULL, port, CMD_SCANCODESET, false,
+        false);
     if (ret < 0) {
         goto fail;
     }
-    ret = requestcmd(result_out, port, 0, true, false);
+    ret = request_cmd(
+        result_out, port, 0, true, false);
     if (ret < 0) {
         goto fail;
     }
@@ -789,16 +797,16 @@ out:
     return ret;
 }
 
-WARN_UNUSED_RESULT static int setscancodeset(
+WARN_UNUSED_RESULT static int set_scancode_set(
     struct ps2port *port, uint8_t set, bool async)
 {
     assert(set != 0);
     int ret = 0;
-    ret = requestcmd(NULL, port, CMD_SCANCODESET, false, async);
+    ret = request_cmd(NULL, port, CMD_SCANCODESET, false, async);
     if (ret < 0) {
         goto fail;
     }
-    ret = requestcmd(NULL, port, set, true, async);
+    ret = request_cmd(NULL, port, set, true, async);
     if (ret < 0) {
         goto fail;
     }
@@ -863,7 +871,7 @@ WARN_UNUSED_RESULT int ps2kbd_init(struct ps2port *port) {
     bool scancodessupported[3] = {false, false, false};
     for (uint8_t set = 1; set <= 3; set++) {
         scancodessupported[set - 1] = false;
-        int ret = setscancodeset(port, set, false);
+        int ret = set_scancode_set(port, set, false);
         if (ret < 0) {
             iodev_printf(
                 &port->device,
@@ -872,7 +880,7 @@ WARN_UNUSED_RESULT int ps2kbd_init(struct ps2port *port) {
             continue;
         }
         uint8_t currentset;
-        ret = getscancodeset(&currentset, port);
+        ret = get_scancode_set(&currentset, port);
         if (ret < 0) {
             iodev_printf(
                 &port->device,
@@ -897,7 +905,7 @@ WARN_UNUSED_RESULT int ps2kbd_init(struct ps2port *port) {
     iodev_printf(
         &port->device, "ps2kbd: configuring scancode set\n");
     {
-        int ret = setscancodeset(port, 2, false);
+        int ret = set_scancode_set(port, 2, false);
         if (ret < 0) {
             iodev_printf(
                 &port->device,

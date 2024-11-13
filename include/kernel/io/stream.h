@@ -1,10 +1,10 @@
 #pragma once
-#include <sys/types.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
 #include <kernel/ticktime.h>
-#include <stddef.h>
 #include <stdarg.h>
+#include <stddef.h>
+#include <sys/types.h>
 
 enum {
     STREAM_MAX_TRANSFER_SIZE = 0x7fffffff,

@@ -25,10 +25,11 @@ bool __test_expect(
     /* lib */                       \
     _x(TESTGROUP_BITMAP)            \
     _x(TESTGROUP_BST)               \
+    _x(TESTGROUP_C_UNISTD)          \
     _x(TESTGROUP_LIST)              \
+    _x(TESTGROUP_PATHREADER)        \
     _x(TESTGROUP_QUEUE)             \
     _x(TESTGROUP_SMATCHER)          \
-    _x(TESTGROUP_C_UNISTD)          \
     /* mem */                       \
     _x(TESTGROUP_PMM)               \
     _x(TESTGROUP_HEAP)              \

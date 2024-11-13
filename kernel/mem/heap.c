@@ -19,8 +19,11 @@
 
 //------------------------------- Configuration -------------------------------
 
-// Should we run sequential allocation test when a heap pool initializes?
-// This can take a *very* long time depending on CPU speed and how large the pool is.
+/*
+ * Should we run sequential allocation test when a heap pool initializes?
+ * This can take a *very* long time depending on CPU speed and how large the 
+ * pool is.
+ */
 static bool const CONFIG_DO_POOL_SEQUENTIAL_TEST = false; 
 // Should sequential test be verbose?
 static bool const CONFIG_SEQUENTIAL_TEST_VERBOSE = true;
@@ -28,50 +31,51 @@ static bool const CONFIG_SEQUENTIAL_TEST_VERBOSE = true;
 //-----------------------------------------------------------------------------
 
 static uint8_t const POISONVALUES[] = {
-    0xe9, 0x29, 0xf3, 0xfb, 0xd7, 0x67, 0xaa, 0x5a
+    0xe9, 0x29, 0xf3, 0xfb,
+    0xd7, 0x67, 0xaa, 0x5a
 };
 
 struct poolheader {
     max_align_t *blockpool;
     struct list_node node;
     struct bitmap blockbitmap;
-    size_t blockcount;
+    size_t block_count;
     size_t usedblockcount;
     size_t pagecount;
     max_align_t heapdata[];
 };
 
 struct allocheader {
-    struct list_node node;
-    struct poolheader *pool;
-    size_t blockcount, size;
+    struct list_node node; // 12
+    struct poolheader *pool; // 16
+    size_t block_count, size; // 24
     max_align_t data[];
 };
 
-static size_t const BLOCK_SIZE = 32;
+#define BLOCK_SIZE      64
 
-static size_t s_freeblockcount = 0;
-static struct list s_heappoollist; // poolheader items
-static struct list s_alloclist;    // allocheader items
-static bool s_initialheapinitialized = false;
+static size_t s_free_block_count = 0;
+static struct list s_heap_pool_list; // poolheader items
+static struct list s_alloc_list;    // allocheader items
+static bool s_initial_heap_initialized = false;
 
-static uint8_t s_initialheapmemory[1024*1024*2];
+static uint8_t s_initial_heap_memory[1024*1024*2];
 
 STATIC_ASSERT_TEST(alignof(struct poolheader) == alignof(max_align_t));
 
-static size_t bytecount_for_blockcount(size_t blockcount) {
-    return (BLOCK_SIZE * blockcount) - sizeof(struct allocheader)
-        - sizeof(POISONVALUES);
+static size_t byte_count_for_block_count(size_t block_count) {
+    return (BLOCK_SIZE * block_count) -
+        (sizeof(struct allocheader) + sizeof(POISONVALUES));
 }
 
-static size_t actualallocsize(size_t size) {
+static size_t actual_alloc_size(size_t size) {
     return size + sizeof(struct allocheader) + sizeof(POISONVALUES);
 }
 
 void __heap_checkoverflow(struct sourcelocation srcloc) {
     bool previnterrupts = arch_interrupts_disable();
     bool die = false;
-    LIST_FOREACH(&s_alloclist, allocnode) {
+    LIST_FOREACH(&s_alloc_list, allocnode) {
         bool corrupted = false;
         struct allocheader *alloc = allocnode->data;
         if (alloc == NULL) {
@@ -110,7 +114,7 @@ void __heap_checkoverflow(struct sourcelocation srcloc) {
     interrupts_restore(previnterrupts);
 }
 
-static void *allocfrompool(struct poolheader *self, size_t size) {
+static void *alloc_from_pool(struct poolheader *self, size_t size) {
     ASSERT_INTERRUPTS_DISABLED();
     if (size == 0) {
         return NULL;
@@ -119,195 +123,261 @@ static void *allocfrompool(struct poolheader *self, size_t size) {
     if ((SIZE_MAX - sizeof(struct allocheader)) < size) {
         return NULL;
     }
-    size_t actualsize = actualallocsize(size);
-    size_t blockcount = size_to_blocks(actualsize, BLOCK_SIZE);
-    long blockindex = bitmap_findsetbits(&self->blockbitmap, 0, blockcount);
-    if (blockindex < 0) {
+    size_t actual_size = actual_alloc_size(size);
+    size_t bcount = size_to_blocks(actual_size, BLOCK_SIZE);
+    long bindex = bitmap_findsetbits(
+        &self->blockbitmap, 0, bcount);
+    if (bindex < 0) {
         goto out;
     }
-    for (size_t i = 0; i < blockcount; i++) {
-        assert(bitmap_isbitset(&self->blockbitmap, blockindex + i));
+    for (size_t i = 0; i < bcount; i++) {
+        assert(bitmap_isbitset(&self->blockbitmap, bindex + i));
     }
-    bitmap_clearbits(&self->blockbitmap, blockindex, blockcount);
-    for (size_t i = 0; i < blockcount; i++) {
-        assert(!bitmap_isbitset(&self->blockbitmap, blockindex + i));
+    bitmap_clearbits(&self->blockbitmap, bindex, bcount);
+    for (size_t i = 0; i < bcount; i++) {
+        assert(!bitmap_isbitset(&self->blockbitmap, bindex + i));
     }
-    uintptr_t offsetinpool = blockindex * BLOCK_SIZE;
-    assert(is_aligned(offsetinpool, alignof(max_align_t)));
-    alloc = (struct allocheader *)((char *)self->blockpool + offsetinpool);
-    self->usedblockcount += blockcount;
+    uintptr_t alloc_off = bindex * BLOCK_SIZE;
+    assert(is_aligned(alloc_off, alignof(max_align_t)));
+    alloc = (struct allocheader *)((char *)self->blockpool + alloc_off);
+    self->usedblockcount += bcount;
 out:
     if (alloc == NULL) {
         return NULL;
     }
     alloc->pool = self;
-    alloc->blockcount = blockcount;
+    alloc->block_count = bcount;
     alloc->size = size;
-    assert(blockcount <= s_freeblockcount);
-    s_freeblockcount -= blockcount;
+    assert(bcount <= s_free_block_count);
+    s_free_block_count -= bcount;
     memset(alloc->data, 0x90, size);
     // Setup poision values
     uint8_t *poisiondest = &((uint8_t *)alloc->data)[size];
     for (size_t i = 0; i < sizeof(POISONVALUES); i++) {
         poisiondest[i] = POISONVALUES[i];
     }
-    list_insertback(&s_alloclist, &alloc->node, alloc);
+    list_insertback(&s_alloc_list, &alloc->node, alloc);
     HEAP_CHECKOVERFLOW();
     return alloc->data;
 }
 
-static struct allocheader *allocheaderof(void *ptr) {
-    if ((ptr == NULL) || (!is_aligned((uintptr_t)ptr, alignof(max_align_t))) || ((uintptr_t)ptr < offsetof(struct allocheader, data))) {
+static struct allocheader *allocheader_of(void *ptr) {
+    if (
+        (ptr == NULL) ||
+        (!is_aligned((uintptr_t)ptr, alignof(max_align_t))) ||
+        ((uintptr_t)ptr < offsetof(struct allocheader, data)))
+    {
         return NULL;
     }
+    // NOLINTNEXTLINE(bugprone-casting-through-void)
     return (struct allocheader *)(void *)(
         (char *)ptr - offsetof(struct allocheader, data));
 }
 
-static bool testheap(struct poolheader *self) {
+WARN_UNUSED_RESULT static char *test_heap_alloc(
+    struct poolheader *self, size_t alloc_blockcount,
+    int type, char *expected_ptr)
+{
+    uintptr_t pool_start_addr = (uintptr_t)self->blockpool;
+    uintptr_t pool_end_addr =
+        pool_start_addr + ((BLOCK_SIZE * self->block_count) - 1);
+    size_t byte_count =
+            byte_count_for_block_count(alloc_blockcount);
+    char *alloc = NULL;
+    if (type == 0) {
+        alloc = alloc_from_pool(self, byte_count);
+        if (expected_ptr != alloc) {
+            arch_interrupts_disable();
+            co_printf("unexpected address\n");
+            goto failed;
+        }
+    } else {
+        alloc = expected_ptr;
+    }
+    if(!is_aligned(
+        (uintptr_t)alloc, alignof(max_align_t))) {
+        arch_interrupts_disable();
+        co_printf("misaligned allocation\n");
+        goto failed;
+    }
+
+    if (pool_end_addr < (uintptr_t)alloc) {
+        arch_interrupts_disable();
+        co_printf("address beyond end of the heap\n");
+        goto failed;
+    }
+    struct allocheader *allocheader = allocheader_of(alloc);
+    if (allocheader->pool != self) {
+        arch_interrupts_disable();
+        co_printf("bad pool pointer\n");
+        goto failed_with_alloc_header;
+    }
+    if (allocheader->block_count != alloc_blockcount) {
+        arch_interrupts_disable();
+        co_printf("incorrect block count\n");
+        goto failed_with_alloc_header;
+    }
+    if (allocheader->data != (void *)alloc) {
+        arch_interrupts_disable();
+        co_printf("incorrect data start\n");
+        goto failed_with_alloc_header;
+    }
+    // If it's not type 0, we already overwrote memory with other values, so don't check for initial pattern.
+    if (type == 0 && (*((uint32_t *)alloc) != 0x90909090)) {
+        arch_interrupts_disable();
+        co_printf(
+            "incorrect initial pattern (got %p)\n",
+            *((uint32_t *)alloc));
+        goto failed_with_alloc_header;
+    }
+    return alloc;
+failed_with_alloc_header:
+    co_printf(" - alloc header:\n");
+    co_printf(" +-- region pointer: %p\n", allocheader->pool);
+    co_printf(" +-- block count:    %u\n", allocheader->block_count);
+    co_printf(" +-- data start:     %p\n", allocheader->data);
+failed:
+    heap_free(alloc);
+    return NULL;
+}
+
+WARN_UNUSED_RESULT static bool test_heap_alloc_and_fill(
+    struct poolheader *self, size_t alloc_count, size_t alloc_blockcount)
+{
+    size_t byte_count =
+            byte_count_for_block_count(alloc_blockcount);
+
+    /*
+     * We run the basic allocation checks twice, to see if filling the returned 
+     * memory overwrote crucial data structures.
+     * - type=1: First iteration  - Allocate and check, and fill
+     * - type=2: Second iteration - Check only the allocation header
+     */
+    for (int type = 0; type < 2; type++) {
+        char *expected_bptr =
+            (char *)self->blockpool + sizeof(struct allocheader);
+        if (CONFIG_SEQUENTIAL_TEST_VERBOSE) {
+            if (type == 0) {
+                co_printf("[allocate&fill]");
+            } else {
+                co_printf(" [basic re-check]");
+            }
+        }
+        for (size_t i = 0; i < alloc_count; i++) {
+            char *alloc = test_heap_alloc(
+                self, alloc_blockcount, type,
+                expected_bptr);
+            if (alloc == NULL) {
+                goto failed;
+            }
+            if (type == 0) {
+                for (size_t j = 0; j < byte_count; j++) {
+                    alloc[j] = (char)(i & 0xffU);
+                }
+            }
+            expected_bptr += BLOCK_SIZE * alloc_blockcount;
+            continue;
+        failed:
+            co_printf("- alloc pointer:     %p\n", alloc);
+            co_printf(
+                "- expected pointer:  %#p\n", expected_bptr);
+            co_printf("- alloc index:       %u/%u\n", i, (alloc_count - 1));
+            return false;
+        }
+    }
+    return true;
+}
+
+WARN_UNUSED_RESULT static bool test_heap_compare(
+    struct poolheader *self, size_t alloc_count, size_t alloc_blockcount)
+{
+    size_t byte_count =
+            byte_count_for_block_count(alloc_blockcount);
+    if (CONFIG_SEQUENTIAL_TEST_VERBOSE) {
+        co_printf(" [compare]");
+    }
+    uint8_t* bptr =
+        (uchar *)self->blockpool + sizeof(struct allocheader);
+    for (size_t i = 0; i < alloc_count; i++) {
+        uint8_t *alloc = bptr;
+        for (size_t j = 0; j < byte_count; j++) {
+            if (alloc[j] != (i & 0xffU)) {
+                co_printf("corrupted data\n");
+                co_printf("- allocated at:      %p\n", bptr);
+                co_printf("- alloc index:       %u/%u\n", i, (alloc_count - 1));
+                co_printf("- byte offset:       %u/%u\n", j, byte_count - 1);
+                co_printf("- expected:          %u\n", i);
+                co_printf("- got:               %u\n", alloc[j]);
+                return false;
+            }
+        }
+        bptr += BLOCK_SIZE * alloc_blockcount;
+    }
+    return true;
+}
+
+WARN_UNUSED_RESULT static bool test_heap_free(
+    struct poolheader *self, size_t alloc_count, size_t alloc_blockcount)
+{
+    size_t byte_count =
+            byte_count_for_block_count(alloc_blockcount);
+    if (CONFIG_SEQUENTIAL_TEST_VERBOSE) {
+        co_printf(" [free]");
+    }
+    uint8_t *bptr = (uchar *)self->blockpool + sizeof(struct allocheader);
+    for (size_t i = 0; i < alloc_count; i++) {
+        uchar *alloc = bptr;
+        heap_free(alloc);
+        for (size_t j = 0; j < byte_count; j++) {
+            if (alloc[j] != 0x6f) {
+                co_printf("free pattern(0x6f) not found\n");
+                co_printf("- allocated at:      %#lx\n", bptr);
+                co_printf("- alloc index:       %u/%u\n", i, (alloc_count - 1));
+                co_printf("- byte offset:       %u/%u\n", j, byte_count - 1);
+                co_printf("- got:               %u\n", alloc[j]);
+                return false;
+            }
+        }
+        bptr += BLOCK_SIZE * alloc_blockcount;
+    }
+    return true;
+}
+
+static bool test_heap(struct poolheader *self) {
     size_t alloc_blockcount = 1;
     uintptr_t pool_start_addr = (uintptr_t)self->blockpool;
-    uintptr_t pool_end_addr = pool_start_addr + ((BLOCK_SIZE * self->blockcount) - 1);
+    uintptr_t pool_end_addr =
+        pool_start_addr + ((BLOCK_SIZE * self->block_count) - 1);
     co_printf(
         "sequential memory test start(%#lx~%#lx, size %zu)\n",
-        pool_start_addr, (pool_end_addr - 1), pool_end_addr - pool_start_addr);
+        pool_start_addr, pool_end_addr, pool_end_addr - pool_start_addr + 1);
 
     while(1) {
-        size_t bytecount =
-            bytecount_for_blockcount(alloc_blockcount);
-        size_t alloccount = self->blockcount / alloc_blockcount;
-        if (alloccount == 0) {
+        co_printf(
+            "- alloc byte count:  %u\n",
+            byte_count_for_block_count(alloc_blockcount));
+        
+        size_t alloc_count = self->block_count / alloc_blockcount;
+        if (alloc_count == 0) {
             break;
         }
         if (CONFIG_SEQUENTIAL_TEST_VERBOSE) {
-            co_printf("* Testing %u x %u blocks: ", alloccount, alloc_blockcount);
+            co_printf("* Testing %u x %u blocks: ", alloc_count, alloc_blockcount);
         }
-        assert(bytecount != 0);
-
-        // We run the basic allocation checks twice, to see if filling the returned memory overwrote crucial data structures.
-        for (int type = 0; type < 2; type++) {
-            char *expected_bptr =
-                (char *)self->blockpool + sizeof(struct allocheader);
-            if (CONFIG_SEQUENTIAL_TEST_VERBOSE) {
-                if (type == 0) {
-                    co_printf("[allocate&fill]");
-                } else {
-                    co_printf(" [basic re-check]");
-                }
-            }
-            for (size_t i = 0; i < alloccount; i++) {
-                char *alloc = NULL;
-                if (type == 0) {
-                    alloc = allocfrompool(self, bytecount);
-                    if (expected_bptr != alloc) {
-                        arch_interrupts_disable();
-                        co_printf("unexpected address\n");
-                        goto testfailed2;
-                    }
-                } else {
-                    alloc = expected_bptr;
-                }
-                if(!is_aligned(
-                    (uintptr_t)alloc, alignof(max_align_t))) {
-                    arch_interrupts_disable();
-                    co_printf("misaligned allocation\n");
-                    goto testfailed2;
-                }
-
-                if (pool_end_addr < (uintptr_t)alloc) {
-                    arch_interrupts_disable();
-                    co_printf("address beyond end of the heap\n");
-                    goto testfailed2;
-                }
-                struct allocheader *allocheader = allocheaderof(alloc);
-                if (allocheader->pool != self) {
-                    arch_interrupts_disable();
-                    co_printf("bad pool pointer\n");
-                    goto testfailed2_withallocheader;
-                }
-                if (allocheader->blockcount != alloc_blockcount) {
-                    arch_interrupts_disable();
-                    co_printf("incorrect block count\n");
-                    goto testfailed2_withallocheader;
-                }
-                if (allocheader->data != (void *)alloc) {
-                    arch_interrupts_disable();
-                    co_printf("incorrect data start\n");
-                    goto testfailed2_withallocheader;
-                }
-                // If it's not type 0, we already overwrote memory with other values, so don't check for initial pattern.
-                if (type == 0 && (*((uint32_t *)alloc) != 0x90909090)) {
-                    arch_interrupts_disable();
-                    co_printf("incorrect initial pattern (got %p)\n", *((uint32_t *)alloc));
-                    goto testfailed2_withallocheader;
-                }
-                if (type == 0) {
-                    for (size_t j = 0; j < bytecount; j++) {
-                        alloc[j] = (char)(i & 0xffU);
-                    }
-                }
-                expected_bptr += BLOCK_SIZE * alloc_blockcount;
-                continue;
-            testfailed2_withallocheader:
-                co_printf(" - alloc header:\n");
-                co_printf(" +-- region pointer: %p\n", allocheader->pool);
-                co_printf(" +-- block count:    %u\n", allocheader->blockcount);
-                co_printf(" +-- data start:     %p\n", allocheader->data);
-            testfailed2:
-                co_printf("- alloc pointer:     %p\n", alloc);
-                co_printf(
-                    "- expected pointer:  %#pn", expected_bptr);
-                co_printf("- alloc index:       %u/%u\n", i, (alloccount - 1));
-                goto testfailed1;    
-            }
+        if (!test_heap_alloc_and_fill(self, alloc_count, alloc_blockcount)) {
+            goto testfailed;
         }
-
-        if (CONFIG_SEQUENTIAL_TEST_VERBOSE) {
-            co_printf(" [compare]");
+        if (!test_heap_compare(self, alloc_count, alloc_blockcount)) {
+            goto testfailed;
         }
-        uchar* bptr =
-            (uchar *)self->blockpool + sizeof(struct allocheader);
-        for (size_t i = 0; i < alloccount; i++) {
-            uchar *alloc = bptr;
-            for (size_t j = 0; j < bytecount; j++) {
-                if (alloc[j] != (i & 0xffU)) {
-                    co_printf("corrupted data\n");
-                    co_printf("- allocated at:      %p\n", bptr);
-                    co_printf("- alloc index:       %u/%u\n", i, (alloccount - 1));
-                    co_printf("- byte offset:       %u/%u\n", j, bytecount - 1);
-                    co_printf("- expected:          %u\n", i);
-                    co_printf("- got:               %u\n", alloc[j]);
-                    goto testfailed1;
-                }
-            }
-            bptr += BLOCK_SIZE * alloc_blockcount;
-        }
-
-        if (CONFIG_SEQUENTIAL_TEST_VERBOSE) {
-            co_printf(" [free]");
-        }
-        bptr = (uchar *)self->blockpool + sizeof(struct allocheader);
-        for (size_t i = 0; i < alloccount; i++) {
-            uchar *alloc = bptr;
-            heap_free(alloc);
-            for (size_t j = 0; j < bytecount; j++) {
-                if (alloc[j] != 0x6f) {
-                    co_printf("free pattern(0x6f) not found\n");
-                    co_printf("- allocated at:      %#lx\n", bptr);
-                    co_printf("- alloc index:       %u/%u\n", i, (alloccount - 1));
-                    co_printf("- byte offset:       %u/%u\n", j, bytecount - 1);
-                    co_printf("- got:               %u\n", alloc[j]);
-                    goto testfailed1;
-                }
-            }
-            bptr += BLOCK_SIZE * alloc_blockcount;
+        if (!test_heap_free(self, alloc_count, alloc_blockcount)) {
+            goto testfailed;
         }
         alloc_blockcount++;
         co_printf(" -> OK!\n");
         continue;
-    testfailed1:
+    testfailed:
         co_printf("- alloc block count: %u\n", alloc_blockcount);
-        co_printf("- alloc byte count:  %u\n", bytecount);
         co_printf("- pool start addr:   %#lx\n", pool_start_addr);
         co_printf("- pool end addr:     %#lx\n", pool_end_addr);
         return false;
@@ -392,7 +462,7 @@ static poolheader_t *createpool(size_t minmemsize) {
     pool->blockbitmap.wordcount = wordcount;
     pool->blockbitmap.words = (uint *)pool->heapdata;
     pool->blockpool = (max_align_t *)poolstartaddr;
-    pool->blockcount = poolblockcount;
+    pool->block_count = poolblockcount;
     pool->usedblockcount = 0;
     pool->node.data = pool;
     memset(pool->blockbitmap.words, 0, pool->blockbitmap.wordcount * sizeof(*pool->blockbitmap.words));
@@ -404,7 +474,7 @@ static poolheader_t *createpool(size_t minmemsize) {
     struct critsect crit;
     ////////////////////////////////////////////////////////////////////////////
     critsect_begin(&crit);
-    s_freeblockcount += pool->blockcount;
+    s_freeblockcount += pool->block_count;
     list_insertback(&s_heappoollist, &pool->node, pool);
 
     if (CONFIG_DO_POOL_SEQUENTIAL_TEST) {
@@ -456,19 +526,19 @@ static struct poolheader *add_mem(void *mem, size_t memsize) {
     pool->blockbitmap.wordcount = wordcount;
     pool->blockbitmap.words = (uint *)pool->heapdata;
     pool->blockpool = (max_align_t *)poolstart;
-    pool->blockcount = poolblockcount;
+    pool->block_count = poolblockcount;
     pool->usedblockcount = 0;
     pool->node.data = pool;
     memset(pool->blockbitmap.words, 0, pool->blockbitmap.wordcount * sizeof(*pool->blockbitmap.words));
     bitmap_setbits(&pool->blockbitmap, 0, poolblockcount);
 
-    s_initialheapinitialized = true;
+    s_initial_heap_initialized = true;
 
-    s_freeblockcount += pool->blockcount;
-    list_insertback(&s_heappoollist, &pool->node, pool);
+    s_free_block_count += pool->block_count;
+    list_insertback(&s_heap_pool_list, &pool->node, pool);
 
     if (CONFIG_DO_POOL_SEQUENTIAL_TEST) {
-        if (!testheap(pool)) {
+        if (!test_heap(pool)) {
             panic("heap: sequential test failed");
         }
     }
@@ -477,7 +547,7 @@ static struct poolheader *add_mem(void *mem, size_t memsize) {
 }
 
 void *heap_alloc(size_t size, uint8_t flags) {
-    size_t actualsize = actualallocsize(size);
+    size_t actualsize = actual_alloc_size(size);
     size_t actualblockcount = size_to_blocks(actualsize, BLOCK_SIZE);
 
     if (size == 0) {
@@ -488,15 +558,15 @@ void *heap_alloc(size_t size, uint8_t flags) {
     }
     bool previnterrupts = arch_interrupts_disable();
     HEAP_CHECKOVERFLOW();
-    if (!s_initialheapinitialized) {
-        add_mem(s_initialheapmemory, sizeof(s_initialheapmemory));
+    if (!s_initial_heap_initialized) {
+        add_mem(s_initial_heap_memory, sizeof(s_initial_heap_memory));
     }
     void *result = NULL;
-    if (actualblockcount < s_freeblockcount) {
-        LIST_FOREACH(&s_heappoollist, poolnode) {
+    if (actualblockcount < s_free_block_count) {
+        LIST_FOREACH(&s_heap_pool_list, poolnode) {
             struct poolheader *pool = poolnode->data;
             assert(pool != NULL);
-            result = allocfrompool(pool, size);
+            result = alloc_from_pool(pool, size);
             if (result != NULL) {
                 break;
             }
@@ -515,9 +585,9 @@ void heap_free(void *ptr) {
         return;
     }
     bool previnterrupts = arch_interrupts_disable();
-    struct allocheader *alloc = allocheaderof(ptr);
+    struct allocheader *alloc = allocheader_of(ptr);
     HEAP_CHECKOVERFLOW();
-    list_removenode(&s_alloclist, &alloc->node);
+    list_removenode(&s_alloc_list, &alloc->node);
     if (alloc == NULL) {
         goto die;
     }
@@ -525,26 +595,26 @@ void heap_free(void *ptr) {
         goto die;
     }
     uintptr_t poolstartaddr = (uintptr_t)alloc->pool->blockpool;
-    uintptr_t poolendaddr = poolstartaddr + (alloc->pool->blockcount * BLOCK_SIZE);
+    uintptr_t poolendaddr = poolstartaddr + (alloc->pool->block_count * BLOCK_SIZE);
     uintptr_t allocstartaddr = (uintptr_t)ptr;
-    uintptr_t allocendaddr = (uintptr_t)alloc + alloc->blockcount * BLOCK_SIZE;
+    uintptr_t allocendaddr = (uintptr_t)alloc + alloc->block_count * BLOCK_SIZE;
     if ((allocstartaddr < poolstartaddr) || (poolendaddr <= allocstartaddr)) {
         goto die;
     }
     if ((allocendaddr <= poolstartaddr) || (poolendaddr < allocendaddr)) {
         goto die;
     }
-    if (alloc->pool->usedblockcount < alloc->blockcount) {
+    if (alloc->pool->usedblockcount < alloc->block_count) {
         goto die;
     }
     uintptr_t offsetinpool = (uintptr_t)alloc - poolstartaddr;
     size_t blockindex = offsetinpool / BLOCK_SIZE;
     bitmap_setbits(
         &alloc->pool->blockbitmap, (long)blockindex,
-        alloc->blockcount);
-    alloc->pool->usedblockcount -= alloc->blockcount;
-    s_freeblockcount += alloc->blockcount;
-    memset(alloc, 0x6f, alloc->blockcount * BLOCK_SIZE);
+        alloc->block_count);
+    alloc->pool->usedblockcount -= alloc->block_count;
+    s_free_block_count += alloc->block_count;
+    memset(alloc, 0x6f, alloc->block_count * BLOCK_SIZE);
     HEAP_CHECKOVERFLOW();
     interrupts_restore(previnterrupts);
     return;
@@ -557,7 +627,7 @@ void *heap_realloc(void *ptr, size_t newsize, uint8_t flags) {
         return heap_alloc(newsize, flags);
     }
     bool previnterrupts = arch_interrupts_disable();
-    struct allocheader *alloc = allocheaderof(ptr);
+    struct allocheader *alloc = allocheader_of(ptr);
     HEAP_CHECKOVERFLOW();
     if (alloc == NULL) {
         goto die;

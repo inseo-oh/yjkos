@@ -1,7 +1,7 @@
 #pragma once
 #include <kernel/lib/diagnostics.h>
-#include <kernel/types.h>
 #include <kernel/mem/vmm.h>
+#include <kernel/types.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -18,9 +18,9 @@ void arch_mmu_flushtlb_for(void *ptr);
 void arch_mmu_flushtlb(void);
 WARN_UNUSED_RESULT int arch_mmu_map(
     void *virtbase, physptr physbase, size_t pagecount, uint8_t flags,
-    bool useraccess);
+    bool user_access);
 WARN_UNUSED_RESULT int arch_mmu_remap(
-    void *virtbase, size_t pagecount, uint8_t flags, bool useraccess);
+    void *virtbase, size_t pagecount, uint8_t flags, bool user_access);
 // Returns false if such page does not exist.
 WARN_UNUSED_RESULT int arch_mmu_unmap(void *virtbase, size_t pagecount);
 

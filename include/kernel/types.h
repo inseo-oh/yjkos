@@ -1,6 +1,6 @@
 #pragma once
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 typedef unsigned char    uchar;
 typedef unsigned int     uint;

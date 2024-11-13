@@ -47,16 +47,16 @@ static int parse_cmd_runprogram(union shellcmd *out, struct smatcher *cmdstr) {
     char **argv = NULL;
     int argc = 0;
     while(1) {
-        smatcher_skipwhitespaces(cmdstr);
+        smatcher_skip_whitespaces(cmdstr);
         if (
             (cmdstr->currentindex == cmdstr->len) ||
-            (smatcher_consumestringifmatch(cmdstr, ";"))
+            (smatcher_consume_string_if_match(cmdstr, ";"))
         ) {
             break;
         }
         char const *str = NULL;
         size_t len = 0;
-        bool matchok = smatcher_consumeword(
+        bool matchok = smatcher_consume_word(
             &str, &len, cmdstr);
         (void)matchok;
         assert(matchok);
@@ -102,7 +102,7 @@ WARN_UNUSED_RESULT static int parse_cmd(
 {
     int result = SHELL_EXITCODE_OK;
     memset(out, 0, sizeof(*out));
-    smatcher_skipwhitespaces(cmdstr);
+    smatcher_skip_whitespaces(cmdstr);
     if (cmdstr->currentindex == cmdstr->len) {
         out->kind = CMDKIND_EMPTY;
     } else {

@@ -29,20 +29,20 @@ STATIC_ASSERT_TEST(sizeof(struct pagetable) == ARCHI586_MMU_PAGE_SIZE);
 #define PDE_BIT_OFFSET   22
 #define PDE_BIT_MASK     (ENTRY_BIT_MASK << PDE_BIT_OFFSET)
 
-#define MAKEVIRTADDR(_pde, _pte, _offset) \
+#define MAKE_VIRTADDR(_pde, _pte, _offset) \
     (((uintptr_t)(_pde) << (uintptr_t)PDE_BIT_OFFSET) |\
     ((uintptr_t)(_pte) << (uintptr_t)PTE_BIT_OFFSET) |\
     ((uintptr_t)(_offset) << (uintptr_t)OFFSET_BIT_OFFSET))
 
-#define PAGEDIR_PD_BASE        MAKEVIRTADDR(ARCHI586_MMU_PAGEDIR_PDE, ARCHI586_MMU_PAGEDIR_PDE, 0)
-#define PAGEDIR_PT_BASE(_pde)  MAKEVIRTADDR(ARCHI586_MMU_PAGEDIR_PDE, _pde, 0)
+#define PAGEDIR_PD_BASE        MAKE_VIRTADDR(ARCHI586_MMU_PAGEDIR_PDE, ARCHI586_MMU_PAGEDIR_PDE, 0)
+#define PAGEDIR_PT_BASE(_pde)  MAKE_VIRTADDR(ARCHI586_MMU_PAGEDIR_PDE, _pde, 0)
 
-
+// NOLINTBEGIN(performance-no-int-to-ptr)
 static uint32_t *s_pagedir = (uint32_t *)PAGEDIR_PD_BASE;
 static struct pagetable *s_pagetables = (struct pagetable *)PAGEDIR_PT_BASE(0);
 
-#define KERNEL_SPACE_BASE   MAKEVIRTADDR(ARCHI586_MMU_KERNEL_PDE_START, 0, 0)
-#define SCRATCH_MAP_BASE MAKEVIRTADDR(\
+#define KERNEL_SPACE_BASE   MAKE_VIRTADDR(ARCHI586_MMU_KERNEL_PDE_START, 0, 0)
+#define SCRATCH_MAP_BASE MAKE_VIRTADDR(\
     ARCHI586_MMU_SCRATCH_PDE, ARCHI586_MMU_SCRATCH_PTE, 0)
 #define KERNEL_IMAGE_ADDRESS_START  ARCH_KERNEL_VIRTUAL_ADDRESS_BEGIN
 #define KERNEL_IMAGE_ADDRESS_END \
@@ -56,12 +56,14 @@ void * const ARCH_KERNEL_IMAGE_ADDRESS_START = (void *)KERNEL_IMAGE_ADDRESS_STAR
 void * const ARCH_KERNEL_IMAGE_ADDRESS_END = (void *)KERNEL_IMAGE_ADDRESS_END;
 void * const ARCH_KERNEL_VM_START = (void *)KERNEL_VM_START;
 void *const  ARCH_KERNEL_VM_END = (void *)KERNEL_VM_END;
+// NOLINTEND(performance-no-int-to-ptr)
+
 size_t const ARCH_PAGESIZE = ARCHI586_MMU_PAGE_SIZE;
 
-static size_t pdeindex(void *ptr) {
+static size_t pde_index(void *ptr) {
     return ((uintptr_t)ptr & PDE_BIT_MASK) >> PDE_BIT_OFFSET;
 }
-static size_t pteindex(void *ptr) {
+static size_t pte_index(void *ptr) {
     return ((uintptr_t)ptr & PTE_BIT_MASK) >> PTE_BIT_OFFSET;
 }
 
@@ -76,8 +78,8 @@ void arch_mmu_flushtlb(void) {
 WARN_UNUSED_RESULT int arch_mmu_emulate(
     physptr *physaddr_out, void *virtaddr, uint8_t flags, bool isfromuser)
 {
-    uint16_t pde = pdeindex(virtaddr);
-    uint16_t pte = pteindex(virtaddr);
+    uint16_t pde = pde_index(virtaddr);
+    uint16_t pte = pte_index(virtaddr);
     bool iswrite = flags & MAP_PROT_WRITE;
     uint32_t pd_entry = s_pagedir[pde];
     if (!(pd_entry & ARCHI586_MMU_PDE_FLAG_P)) {
@@ -106,8 +108,8 @@ WARN_UNUSED_RESULT int arch_mmu_emulate(
 WARN_UNUSED_RESULT int arch_mmu_virt_to_phys(
     physptr *physaddr_out, void *virt)
 {
-    uint16_t pde = pdeindex(virt);
-    uint16_t pte = pteindex(virt);
+    uint16_t pde = pde_index(virt);
+    uint16_t pte = pte_index(virt);
     uint32_t pd_entry = s_pagedir[pde];
     *physaddr_out = 0;
     if (!(pd_entry & ARCHI586_MMU_PDE_FLAG_P)) {
@@ -127,78 +129,91 @@ WARN_UNUSED_RESULT int arch_mmu_virt_to_phys(
     assert(!WILL_ADD_OVERFLOW(                                                 \
         (uintptr_t)(_addr), ((_count) * ARCHI586_MMU_PAGE_SIZE), UINTPTR_MAX));\
 }
-// addr + ((_count) * ARCHI586_MMU_PAGE_SIZE) - 1) <= UINTPTR_MAX
+
+static int create_pd(uint8_t pde) {
+    size_t size = 1;
+    physptr addr = pmm_alloc(&size);
+    if (addr == PHYSICALPTR_NULL) {
+        return -ENOMEM;
+    }
+    s_pagedir[pde] = addr | ARCHI586_MMU_PDE_FLAG_P | ARCHI586_MMU_PDE_FLAG_RW | ARCHI586_MMU_PDE_FLAG_US;
+    arch_mmu_flushtlb_for(&s_pagetables[pde]);
+    memset(&s_pagetables[pde], 0, sizeof(s_pagetables[pde]));
+    // Flush TLB just to be safe
+    for (size_t i = 0; i < ARCHI586_MMU_ENTRY_COUNT; i++) {
+        // NOLINTNEXTLINE(performance-no-int-to-ptr)
+        arch_mmu_flushtlb_for((void *)MAKE_VIRTADDR(pde, i, 0));
+    }
+    return 0;
+}
+
+static void map_single_page(
+    void *virt, physptr phys, uint8_t flags, bool user_access)
+{
+    uint16_t pde = pde_index(virt);
+    uint16_t pte = pte_index(virt);
+    uint32_t oldpte = s_pagetables[pde].entry[pte];
+    bool shouldflush = false;
+    if (oldpte & ARCHI586_MMU_PTE_FLAG_P) {
+        // See if we need to invalidate old TLB
+        if ((oldpte & ARCHI586_MMU_PTE_FLAG_RW) && !(flags & MAP_PROT_WRITE)) {
+            shouldflush = true;
+        }
+        if ((oldpte & ARCHI586_MMU_PTE_FLAG_US) && !user_access) {
+            shouldflush = true;
+        }
+        physptr oldaddr = oldpte & ~0xfffU;
+        if (oldaddr != phys) {
+            shouldflush = true;
+        }
+    }
+    s_pagetables[pde].entry[pte] = phys | ARCHI586_MMU_PTE_FLAG_P;
+    if (flags & MAP_PROT_WRITE) {
+        s_pagetables[pde].entry[pte] |= ARCHI586_MMU_PTE_FLAG_RW;
+    }
+    if (flags & MAP_PROT_NOCACHE) {
+        s_pagetables[pde].entry[pte] |= ARCHI586_MMU_PTE_FLAG_PCD;
+    }
+    if (user_access) {
+        s_pagetables[pde].entry[pte] |= ARCHI586_MMU_PTE_FLAG_US;
+    }
+    if (shouldflush) {
+        arch_mmu_flushtlb_for(virt);
+    }
+}
 
 WARN_UNUSED_RESULT int arch_mmu_map(
     void *virtbase, physptr physbase, size_t pagecount, uint8_t flags,
-    bool useraccess)
+    bool user_access)
 {
     ASSERT_INTERRUPTS_DISABLED();
-    int result = 0;
+    int ret = 0;
     bool pdcreated = false;
     ASSERT_ADDR_VALID(virtbase, pagecount);
     ASSERT_ADDR_VALID(physbase, pagecount);
     assert(is_aligned(physbase, ARCHI586_MMU_PAGE_SIZE));
     if (!(flags & MAP_PROT_READ)) {
-        result = -EPERM;
+        ret = -EPERM;
         goto fail;
     }
     for (size_t i = 0; i < pagecount; i++) {
         void *current_virt = (char *)virtbase + (i * ARCHI586_MMU_PAGE_SIZE);
-        uint16_t pde = pdeindex(current_virt);
+        uint16_t pde = pde_index(current_virt);
         uint32_t pd_entry = s_pagedir[pde];
-        if (!(pd_entry & ARCHI586_MMU_PDE_FLAG_P)) {
-            // Create new PD
-            size_t size = 1;
-            physptr addr = pmm_alloc(&size);
-            if (addr == PHYSICALPTR_NULL) {
-                result = -ENOMEM;
-                goto fail;
-            }
-            pdcreated = true;
-            s_pagedir[pde] = addr | ARCHI586_MMU_PDE_FLAG_P | ARCHI586_MMU_PDE_FLAG_RW | ARCHI586_MMU_PDE_FLAG_US;
-            arch_mmu_flushtlb_for(&s_pagetables[pde]);
-            memset(&s_pagetables[pde], 0, sizeof(s_pagetables[pde]));
-            // Flush TLB just to be safe
-            for (size_t i = 0; i < ARCHI586_MMU_ENTRY_COUNT; i++) {
-                arch_mmu_flushtlb_for((void *)MAKEVIRTADDR(pde, i, 0));
-            }
+        if ((pd_entry & ARCHI586_MMU_PDE_FLAG_P)) {
+            continue;
         }
+        // Create new PD
+        int ret = create_pd(pde);
+        if (ret < 0) {
+            goto fail;
+        }
+        pdcreated = true;
     }
     for (size_t i = 0; i < pagecount; i++) {
-        void *current_virtbase =
-            (char *)virtbase + (i * ARCHI586_MMU_PAGE_SIZE);
-        physptr currentphysaddr = physbase + (i * ARCHI586_MMU_PAGE_SIZE);
-        uint16_t pde = pdeindex(current_virtbase);
-        uint16_t pte = pteindex(current_virtbase);
-        uint32_t oldpte = s_pagetables[pde].entry[pte];
-        bool shouldflush = false;
-        if (oldpte & ARCHI586_MMU_PTE_FLAG_P) {
-            // See if we need to invalidate old TLB
-            if ((oldpte & ARCHI586_MMU_PTE_FLAG_RW) && !(flags & MAP_PROT_WRITE)) {
-                shouldflush = true;
-            }
-            if ((oldpte & ARCHI586_MMU_PTE_FLAG_US) && !useraccess) {
-                shouldflush = true;
-            }
-            physptr oldaddr = oldpte & ~0xfffU;
-            if (oldaddr != currentphysaddr) {
-                shouldflush = true;
-            }
-        }
-        s_pagetables[pde].entry[pte] = currentphysaddr | ARCHI586_MMU_PTE_FLAG_P;
-        if (flags & MAP_PROT_WRITE) {
-            s_pagetables[pde].entry[pte] |= ARCHI586_MMU_PTE_FLAG_RW;
-        }
-        if (flags & MAP_PROT_NOCACHE) {
-            s_pagetables[pde].entry[pte] |= ARCHI586_MMU_PTE_FLAG_PCD;
-        }
-        if (useraccess) {
-            s_pagetables[pde].entry[pte] |= ARCHI586_MMU_PTE_FLAG_US;
-        }
-        if (shouldflush) {
-            arch_mmu_flushtlb_for(current_virtbase);
-        }
+        void *virt = (char *)virtbase + (i * ARCHI586_MMU_PAGE_SIZE);
+        physptr phys = physbase + (i * ARCHI586_MMU_PAGE_SIZE);
+        map_single_page(virt, phys, flags, user_access);
     }
     goto out;
 fail:
@@ -207,11 +222,55 @@ fail:
         co_printf("todo: clean-up unused pd entries\n");
     } 
 out:
-    return result;
+    return ret;
+}
+
+static int check_presence(void *virt) {
+    uint16_t pde = pde_index(virt);
+    uint16_t pte = pte_index(virt);
+    uint32_t pd_entry = s_pagedir[pde];
+    if (!(pd_entry & ARCHI586_MMU_PDE_FLAG_P)) {
+        return -EFAULT;
+    }
+    uint32_t oldpte = s_pagetables[pde].entry[pte];
+    if (!(oldpte & ARCHI586_MMU_PTE_FLAG_P)) {
+        return -EFAULT;
+    }
+    return 0;
+}
+
+static void remap_single_page(
+    void *virt, uint8_t flags, bool user_access)
+{
+    uint16_t pde = pde_index(virt);
+    uint16_t pte = pte_index(virt);
+    uint32_t oldpte = s_pagetables[pde].entry[pte];
+    bool should_flush = false;
+    // See if we need to invalidate old TLB
+    if ((oldpte & ARCHI586_MMU_PTE_FLAG_RW) && !(flags & MAP_PROT_WRITE)) {
+        should_flush = true;
+    }
+    if ((oldpte & ARCHI586_MMU_PTE_FLAG_US) && !user_access) {
+        should_flush = true;
+    }
+    s_pagetables[pde].entry[pte] &=
+        ~(0xfffU & (~ARCHI586_MMU_COMMON_FLAG_P));
+    if (flags & MAP_PROT_WRITE) {
+        s_pagetables[pde].entry[pte] |= ARCHI586_MMU_PTE_FLAG_RW;
+    }
+    if (flags & MAP_PROT_NOCACHE) {
+        s_pagetables[pde].entry[pte] |= ARCHI586_MMU_PTE_FLAG_PCD;
+    }
+    if (user_access) {
+        s_pagetables[pde].entry[pte] |= ARCHI586_MMU_PTE_FLAG_US;
+    }
+    if (should_flush) {
+        arch_mmu_flushtlb_for(virt);
+    }
 }
 
 WARN_UNUSED_RESULT int arch_mmu_remap(
-    void *virtbase, size_t pagecount, uint8_t flags, bool useraccess)
+    void *virtbase, size_t pagecount, uint8_t flags, bool user_access)
 {
     ASSERT_INTERRUPTS_DISABLED();
     ASSERT_ADDR_VALID(virtbase, pagecount);
@@ -219,48 +278,16 @@ WARN_UNUSED_RESULT int arch_mmu_remap(
         return -EPERM;
     }
     for (size_t i = 0; i < pagecount; i++) {
-        void *current_virtbase =
-            (char *)virtbase + (i * ARCHI586_MMU_PAGE_SIZE);
-        uint16_t pde = pdeindex(current_virtbase);
-        uint16_t pte = pteindex(current_virtbase);
-        uint32_t pd_entry = s_pagedir[pde];
-        if (!(pd_entry & ARCHI586_MMU_PDE_FLAG_P)) {
-            return -EFAULT;
-        }
-        uint32_t oldpte = s_pagetables[pde].entry[pte];
-        if (!(oldpte & ARCHI586_MMU_PTE_FLAG_P)) {
-            return -EFAULT;
+        void *virt = (char *)virtbase + (i * ARCHI586_MMU_PAGE_SIZE);
+        int ret = check_presence(virt);
+        if (ret < 0) {
+            return ret;
         }
     }
 
     for (size_t i = 0; i < pagecount; i++) {
-        void *current_virtbase =
-            (char *)virtbase + (i * ARCHI586_MMU_PAGE_SIZE);
-        uint16_t pde = pdeindex(current_virtbase);
-        uint16_t pte = pteindex(current_virtbase);
-        uint32_t oldpte = s_pagetables[pde].entry[pte];
-        bool should_flush = false;
-        // See if we need to invalidate old TLB
-        if ((oldpte & ARCHI586_MMU_PTE_FLAG_RW) && !(flags & MAP_PROT_WRITE)) {
-            should_flush = true;
-        }
-        if ((oldpte & ARCHI586_MMU_PTE_FLAG_US) && !useraccess) {
-            should_flush = true;
-        }
-        s_pagetables[pde].entry[pte] &=
-            ~(0xfffU & (~ARCHI586_MMU_COMMON_FLAG_P));
-        if (flags & MAP_PROT_WRITE) {
-            s_pagetables[pde].entry[pte] |= ARCHI586_MMU_PTE_FLAG_RW;
-        }
-        if (flags & MAP_PROT_NOCACHE) {
-            s_pagetables[pde].entry[pte] |= ARCHI586_MMU_PTE_FLAG_PCD;
-        }
-        if (useraccess) {
-            s_pagetables[pde].entry[pte] |= ARCHI586_MMU_PTE_FLAG_US;
-        }
-        if (should_flush) {
-            arch_mmu_flushtlb_for(current_virtbase);
-        }
+        void *virt = (char *)virtbase + (i * ARCHI586_MMU_PAGE_SIZE);
+        remap_single_page(virt, flags, user_access);
     }
     return 0;
 }
@@ -269,24 +296,17 @@ WARN_UNUSED_RESULT int arch_mmu_unmap(void *virtbase, size_t pagecount) {
     ASSERT_INTERRUPTS_DISABLED();
     ASSERT_ADDR_VALID(virtbase, pagecount);
     for (size_t i = 0; i < pagecount; i++) {
-        void *current_virtbase =
-            (char *)virtbase + (i * ARCHI586_MMU_PAGE_SIZE);
-        uint16_t pde = pdeindex(current_virtbase);
-        uint16_t pte = pteindex(current_virtbase);
-        uint32_t pd_entry = s_pagedir[pde];
-        if (!(pd_entry & ARCHI586_MMU_PDE_FLAG_P)) {
-            return -EFAULT;
-        }
-        uint32_t oldpte = s_pagetables[pde].entry[pte];
-        if (!(oldpte & ARCHI586_MMU_PTE_FLAG_P)) {
-            return -EFAULT;
+        void *virt = (char *)virtbase + (i * ARCHI586_MMU_PAGE_SIZE);
+        int ret = check_presence(virt);
+        if (ret < 0) {
+            return ret;
         }
     }
     for (size_t i = 0; i < pagecount; i++) {
         void *current_virtbase =
             (char *)virtbase + (i * ARCHI586_MMU_PAGE_SIZE);
-        uint16_t pde = pdeindex(current_virtbase);
-        uint16_t pte = pteindex(current_virtbase);
+        uint16_t pde = pde_index(current_virtbase);
+        uint16_t pte = pte_index(current_virtbase);
         s_pagetables[pde].entry[pte] = 0;
         arch_mmu_flushtlb_for(current_virtbase);
     }
@@ -354,7 +374,7 @@ void archi586_mmu_init(void) {
     // Unmap lower 2MB area
     for (size_t i = 0; i < ARCHI586_MMU_ENTRY_COUNT; i++) {
         s_pagetables[0].entry[i] = 0;
-        arch_mmu_flushtlb_for((void *)MAKEVIRTADDR(0, i, 0));
+        arch_mmu_flushtlb_for((void *)MAKE_VIRTADDR(0, i, 0));
     }
 #endif
     /*
