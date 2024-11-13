@@ -67,7 +67,7 @@ static void initserial1(void) {
         co_printf("failed to configure serial1 (error %d)\n", ret);
         return;
     }
-    s_serial1.cr_to_crlf = true;
+    s_serial1.cr_to_crlf = false;
     archi586_serial_useirq(&s_serial1);
     ret = archi586_serial_initiodev(&s_serial1);
     if (ret < 0) {
