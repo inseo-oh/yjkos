@@ -1,5 +1,4 @@
 #include "windowd.h"
-#include <kernel/arch/iodelay.h>
 #include <kernel/arch/hcf.h>
 #include <kernel/arch/interrupts.h>
 #include <kernel/io/co.h>
@@ -53,7 +52,6 @@ static void proto_send_card8(struct connection *conn, uint8_t val) {
         co_printf("windowd: Failed to send data to the client\n");
         arch_hcf();
     }
-    arch_iodelay();
 }
 
 static void proto_send_card16(struct connection *conn, uint16_t val) {
