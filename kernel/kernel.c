@@ -18,7 +18,7 @@
 NORETURN void kernel_init(void) {
     co_printf(
         "\nYJK Operating System " YJKOS_RELEASE "-" YJKOS_VERSION "\n");
-    co_printf("Copyright (C) 2024 YJK(Oh Inseo)\n\n");
+    co_printf("Copyright (c) 2025 YJK(Oh Inseo)\n\n");
     co_printf(
         "%zu mibytes allocatable memory\n",
         pmm_get_totalmem() / (1024 * 1024));
