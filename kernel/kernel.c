@@ -28,12 +28,14 @@ NORETURN void kernel_init(void) {
     pci_printbus();
     co_printf("\n:: system is now initializing PS/2 devices\n");
     ps2_initdevices();
+    co_printf("\n\n\n:: HOLD DOWN 1 KEY RIGHT NOW TO SELECT VGA CONSOLE!!!!!!\n\n\n");
     co_printf("\n:: system is now initializing logical disks\n");
     ldisk_discover();
     co_printf("\n:: system is now mounting the root filesystem\n");
     vfs_mount_root();
 
     windowd_start();
+    co_ask_primary_console();
 
     co_printf("\n :: system is ready for use. Use keyboard to type commands.\n");
     while (1) {

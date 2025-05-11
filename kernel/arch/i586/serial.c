@@ -132,7 +132,7 @@ uint8_t readdata(struct archi586_serial *self) {
 }
 
 static void waitreadytosend(struct archi586_serial *self) {
-    if (!self->useirq || !arch_interrupts_areenabled()) {
+    if (!self->useirq || !arch_interrupts_are_enabled()) {
         while (!(read_reg(self, REG_LSR) & LSR_FLAG_TX_HOLDING_REG_EMPTY)) {
         }
     } else {
@@ -142,8 +142,8 @@ static void waitreadytosend(struct archi586_serial *self) {
     }
 }
 
-static void waitreadytorecv(struct archi586_serial *self) {
-    if (!self->useirq || !arch_interrupts_areenabled()) {
+static void wait_ready_to_recv(struct archi586_serial *self) {
+    if (!self->useirq || !arch_interrupts_are_enabled()) {
         while (!(read_reg(self, REG_LSR) & LSR_FLAG_DATA_READY)) {
         }
     } else {
@@ -209,7 +209,7 @@ NODISCARD static ssize_t stream_op_write(struct stream *self, void *data, size_t
 NODISCARD static ssize_t stream_op_read(struct stream *self, void *buf, size_t size) {
     assert(size <= STREAM_MAX_TRANSFER_SIZE);
     for (size_t idx = 0; idx < size; idx++) {
-        waitreadytorecv(self->data);
+        wait_ready_to_recv(self->data);
         ((uint8_t *)buf)[idx] = readdata(self->data);
     }
     return (ssize_t)size;

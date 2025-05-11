@@ -108,7 +108,7 @@ void archi586_vgatty_init_earlydebug(void) {
     s_totalrows = 25;
 
     s_chars = (void *)0xb8000;
-    co_setdebug(&s_stream);
+    co_set_debug(&s_stream);
 }
 
 void archi586_vgatty_init(PHYSPTR baseaddr, size_t columns, size_t rows, size_t bytes_per_row) {
@@ -125,5 +125,5 @@ void archi586_vgatty_init(PHYSPTR baseaddr, size_t columns, size_t rows, size_t 
             write_attr_at(r, c, 0x07);
         }
     }
-    co_setprimary(&s_stream);
+    co_set_primary(&s_stream);
 }

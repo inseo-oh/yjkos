@@ -10,8 +10,9 @@ struct stream;
 #define CON_DELETE      '\x08'
 
 // For tty_~console functions, pass NULL to disable the console.
-void co_setprimary(struct stream *device);
-void co_setdebug(struct stream *device);
+void co_set_primary(struct stream *device);
+void co_set_debug(struct stream *device);
+void co_ask_primary_console(void);
 void co_putc(char c);
 void co_puts(char const *s);
 void co_vprintf(char const *fmt, va_list ap);

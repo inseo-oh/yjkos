@@ -465,7 +465,7 @@ ssize_t stream_printf(struct stream *self, char const *fmt, ...) {
 int stream_waitchar(struct stream *self, TICKTIME timeout) {
     ssize_t size = 0;
     if (timeout != 0) {
-        assert(arch_interrupts_areenabled());
+        assert(arch_interrupts_are_enabled());
     }
 
     TICKTIME starttime = g_ticktime;

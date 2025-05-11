@@ -138,5 +138,5 @@ void vt100tty_init(struct vt100tty *out, struct vt100tty_lineinfo *lineinfos, st
         }
         out->lineinfos[r].need_supdate = true;
     }
-    co_setprimary(&out->stream);
+    co_set_primary(&out->stream);
 }

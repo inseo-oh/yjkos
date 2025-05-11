@@ -5,6 +5,7 @@
 #include "exceptions.h"
 #include "gdt.h"
 #include "idt.h"
+#include "kernel/io/stream.h"
 #include "mmu_ext.h"
 #include "pic.h"
 #include "pit.h"
@@ -47,7 +48,7 @@ static void init_serial0(void) {
         return;
     }
     s_serial0.cr_to_crlf = true;
-    co_setdebug(&s_serial0.tty.stream);
+    co_set_debug(&s_serial0.tty.stream);
     co_printf("serial0 is ready\n");
     s_serial0_ready = true;
 }
@@ -79,6 +80,7 @@ NORETURN void archi586_kernelinit(uint32_t mb_magic, PHYSPTR mb_info_addr) {
     if (CONFIG_SERIAL_DEBUG) {
         init_serial0();
     }
+    co_printf("TO USE VGA CONSOLE SMASH 1 RIGHT NOW\n");
 
     archi586_mmu_init();
     archi586_mmu_write_protect_kernel_text();
@@ -111,5 +113,6 @@ NORETURN void archi586_kernelinit(uint32_t mb_magic, PHYSPTR mb_info_addr) {
     }
     init_serial1();
     co_printf("enter main kernel initialization\n");
+
     kernel_init();
 }

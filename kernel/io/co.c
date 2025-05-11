@@ -6,59 +6,91 @@
 #include <stddef.h>
 #include <stdint.h>
 
-static struct stream *s_primarystream;
+static struct stream *s_primary_stream;
 // NOTE: Debug console is output only
-static struct stream *s_debugstream;
+static struct stream *s_debug_stream;
 
-void co_setprimary(struct stream *device) {
-    s_primarystream = device;
+void co_set_primary(struct stream *device) {
+    s_primary_stream = device;
 }
 
-void co_setdebug(struct stream *device) {
-    s_debugstream = device;
+void co_set_debug(struct stream *device) {
+    s_debug_stream = device;
+}
+
+void co_ask_primary_console(void) {
+    if ((s_primary_stream != NULL) && (s_debug_stream == NULL)) {
+        return;
+    } else if ((s_primary_stream == NULL) && (s_debug_stream != NULL)) {
+        s_primary_stream = s_debug_stream;
+        s_debug_stream = NULL;
+        return;
+    }
+    int ret = stream_printf(s_primary_stream, "\n\nPress 1 to select this console.\n\n");
+    (void)ret;
+    ret = stream_printf(s_debug_stream, "\n\nPress 2 to select this console.\n\n");
+    (void)ret;
+    stream_flush(s_primary_stream);
+    stream_flush(s_debug_stream);
+
+    while (1) {
+        ret = stream_waitchar(s_primary_stream, 10);
+        if (ret == '1') {
+            // Use current primary console
+            return;
+        }
+        ret = stream_waitchar(s_debug_stream, 10);
+        if (ret == '2') {
+            // Swap debug console with primary one
+            struct stream *temp = s_primary_stream;
+            s_primary_stream = s_debug_stream;
+            s_debug_stream = temp;
+            return;
+        }
+    }
 }
 
 void co_putc(char c) {
     bool prev_interrupts = arch_interrupts_disable();
-    if (s_primarystream != NULL) {
-        int ret = stream_putchar(s_primarystream, c);
+    if (s_primary_stream != NULL) {
+        int ret = stream_putchar(s_primary_stream, c);
         (void)ret;
-        stream_flush(s_primarystream);
+        stream_flush(s_primary_stream);
     }
-    if (s_debugstream != NULL && (s_primarystream != s_debugstream)) {
-        int ret = stream_putchar(s_debugstream, c);
+    if (s_debug_stream != NULL && (s_primary_stream != s_debug_stream)) {
+        int ret = stream_putchar(s_debug_stream, c);
         (void)ret;
-        stream_flush(s_debugstream);
+        stream_flush(s_debug_stream);
     }
     interrupts_restore(prev_interrupts);
 }
 
 void co_puts(char const *s) {
     bool prev_interrupts = arch_interrupts_disable();
-    if (s_primarystream != NULL) {
-        int ret = stream_putstr(s_primarystream, s);
+    if (s_primary_stream != NULL) {
+        int ret = stream_putstr(s_primary_stream, s);
         (void)ret;
-        stream_flush(s_primarystream);
+        stream_flush(s_primary_stream);
     }
-    if (s_debugstream != NULL && (s_primarystream != s_debugstream)) {
-        int ret = stream_putstr(s_debugstream, s);
+    if (s_debug_stream != NULL && (s_primary_stream != s_debug_stream)) {
+        int ret = stream_putstr(s_debug_stream, s);
         (void)ret;
-        stream_flush(s_debugstream);
+        stream_flush(s_debug_stream);
     }
     interrupts_restore(prev_interrupts);
 }
 
 void co_vprintf(char const *fmt, va_list ap) {
     bool prev_interrupts = arch_interrupts_disable();
-    if (s_primarystream != NULL) {
-        int ret = stream_vprintf(s_primarystream, fmt, ap);
+    if (s_primary_stream != NULL) {
+        int ret = stream_vprintf(s_primary_stream, fmt, ap);
         (void)ret;
-        stream_flush(s_primarystream);
+        stream_flush(s_primary_stream);
     }
-    if (s_debugstream != NULL && (s_primarystream != s_debugstream)) {
-        int ret = stream_vprintf(s_debugstream, fmt, ap);
+    if (s_debug_stream != NULL && (s_primary_stream != s_debug_stream)) {
+        int ret = stream_vprintf(s_debug_stream, fmt, ap);
         (void)ret;
-        stream_flush(s_debugstream);
+        stream_flush(s_debug_stream);
     }
     interrupts_restore(prev_interrupts);
 }
@@ -74,7 +106,7 @@ void co_printf(char const *fmt, ...) {
 int co_getchar(void) {
     int c;
 
-    if (!s_primarystream) {
+    if (!s_primary_stream) {
         // There's nothing we can do
         co_printf("tty: waiting for character, but there's no console to wait for\n");
         arch_hcf();
@@ -83,7 +115,7 @@ int co_getchar(void) {
     }
     int ret = -1;
     while (ret < 0) {
-        ret = stream_waitchar(s_primarystream, 0);
+        ret = stream_waitchar(s_primary_stream, 0);
     }
 
     c = ret;
