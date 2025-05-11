@@ -3,8 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define WILL_ADD_OVERFLOW(_base, _offset, _max) \
-    (((_max) - (_base)) < (_offset))
+#define WILL_ADD_OVERFLOW(_base, _offset, _max) (((_max) - (_base)) < (_offset))
 
 bool is_aligned(size_t x, size_t align);
 size_t align_up(size_t x, size_t align);

@@ -9,5 +9,5 @@ struct tty {
     void *data;
 };
 
-WARN_UNUSED_RESULT int tty_register(struct tty *out, void *data);
+NODISCARD int tty_register(struct tty *out, void *data);
 struct stream *tty_getstream(struct tty *self);

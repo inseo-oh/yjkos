@@ -25,10 +25,7 @@ struct sched_queue {
  * memory.
  */
 void sched_printqueues(void);
-void sched_waitmutex(
-    struct mutex *mutex, struct sourcelocation const *locksource);
-WARN_UNUSED_RESULT int sched_queue(struct thread *thread);
+void sched_waitmutex(struct mutex *mutex, struct sourcelocation const *locksource);
+NODISCARD int sched_queue(struct thread *thread);
 void sched_schedule(void);
-void sched_initbootthread(void);
-
-
+void sched_init_boot_thread(void);

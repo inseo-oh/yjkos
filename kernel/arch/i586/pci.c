@@ -7,17 +7,17 @@
 static uint16_t CONFIG_ADDRESS_PORT  = 0xcf8;
 static uint16_t CONFIG_DATA_PORT     = 0xcfc;
 
-static uint32_t makeconfigaddr(pcipath path, uint8_t offset) {
+static uint32_t makeconfigaddr(PCIPATH path, uint8_t offset) {
     return (1U << 31) | (((uint32_t)pcipath_getbus(path)) << 16) | (((uint32_t)pcipath_getdev(path)) << 11) | (((uint32_t)pcipath_getfunc(path)) << 8) | offset;
 }
 
-uint32_t arch_pci_readconfig(pcipath path, uint8_t offset) {
+uint32_t arch_pci_readconfig(PCIPATH path, uint8_t offset) {
     assert(offset % 4 == 0);
     archi586_out32(CONFIG_ADDRESS_PORT, makeconfigaddr(path, offset));
     return archi586_in32(CONFIG_DATA_PORT);
 }
 
-void arch_pci_writeconfig(pcipath path, uint8_t offset, uint32_t word) {
+void arch_pci_writeconfig(PCIPATH path, uint8_t offset, uint32_t word) {
     assert(offset % 4 == 0);
     archi586_out32(CONFIG_ADDRESS_PORT, makeconfigaddr(path, offset));
     archi586_out32(CONFIG_DATA_PORT, word);

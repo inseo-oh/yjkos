@@ -1,4 +1,4 @@
-#pragma once 
+#pragma once
 #include <kernel/io/iodev.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
@@ -6,26 +6,26 @@
 #include <stdint.h>
 
 // Lock key flags
-#define KBD_FLAG_LOCK_CAPS   (1U << 0)
-#define KBD_FLAG_LOCK_NUM    (1U << 1)
+#define KBD_FLAG_LOCK_CAPS (1U << 0)
+#define KBD_FLAG_LOCK_NUM (1U << 1)
 #define KBD_FLAG_LOCK_SCROLL (1U << 2)
 
 // Modifier key flags
 #define KBD_FLAG_MOD_LSHIFT (1U << 8)
 #define KBD_FLAG_MOD_RSHIFT (1U << 9)
-#define KBD_FLAG_MOD_LCTRL  (1U << 10)
-#define KBD_FLAG_MOD_RCTRL  (1U << 11)
-#define KBD_FLAG_MOD_LALT   (1U << 12)
-#define KBD_FLAG_MOD_RALT   (1U << 13)
+#define KBD_FLAG_MOD_LCTRL (1U << 10)
+#define KBD_FLAG_MOD_RCTRL (1U << 11)
+#define KBD_FLAG_MOD_LALT (1U << 12)
+#define KBD_FLAG_MOD_RALT (1U << 13)
 #define KBD_FLAG_MOD_LSUPER (1U << 14)
 #define KBD_FLAG_MOD_RSUPER (1U << 15)
 
 #define KBD_FLAG_MOD_SHIFT (KBD_FLAG_MOD_LSHIFT | KBD_FLAG_MOD_RSHIFT)
-#define KBD_FLAG_MOD_CTRL  (KBD_FLAG_MOD_LCTRL  | KBD_FLAG_MOD_RCTRL )
-#define KBD_FLAG_MOD_ALT   (KBD_FLAG_MOD_LALT   | KBD_FLAG_MOD_RALT  )
+#define KBD_FLAG_MOD_CTRL (KBD_FLAG_MOD_LCTRL | KBD_FLAG_MOD_RCTRL)
+#define KBD_FLAG_MOD_ALT (KBD_FLAG_MOD_LALT | KBD_FLAG_MOD_RALT)
 #define KBD_FLAG_MOD_SUPER (KBD_FLAG_MOD_LSUPER | KBD_FLAG_MOD_RSUPER)
 
-enum kbd_key {
+typedef enum {
     KBD_KEY_INVALID = 0,
 
     KBD_KEY_ESCAPE,
@@ -141,17 +141,17 @@ enum kbd_key {
     KBD_KEY_NUMPAD_ENTER,
 
     KBD_KEY_COUNT
-};
+} KBD_KEY;
 
 struct kbd_keyevent {
-    enum kbd_key key;
+    KBD_KEY key;
     char chr;
     bool is_down : 1;
 };
 
 struct kbddev;
 struct kbddev_ops {
-    WARN_UNUSED_RESULT int (*updateleds)(struct kbddev *self, bool scroll, bool caps, bool num);
+    NODISCARD int (*updateleds)(struct kbddev *self, bool scroll, bool caps, bool num);
 };
 struct kbddev {
     struct list_node node;
@@ -160,9 +160,7 @@ struct kbddev {
     struct kbddev_ops const *ops;
 };
 
-bool kbd_pullevent(struct kbd_keyevent *out);
-void kbd_key_pressed(enum kbd_key key);
-void kbd_key_released(enum kbd_key key);
-WARN_UNUSED_RESULT int kbd_register(
-    struct kbddev *dev_out, struct kbddev_ops const *ops, void *data);
-
+bool kbd_pull_event(struct kbd_keyevent *out);
+void kbd_key_pressed(KBD_KEY key);
+void kbd_key_released(KBD_KEY key);
+NODISCARD int kbd_register(struct kbddev *dev_out, struct kbddev_ops const *ops, void *data);

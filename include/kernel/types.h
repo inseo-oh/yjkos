@@ -2,9 +2,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef unsigned char    uchar;
-typedef unsigned int     uint;
-typedef unsigned long    ulong;
-typedef uintptr_t        physptr;
-#define PHYSICALPTR_NULL ((physptr)0)
+typedef unsigned char    UCHAR;
+typedef unsigned int     UINT;
+typedef unsigned long    ULONG;
+typedef uintptr_t        PHYSPTR;
+#define PHYSICALPTR_NULL ((PHYSPTR)0)
 

@@ -1,5 +1,5 @@
-#include "psf.h"
 #include "fbtty.h"
+#include "psf.h"
 #include <assert.h>
 #include <kernel/io/co.h>
 #include <kernel/lib/string_ext.h>
@@ -16,21 +16,21 @@
 // Draws damage region before drawing the content.
 //
 // WARNING: This can cause a LOT of flickering colors! YOU'VE BEEN WARNED.
-static bool const CONFIG_SHOW_DAMAGE = false; 
+static bool const CONFIG_SHOW_DAMAGE = false;
 
 //-----------------------------------------------------------------------------
 
-fb_color makecolor(uint8_t red, uint8_t green, uint8_t blue) {
+FB_COLOR makecolor(uint8_t red, uint8_t green, uint8_t blue) {
     return (((uint32_t)(red >> 3)) << 10) |
            (((uint32_t)(green >> 3)) << 5) |
-           ((fb_color)(blue >> 3));
+           ((FB_COLOR)(blue >> 3));
 }
 
-fb_color black(void) {
+FB_COLOR black(void) {
     return makecolor(0, 0, 0);
 }
 
-fb_color white(void) {
+FB_COLOR white(void) {
     return makecolor(255, 255, 255);
 }
 
@@ -39,7 +39,7 @@ static int s_height;
 static int s_damagefirsty = -1;
 static int s_damagelasty = -1;
 
-static fb_color *s_backbuffer;
+static FB_COLOR *s_backbuffer;
 
 static void include_damage(int from, int to) {
     if ((s_damagefirsty == -1) || (from < s_damagefirsty)) {
@@ -52,7 +52,7 @@ static void include_damage(int from, int to) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void fb_drawpixel(int x, int y, fb_color color) {
+void fb_draw_pixel(int x, int y, FB_COLOR color) {
     if (s_backbuffer == NULL) {
         return;
     }
@@ -61,26 +61,21 @@ void fb_drawpixel(int x, int y, fb_color color) {
     include_damage(y, y);
 }
 
-void fb_drawimage(
-    fb_color *image, int width, int height, int pixelsperline, int destx, int desty)
-{
+void fb_draw_image(FB_COLOR *image, int width, int height, int pixels_per_line, int destx, int desty) {
     size_t baseoffset = (desty * s_width) + destx;
-    fb_color *srcline = image;
-    fb_color *destline = &s_backbuffer[baseoffset];
+    FB_COLOR *srcline = image;
+    FB_COLOR *destline = &s_backbuffer[baseoffset];
     for (int srcy = 0; srcy < height; srcy++) {
         memcpy(destline, srcline, sizeof(*destline) * width);
-        srcline += pixelsperline;
+        srcline += pixels_per_line;
         destline += s_width;
     }
     include_damage(desty, desty + height - 1);
 }
 
-void fb_drawrect(
-    int width, int height, int destx, int desty,
-    fb_color color)
-{
+void fb_draw_rect(int width, int height, int destx, int desty, FB_COLOR color) {
     size_t baseoffset = (desty * s_width) + destx;
-    fb_color *destline = &s_backbuffer[baseoffset];
+    FB_COLOR *destline = &s_backbuffer[baseoffset];
     for (int srcy = 0; srcy < height; srcy++) {
         for (int srcx = 0; srcx < width; srcx++) {
             destline[srcx] = color;
@@ -90,21 +85,18 @@ void fb_drawrect(
     include_damage(desty, desty + height - 1);
 }
 
-void fb_drawtext(char *text, int destx, int desty, fb_color color) {
+void fb_draw_text(char *text, int destx, int desty, FB_COLOR color) {
     size_t baseoffset = (desty * s_width) + destx;
     for (char *nextchar = text; *nextchar != '\0'; nextchar++) {
         // TODO: Decode UTF-8
         uint8_t const *glyph = psf_getglyph(*nextchar);
         uint8_t const *srcline = glyph;
-        fb_color *destline = &s_backbuffer[baseoffset];
+        FB_COLOR *destline = &s_backbuffer[baseoffset];
         for (int l = 0; l < psf_getheight(); l++) {
             uint8_t const *srcpixel = srcline;
-            fb_color *destpixel = destline;
+            FB_COLOR *destpixel = destline;
             uint8_t mask = 0x80;
-            for (
-                int c = 0; c < psf_getwidth();
-                c++, mask >>= 1U, destpixel++)
-            {
+            for (int c = 0; c < psf_getwidth(); c++, mask >>= 1U, destpixel++) {
                 if (*srcpixel == 0) {
                     mask = 0x7f;
                     srcpixel++;
@@ -131,8 +123,8 @@ void fb_drawtext(char *text, int destx, int desty, fb_color color) {
 
 static union {
     struct {
-        int redfieldpos,  greenfieldpos,  bluefieldpos;
-        int redmasksize,  greenmasksize,  bluemasksize;
+        int red_field_pos, green_field_pos, blue_field_pos;
+        int red_mask_size, green_mask_size, blue_mask_size;
     } rgb;
     struct {
         uint8_t *palette;
@@ -143,29 +135,28 @@ static union {
 static void *s_fbbase;
 static int s_fbpitch;
 
-
-static uint32_t makenativecolor_rgb(fb_color rgb) {
-    uint32_t red   = ((((uint32_t)rgb >> 10U) & 0x1fU) * 255) / 0x1f;
+static uint32_t make_native_color_rgb(FB_COLOR rgb) {
+    uint32_t red = ((((uint32_t)rgb >> 10U) & 0x1fU) * 255) / 0x1f;
     uint32_t green = ((((uint32_t)rgb >> 5U) & 0x1fU) * 255) / 0x1f;
-    uint32_t blue  = (((uint32_t)rgb & 0x1fU) * 255) / 0x1f;
-    uint32_t redshiftcount = 8 - s_colorinfo.rgb.redmasksize;
-    uint32_t greenshiftcount = 8 - s_colorinfo.rgb.greenmasksize;
-    uint32_t blueshiftcount = 8 - s_colorinfo.rgb.bluemasksize;
-    uint8_t redfieldpos = s_colorinfo.rgb.redfieldpos;
-    uint8_t greenfieldpos = s_colorinfo.rgb.greenfieldpos;
-    uint8_t bluefieldpos = s_colorinfo.rgb.bluefieldpos;
-    return ((red)   >> redshiftcount)   << redfieldpos |
-           ((green) >> greenshiftcount) << greenfieldpos |
-           ((blue)  >> blueshiftcount)  << bluefieldpos;
+    uint32_t blue = (((uint32_t)rgb & 0x1fU) * 255) / 0x1f;
+    uint32_t redshiftcount = 8 - s_colorinfo.rgb.red_mask_size;
+    uint32_t greenshiftcount = 8 - s_colorinfo.rgb.green_mask_size;
+    uint32_t blueshiftcount = 8 - s_colorinfo.rgb.blue_mask_size;
+    uint8_t redfield_pos = s_colorinfo.rgb.red_field_pos;
+    uint8_t greenfield_pos = s_colorinfo.rgb.green_field_pos;
+    uint8_t bluefield_pos = s_colorinfo.rgb.blue_field_pos;
+    return ((red) >> redshiftcount) << redfield_pos |
+           ((green) >> greenshiftcount) << greenfield_pos |
+           ((blue) >> blueshiftcount) << bluefield_pos;
 }
 
-static uint32_t makenativecolor_indexed(fb_color rgb) {
+static uint32_t make_native_color_indexed(FB_COLOR rgb) {
     static int s_lastavg = -1;
     static int s_lastcolor = -1;
 
-    uint red   = (((uint32_t)rgb >> 10U) & 0x1fU) << 3U;
-    uint green = (((uint32_t)rgb >> 5) & 0x1fU) << 3U;
-    uint blue  = (rgb & 0x1fU) << 3U;
+    UINT red = (((uint32_t)rgb >> 10U) & 0x1fU) << 3U;
+    UINT green = (((uint32_t)rgb >> 5) & 0x1fU) << 3U;
+    UINT blue = (rgb & 0x1fU) << 3U;
     int avgcolor = (int)((red + green + blue) / 3);
     if (s_lastavg == avgcolor) {
         return s_lastcolor;
@@ -204,8 +195,7 @@ static void update32(void) {
         return;
     }
     if (CONFIG_SHOW_DAMAGE) {
-        uint32_t *destline = &((uint32_t *)s_fbbase)[
-            s_damagefirsty * (s_fbpitch / 4)];
+        uint32_t *destline = &((uint32_t *)s_fbbase)[s_damagefirsty * (s_fbpitch / 4)];
         for (int srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
             uint32_t *destpixel = destline;
             for (int srcx = 0; srcx < s_width; srcx++, destpixel++) {
@@ -214,9 +204,8 @@ static void update32(void) {
             destline += s_fbpitch / 4;
         }
     }
-    fb_color *srcpixel = &s_backbuffer[s_damagefirsty * s_width];
-    uint32_t *destline = &((uint32_t *)s_fbbase)[
-        s_damagefirsty * (s_fbpitch / 4)];
+    FB_COLOR *srcpixel = &s_backbuffer[s_damagefirsty * s_width];
+    uint32_t *destline = &((uint32_t *)s_fbbase)[s_damagefirsty * (s_fbpitch / 4)];
     int lastcolor = -1;
     uint32_t lastnativecolor = -1;
     for (int srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
@@ -226,7 +215,7 @@ static void update32(void) {
             if (color == lastcolor) {
                 *destpixel = lastnativecolor;
             } else {
-                lastnativecolor =  makenativecolor_rgb(color);
+                lastnativecolor = make_native_color_rgb(color);
                 lastcolor = color;
                 *destpixel = lastnativecolor;
             }
@@ -245,10 +234,7 @@ static void update24(void) {
         uint8_t *destline = &((uint8_t *)s_fbbase)[s_damagefirsty * s_fbpitch];
         for (int srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
             uint8_t *destpixel = destline;
-            for (
-                int srcx = 0; srcx < s_width;
-                srcx++, destpixel += 3)
-            {
+            for (int srcx = 0; srcx < s_width; srcx++, destpixel += 3) {
                 destpixel[0] = 127;
                 destpixel[1] = 127;
                 destpixel[2] = 127;
@@ -257,24 +243,21 @@ static void update24(void) {
         }
     }
 
-    fb_color *srcpixel = &s_backbuffer[s_damagefirsty * s_width];
+    FB_COLOR *srcpixel = &s_backbuffer[s_damagefirsty * s_width];
     uint8_t *destline = &((uint8_t *)s_fbbase)[s_damagefirsty * s_fbpitch];
     uint32_t lastcolor = -1;
     uint32_t lastnativecolor = -1;
 
     for (int srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
         uint8_t *destpixel = destline;
-        for (
-            int srcx = 0; srcx < s_width;
-            srcx++, srcpixel++, destpixel += 3)
-        {
+        for (int srcx = 0; srcx < s_width; srcx++, srcpixel++, destpixel += 3) {
             uint32_t color = *srcpixel;
             if (color == lastcolor) {
                 destpixel[0] = lastnativecolor;
                 destpixel[1] = lastnativecolor >> 8U;
                 destpixel[2] = lastnativecolor >> 16U;
             } else {
-                lastnativecolor = makenativecolor_rgb(color);
+                lastnativecolor = make_native_color_rgb(color);
                 lastcolor = color;
                 destpixel[0] = lastnativecolor;
                 destpixel[1] = lastnativecolor >> 8U;
@@ -292,37 +275,29 @@ static void update16(void) {
         return;
     }
     if (CONFIG_SHOW_DAMAGE) {
-        uint16_t *destline = &((uint16_t *)s_fbbase)[
-            s_damagefirsty * (s_fbpitch / 2)];
+        uint16_t *destline = &((uint16_t *)s_fbbase)[s_damagefirsty * (s_fbpitch / 2)];
         for (int srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
             uint16_t *destpixel = destline;
-            for (
-                int srcx = 0; srcx < s_width;
-                srcx++, destpixel++)
-            {
+            for (int srcx = 0; srcx < s_width; srcx++, destpixel++) {
                 destpixel[0] = 0x7f7f;
             }
             destline += s_fbpitch;
         }
     }
 
-    fb_color *srcpixel = &s_backbuffer[s_damagefirsty * s_width];
-    uint16_t *destline = &((uint16_t *)s_fbbase)[
-        s_damagefirsty * (s_fbpitch / 2)];
+    FB_COLOR *srcpixel = &s_backbuffer[s_damagefirsty * s_width];
+    uint16_t *destline = &((uint16_t *)s_fbbase)[s_damagefirsty * (s_fbpitch / 2)];
     int lastcolor = -1;
     uint32_t lastnativecolor = -1;
 
     for (int srcy = s_damagefirsty; srcy <= s_damagelasty; srcy++) {
         uint16_t *destpixel = destline;
-        for (
-            int srcx = 0; srcx < s_width;
-            srcx++, srcpixel++, destpixel++)
-        {
+        for (int srcx = 0; srcx < s_width; srcx++, srcpixel++, destpixel++) {
             int color = *srcpixel;
             if (color == lastcolor) {
                 *destpixel = lastnativecolor;
             } else {
-                lastnativecolor = makenativecolor_rgb(color);
+                lastnativecolor = make_native_color_rgb(color);
                 lastcolor = color;
                 *destpixel = lastnativecolor;
             }
@@ -337,7 +312,7 @@ static void update8(void) {
     if ((s_backbuffer == NULL) || (s_damagefirsty < 0)) {
         return;
     }
-    fb_color *srcpixel = &s_backbuffer[s_damagefirsty * s_width];
+    FB_COLOR *srcpixel = &s_backbuffer[s_damagefirsty * s_width];
     uint8_t *destline = &((uint8_t *)s_fbbase)[s_damagefirsty * s_fbpitch];
     int lastcolor = -1;
     uint32_t lastnativecolor = -1;
@@ -358,7 +333,7 @@ static void update8(void) {
             if (color == lastcolor) {
                 destline[x] = lastnativecolor;
             } else {
-                lastnativecolor = makenativecolor_indexed(color);
+                lastnativecolor = make_native_color_indexed(color);
                 lastcolor = color;
                 destline[x] = lastnativecolor;
             }
@@ -373,7 +348,7 @@ static void update1(void) {
     if ((s_backbuffer == NULL) || (s_damagefirsty < 0)) {
         return;
     }
-    fb_color *srcpixel = &s_backbuffer[s_damagefirsty * s_width];
+    FB_COLOR *srcpixel = &s_backbuffer[s_damagefirsty * s_width];
     uint8_t *destline = &((uint8_t *)s_fbbase)[s_damagefirsty * s_fbpitch];
     uint32_t lastcolor = -1;
     uint32_t lastnativecolor = -1;
@@ -396,10 +371,10 @@ static void update1(void) {
             if (color == lastcolor) {
                 resultcolor = lastnativecolor;
             } else {
-                uint red   = ((color >> 10U) & 0x1fU) << 3U;
-                uint green = ((color >> 5U) & 0x1fU) << 3U;
-                uint blue  = (color & 0x1fU) << 3U;
-                uint avg = (red + green + blue) / 3;
+                UINT red = ((color >> 10U) & 0x1fU) << 3U;
+                UINT green = ((color >> 5U) & 0x1fU) << 3U;
+                UINT blue = (color & 0x1fU) << 3U;
+                UINT avg = (red + green + blue) / 3;
                 lastnativecolor = 128 <= avg;
                 lastcolor = color;
                 resultcolor = lastnativecolor;
@@ -425,81 +400,71 @@ void fb_scroll(int scrolllen) {
         return;
     }
     {
-        uint8_t *srcline  = &((uint8_t *)s_fbbase)[s_fbpitch * scrolllen];
+        uint8_t *srcline = &((uint8_t *)s_fbbase)[s_fbpitch * scrolllen];
         uint8_t *destline = s_fbbase;
-        for (
-            int y = 0; y < s_height - scrolllen;
-            y++, destline += s_fbpitch, srcline += s_fbpitch)
-        {
+        for (int y = 0; y < s_height - scrolllen; y++, destline += s_fbpitch, srcline += s_fbpitch) {
             memcpy32(destline, srcline, s_fbpitch / 4);
         }
     }
     {
         uint16_t *srcline = &s_backbuffer[s_width * scrolllen];
         uint16_t *destline = s_backbuffer;
-        for (
-            int y = 0; y < s_height - scrolllen;
-            y++, destline += s_width, srcline += s_width)
-        {
-            memcpy32(
-                destline, srcline,
-                (s_width * sizeof(*destline)) / 4);
+        for (int y = 0; y < s_height - scrolllen; y++, destline += s_width, srcline += s_width) {
+            memcpy32(destline, srcline, (s_width * sizeof(*destline)) / 4);
         }
     }
 }
 
-int fb_getwidth(void) {
+int fb_get_width(void) {
     return s_width;
 }
 
-int fb_getheight(void) {
+int fb_get_height(void) {
     return s_height;
 }
 
 void fb_init_rgb(
-    int redfieldpos,
-    int redmasksize,
-    int greenfieldpos,
-    int greenmasksize,
-    int bluefieldpos,
-    int bluemasksize,
-    physptr framebufferbase,
+    int red_field_pos,
+    int red_mask_size,
+    int green_field_pos,
+    int green_mask_size,
+    int blue_field_pos,
+    int blue_mask_size,
+    PHYSPTR framebuffer_base,
     int width,
     int height,
     int pitch,
-    int bpp
-) {
-    s_colorinfo.rgb.redfieldpos = redfieldpos;
-    s_colorinfo.rgb.greenfieldpos = greenfieldpos;
-    s_colorinfo.rgb.bluefieldpos = bluefieldpos;
-    s_colorinfo.rgb.redmasksize = redmasksize;
-    s_colorinfo.rgb.greenmasksize = greenmasksize;
-    s_colorinfo.rgb.bluemasksize = bluemasksize;
+    int bpp) {
+    s_colorinfo.rgb.red_field_pos = red_field_pos;
+    s_colorinfo.rgb.green_field_pos = green_field_pos;
+    s_colorinfo.rgb.blue_field_pos = blue_field_pos;
+    s_colorinfo.rgb.red_mask_size = red_mask_size;
+    s_colorinfo.rgb.green_mask_size = green_mask_size;
+    s_colorinfo.rgb.blue_mask_size = blue_mask_size;
     s_width = width;
     s_height = height;
     s_fbpitch = pitch;
-    s_backbuffer = heap_alloc(
-        width * height * sizeof(*s_backbuffer), 0);
+    s_backbuffer = heap_alloc(width * height * sizeof(*s_backbuffer), 0);
     if (s_backbuffer == NULL) {
         co_printf("fb: not enough memory to allocate buffer\n");
         goto fail;
     }
     switch (bpp) {
-        case 32:
-            fb_update = update32;
-            break;
-        case 24:
-            fb_update = update24;
-            break;
-        case 16:
-        case 15:
-            fb_update = update16;
-            break;
-        default:
-            co_printf("fb: unsupported rgb bpp %dbpp\n", bpp);
-            goto fail;
+    case 32:
+        fb_update = update32;
+        break;
+    case 24:
+        fb_update = update24;
+        break;
+    case 16:
+    case 15:
+        fb_update = update16;
+        break;
+    default:
+        co_printf("fb: unsupported rgb bpp %dbpp\n", bpp);
+        goto fail;
     }
-    s_fbbase = vmm_ezmap(framebufferbase, pitch * height);
+    s_fbbase = vmm_ezmap(framebuffer_base, pitch * height);
     co_printf("fb: rgb %dx%d %dbpp video\n", width, height, bpp);
     fb_update();
     psf_init();
@@ -509,42 +474,31 @@ fail:
     heap_free(s_backbuffer);
 }
 
-void fb_init_indexed(
-    uint8_t *palette,
-    int colorcount,
-    physptr framebufferbase,
-    int width,
-    int height,
-    int pitch,
-    int bpp
-) {
+void fb_init_indexed(uint8_t *palette, int colorcount, PHYSPTR framebufferbase, int width, int height, int pitch, int bpp) {
     s_colorinfo.indexed.palette = palette;
     s_colorinfo.indexed.colorcount = colorcount;
     s_width = width;
     s_height = height;
     s_fbpitch = pitch;
-    s_backbuffer = heap_alloc(
-        width * height * sizeof(*s_backbuffer), 0);
+    s_backbuffer = heap_alloc(width * height * sizeof(*s_backbuffer), 0);
     if (s_backbuffer == NULL) {
         co_printf("fb: not enough memory to allocate buffer\n");
         goto fail;
     }
     switch (bpp) {
-        case 8:
-            fb_update = update8;
-            break;
-        case 1:
-            assert((width % 8) == 0);
-            fb_update = update1;
-            break;
-        default:
-            co_printf("fb: unsupported indexed bpp %dbpp\n", bpp);
-            goto fail;
+    case 8:
+        fb_update = update8;
+        break;
+    case 1:
+        assert((width % 8) == 0);
+        fb_update = update1;
+        break;
+    default:
+        co_printf("fb: unsupported indexed bpp %dbpp\n", bpp);
+        goto fail;
     }
     s_fbbase = vmm_ezmap(framebufferbase, pitch * height);
-    co_printf(
-        "fb: %u-color indexed %dx%d %dbpp video\n",
-        colorcount, width, height, bpp);
+    co_printf("fb: %u-color indexed %dx%d %dbpp video\n", colorcount, width, height, bpp);
 
     // Make sure we can safely use memcpy32
     assert(s_fbpitch % 4 == 0);

@@ -9,31 +9,23 @@ void mutex_init(struct mutex *out) {
     memset(out, 0, sizeof(*out));
 }
 
-WARN_UNUSED_RESULT bool __mutex_trylock(
-    struct mutex *self,
-    struct sourcelocation loc)
-{
+NODISCARD bool __mutex_trylock(struct mutex *self, struct sourcelocation loc) {
     bool expected = false;
-    if (!atomic_compare_exchange_strong_explicit(
-        &self->locked, &expected, true,
-        memory_order_acquire, memory_order_relaxed))
-    {
+    if (!atomic_compare_exchange_strong_explicit(&self->locked, &expected, true, memory_order_acquire, memory_order_relaxed)) {
         return false;
     }
     memcpy(&self->locksource, &loc, sizeof(self->locksource));
     return true;
 }
 
-void __mutex_lock(
-    struct mutex *self, struct sourcelocation loc)
-{
+void __mutex_lock(struct mutex *self, struct sourcelocation loc) {
     assert(self);
-    bool previnterrupts = arch_interrupts_disable();
+    bool prev_interrupts = arch_interrupts_disable();
     if (!__mutex_trylock(self, loc)) {
         sched_waitmutex(self, &loc);
         assert(self->locked);
     }
-    interrupts_restore(previnterrupts);
+    interrupts_restore(prev_interrupts);
 }
 
 void mutex_unlock(struct mutex *self) {

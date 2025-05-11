@@ -1,5 +1,5 @@
-.global archi586_contextswitch
-archi586_contextswitch:
+.global archi586_context_switch
+archi586_context_switch:
     /*
      * Registers to preserve: ebx, esi, edi, ebp, esp, eflags
      * Register that doesn't need to be preserved: eax, ecx, edx

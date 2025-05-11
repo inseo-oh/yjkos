@@ -37,33 +37,33 @@ archi586_invlpg:
 	invlpg (%eax)
     ret
 
-.global archi586_reloadcr3
-archi586_reloadcr3:
+.global archi586_reload_cr3
+archi586_reload_cr3:
     mov %cr3, %eax
     mov %eax, %cr3
     ret
 
-.global archi586_readcr0
-archi586_readcr0:
+.global archi586_read_cr0
+archi586_read_cr0:
     mov %cr0, %eax
     ret
 
-.global archi586_readcr2
-archi586_readcr2:
+.global archi586_read_cr2
+archi586_read_cr2:
     mov %cr2, %eax
     ret
 
-.global archi586_readcr3
-archi586_readcr3:
+.global archi586_read_cr3
+archi586_read_cr3:
     mov %cr3, %eax
     ret
 
-.global archi586_readcr4
-archi586_readcr4:
+.global archi586_read_cr4
+archi586_read_cr4:
     mov %cr3, %eax
     ret
 
-.global archi586_readcr8
-archi586_readcr8:
+.global archi586_read_cr8
+archi586_read_cr8:
     mov %cr3, %eax
     ret

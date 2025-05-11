@@ -11,29 +11,25 @@
 #include <string.h>
 #include <unistd.h>
 
-
 //------------------------------- Configuration -------------------------------
 
 // Dump the command parse result?
-static bool const CONFIG_DUMPCMD = false; 
+static bool const CONFIG_DUMPCMD = false;
 
 //-----------------------------------------------------------------------------
 
-
-enum cmdkind {
+typedef enum {
     CMDKIND_EMPTY,
     CMDKIND_RUNPROGRAM,
-};
+} CMDKIND;
 
-enum {
-    SHELL_MAX_CMDLINE_LEN = 80,
-    SHELL_MAX_NAME_LEN    = 20,
-};
+#define SHELL_MAX_CMDLINE_LEN 80
+#define SHELL_MAX_NAME_LEN 20
 
 union shellcmd {
-    enum cmdkind kind;
+    CMDKIND kind;
     struct {
-        enum cmdkind kind;
+        CMDKIND kind;
         char **argv;
         int argc;
     } runprogram;
@@ -46,18 +42,14 @@ static int parse_cmd_runprogram(union shellcmd *out, struct smatcher *cmdstr) {
     int ret = SHELL_EXITCODE_OK;
     char **argv = NULL;
     int argc = 0;
-    while(1) {
+    while (1) {
         smatcher_skip_whitespaces(cmdstr);
-        if (
-            (cmdstr->currentindex == cmdstr->len) ||
-            (smatcher_consume_string_if_match(cmdstr, ";"))
-        ) {
+        if ((cmdstr->currentindex == cmdstr->len) || (smatcher_consume_string_if_match(cmdstr, ";"))) {
             break;
         }
         char const *str = NULL;
         size_t len = 0;
-        bool matchok = smatcher_consume_word(
-            &str, &len, cmdstr);
+        bool matchok = smatcher_consume_word(&str, &len, cmdstr);
         (void)matchok;
         assert(matchok);
         if (argc == INT_MAX) {
@@ -97,9 +89,7 @@ out:
 }
 
 // Returns shell exit code (See SHELL_EXITCODE_~)
-WARN_UNUSED_RESULT static int parse_cmd(
-    union shellcmd *out, struct smatcher *cmdstr)
-{
+NODISCARD static int parse_cmd(union shellcmd *out, struct smatcher *cmdstr) {
     int result = SHELL_EXITCODE_OK;
     memset(out, 0, sizeof(*out));
     smatcher_skip_whitespaces(cmdstr);
@@ -114,59 +104,59 @@ out:
 }
 
 static void cmd_destroy(union shellcmd *cmd) {
-    switch(cmd->kind) {
-        case CMDKIND_RUNPROGRAM:
-            for (int i = 0; i < cmd->runprogram.argc; i++) {
-                heap_free(cmd->runprogram.argv[i]);
-            }
-            heap_free(cmd->runprogram.argv);
-        case CMDKIND_EMPTY:
-            break;
+    switch (cmd->kind) {
+    case CMDKIND_RUNPROGRAM:
+        for (int i = 0; i < cmd->runprogram.argc; i++) {
+            heap_free(cmd->runprogram.argv[i]);
+        }
+        heap_free(cmd->runprogram.argv);
+    case CMDKIND_EMPTY:
+        break;
     }
 }
 
 static void cmd_dump(union shellcmd const *cmd) {
-    switch(cmd->kind) {
-        case CMDKIND_RUNPROGRAM:
-            co_printf("[cmd_dump] RUNPROGRAM\n");
-            co_printf("[cmd_dump]  - argc %d\n", cmd->runprogram.argc);
-            for (int i = 0; i < cmd->runprogram.argc; i++) {
-                co_printf("[cmd_dump]  - argv[%d] - [%s]\n", i, cmd->runprogram.argv[i]);
-            }
-            break;
-        case CMDKIND_EMPTY:
-            co_printf("[cmd_dump] EMPTY\n");
-            break;
-        default:
-            co_printf("[cmd_dump] UNKNOWN CMD\n");
+    switch (cmd->kind) {
+    case CMDKIND_RUNPROGRAM:
+        co_printf("[cmd_dump] RUNPROGRAM\n");
+        co_printf("[cmd_dump]  - argc %d\n", cmd->runprogram.argc);
+        for (int i = 0; i < cmd->runprogram.argc; i++) {
+            co_printf("[cmd_dump]  - argv[%d] - [%s]\n", i, cmd->runprogram.argv[i]);
+        }
+        break;
+    case CMDKIND_EMPTY:
+        co_printf("[cmd_dump] EMPTY\n");
+        break;
+    default:
+        co_printf("[cmd_dump] UNKNOWN CMD\n");
     }
 }
 
 static int cmd_exec(union shellcmd const *cmd) {
-    switch(cmd->kind) {
-        case CMDKIND_RUNPROGRAM: {
-            assert(cmd->runprogram.argc != 0);
-            assert(cmd->runprogram.argv != NULL);
-            struct shell_program *program_to_run = NULL;
-            LIST_FOREACH(&s_programs, programnode) {
-                struct shell_program *program = programnode->data;
-                if (strcmp(program->name, cmd->runprogram.argv[0]) == 0) {
-                    program_to_run = program;
-                    break;
-                }
+    switch (cmd->kind) {
+    case CMDKIND_RUNPROGRAM: {
+        assert(cmd->runprogram.argc != 0);
+        assert(cmd->runprogram.argv != NULL);
+        struct shell_program *program_to_run = NULL;
+        LIST_FOREACH(&s_programs, programnode) {
+            struct shell_program *program = programnode->data;
+            if (strcmp(program->name, cmd->runprogram.argv[0]) == 0) {
+                program_to_run = program;
+                break;
             }
-            if (program_to_run == NULL) {
-                co_printf("%s: command not found\n", cmd->runprogram.argv[0]);
-                return 127;
-            }
-            optind = 1;
-            opterr = 1;
-            return program_to_run->main(cmd->runprogram.argc, cmd->runprogram.argv);
         }
-        case CMDKIND_EMPTY:
-            return 0;
-        default:
-            panic("shell: cmd_exec internal error - unknown cmd type");
+        if (program_to_run == NULL) {
+            co_printf("%s: command not found\n", cmd->runprogram.argv[0]);
+            return 127;
+        }
+        optind = 1;
+        opterr = 1;
+        return program_to_run->main(cmd->runprogram.argc, cmd->runprogram.argv);
+    }
+    case CMDKIND_EMPTY:
+        return 0;
+    default:
+        panic("shell: cmd_exec internal error - unknown cmd type");
     }
 }
 
@@ -179,7 +169,7 @@ int shell_execcmd(char const *str) {
     union shellcmd cmd;
     struct smatcher linematcher;
     smatcher_init(&linematcher, str);
-    ret = parse_cmd(&cmd, &linematcher); 
+    ret = parse_cmd(&cmd, &linematcher);
     if (ret < 0) {
         return ret;
     }
@@ -199,12 +189,12 @@ int shell_execcmd(char const *str) {
 void shell_repl(void) {
     char cmdline[SHELL_MAX_CMDLINE_LEN + 1];
 
-    while(1) {
+    while (1) {
         size_t cursorpos = 0;
         cmdline[0] = '\0';
         co_printf("kernel> ");
 
-        while(1) {
+        while (1) {
             int c = co_getchar();
             if (c == CON_BACKSPACE || c == CON_DELETE) {
                 if (cursorpos != 0) {
@@ -232,8 +222,7 @@ void shell_repl(void) {
 }
 
 void shell_init(void) {
-#define X(_x)   registerprogram(&(_x));
+#define X(_x) registerprogram(&(_x));
     ENUMERATE_SHELLPROGRAMS(X)
 #undef X
 }
-

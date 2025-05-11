@@ -5,10 +5,10 @@
 #include <stddef.h>
 
 static char const *const IODEV_TYPE_PHYSICAL_DISK = "pdisk";
-static char const *const IODEV_TYPE_LOGICAL_DISK  = "ldisk";
-static char const *const IODEV_TYPE_PS2PORT       = "ps2port";
-static char const *const IODEV_TYPE_KEYBOARD      = "kbd";
-static char const *const IODEV_TYPE_TTY           = "tty";
+static char const *const IODEV_TYPE_LOGICAL_DISK = "ldisk";
+static char const *const IODEV_TYPE_PS2PORT = "ps2port";
+static char const *const IODEV_TYPE_KEYBOARD = "kbd";
+static char const *const IODEV_TYPE_TTY = "tty";
 
 struct iodev {
     struct list_node node;
@@ -18,7 +18,6 @@ struct iodev {
 };
 
 // `devtype` must be static string.
-WARN_UNUSED_RESULT int iodev_register(
-    struct iodev *dev_out, char const *devtype, void *data);
+NODISCARD int iodev_register(struct iodev *dev_out, char const *devtype, void *data);
 void iodev_printf(struct iodev *device, char const *fmt, ...);
 struct list *iodev_getlist(char const *devtype);

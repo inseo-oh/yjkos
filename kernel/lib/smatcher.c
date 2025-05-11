@@ -14,10 +14,7 @@ void smatcher_init_with_len(struct smatcher *out, char const *str, size_t len) {
     out->len = len;
 }
 
-void smatcher_slice(
-    struct smatcher *out, struct smatcher const *self, size_t firstchar,
-    size_t lastchar)
-{
+void smatcher_slice(struct smatcher *out, struct smatcher const *self, size_t firstchar, size_t lastchar) {
     assert(firstchar <= lastchar);
     size_t len = lastchar - firstchar + 1;
     smatcher_init_with_len(out, &self->str[firstchar], len);
@@ -52,22 +49,17 @@ bool smatcher_consume_word_if_match(struct smatcher *self, char const *str) {
 }
 
 void smatcher_skip_whitespaces(struct smatcher *self) {
-    while(isspace(self->str[self->currentindex])) {
+    while (isspace(self->str[self->currentindex])) {
         self->currentindex++;
     }
 }
 
-bool smatcher_consume_word(
-    char const **str_out, size_t *len_out, struct smatcher *self)
-{
-    if (
-        (self->currentindex == self->len) ||
-        isspace(self->str[self->currentindex]))
-    {
+bool smatcher_consume_word(char const **str_out, size_t *len_out, struct smatcher *self) {
+    if ((self->currentindex == self->len) || isspace(self->str[self->currentindex])) {
         return false;
     }
     *str_out = &self->str[self->currentindex];
-    *len_out = 0; 
+    *len_out = 0;
     for (; self->currentindex < self->len; self->currentindex++) {
         if (!isspace(self->str[self->currentindex])) {
             (*len_out)++;

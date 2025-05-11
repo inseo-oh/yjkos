@@ -19,7 +19,7 @@ void co_setdebug(struct stream *device) {
 }
 
 void co_putc(char c) {
-    bool previnterrupts =  arch_interrupts_disable();
+    bool prev_interrupts = arch_interrupts_disable();
     if (s_primarystream != NULL) {
         int ret = stream_putchar(s_primarystream, c);
         (void)ret;
@@ -30,11 +30,11 @@ void co_putc(char c) {
         (void)ret;
         stream_flush(s_debugstream);
     }
-    interrupts_restore(previnterrupts);
+    interrupts_restore(prev_interrupts);
 }
 
 void co_puts(char const *s) {
-    bool previnterrupts =  arch_interrupts_disable();
+    bool prev_interrupts = arch_interrupts_disable();
     if (s_primarystream != NULL) {
         int ret = stream_putstr(s_primarystream, s);
         (void)ret;
@@ -45,11 +45,11 @@ void co_puts(char const *s) {
         (void)ret;
         stream_flush(s_debugstream);
     }
-    interrupts_restore(previnterrupts);
+    interrupts_restore(prev_interrupts);
 }
 
 void co_vprintf(char const *fmt, va_list ap) {
-    bool previnterrupts =  arch_interrupts_disable();
+    bool prev_interrupts = arch_interrupts_disable();
     if (s_primarystream != NULL) {
         int ret = stream_vprintf(s_primarystream, fmt, ap);
         (void)ret;
@@ -60,7 +60,7 @@ void co_vprintf(char const *fmt, va_list ap) {
         (void)ret;
         stream_flush(s_debugstream);
     }
-    interrupts_restore(previnterrupts);
+    interrupts_restore(prev_interrupts);
 }
 
 void co_printf(char const *fmt, ...) {
@@ -76,10 +76,10 @@ int co_getchar(void) {
 
     if (!s_primarystream) {
         // There's nothing we can do
-        co_printf(
-            "tty: waiting for character, but there's no console to wait for\n");
+        co_printf("tty: waiting for character, but there's no console to wait for\n");
         arch_hcf();
-        while(1) {}
+        while (1) {
+        }
     }
     int ret = -1;
     while (ret < 0) {
@@ -92,4 +92,3 @@ int co_getchar(void) {
     }
     return c;
 }
-

@@ -7,10 +7,7 @@
 #include <stdint.h>
 #include <string.h>
 
-
-WARN_UNUSED_RESULT static int vfs_op_mount(
-    struct vfs_fscontext **out, struct ldisk *disk)
-{
+NODISCARD static int vfs_op_mount(struct vfs_fscontext **out, struct ldisk *disk) {
     int ret = 0;
     struct vfs_fscontext *context = heap_alloc(sizeof(*context), HEAP_FLAG_ZEROMEMORY);
     if (context == NULL) {
@@ -26,14 +23,12 @@ out:
     return ret;
 }
 
-WARN_UNUSED_RESULT static int vfs_op_umount(struct vfs_fscontext *self) {
+NODISCARD static int vfs_op_umount(struct vfs_fscontext *self) {
     heap_free(self);
     return 0;
 }
 
-WARN_UNUSED_RESULT static int vfs_op_open(
-    struct fd **out, struct vfs_fscontext *self, char const *path, int flags)
-{
+NODISCARD static int vfs_op_open(struct fd **out, struct vfs_fscontext *self, char const *path, int flags) {
     (void)out;
     (void)self;
     (void)path;
@@ -42,13 +37,13 @@ WARN_UNUSED_RESULT static int vfs_op_open(
 }
 
 static struct vfs_fstype_ops const FSTYPE_OPS = {
-    .mount  = vfs_op_mount,
+    .mount = vfs_op_mount,
     .umount = vfs_op_umount,
-    .open   = vfs_op_open,
+    .open = vfs_op_open,
 };
 
 static struct vfs_fstype s_fstype;
 
 void fsinit_init_dummyfs(void) {
-    vfs_registerfstype(&s_fstype, "dummyfs", &FSTYPE_OPS);
+    vfs_register_fs_type(&s_fstype, "dummyfs", &FSTYPE_OPS);
 }

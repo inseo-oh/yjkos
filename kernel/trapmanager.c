@@ -23,7 +23,7 @@ static uint32_t calculatechecksum(struct traphandler const *handler) {
 }
 
 void trapmanager_register(struct traphandler *out, int trapnum, void (*callback)(int trapnum, void *trapframe, void *data), void *data) {
-    bool previnterrupts = arch_interrupts_disable();
+    bool prev_interrupts = arch_interrupts_disable();
     out->callback = callback;
     out->data = data;
     list_insertback(&s_traps[trapnum], &out->node, out);
@@ -36,7 +36,7 @@ void trapmanager_register(struct traphandler *out, int trapnum, void (*callback)
         struct traphandler *handler = out->node.next->data;
         handler->checksum = calculatechecksum(handler);
     }
-    interrupts_restore(previnterrupts);
+    interrupts_restore(prev_interrupts);
 }
 
 void trapmanager_trap(int trapnum, void *trapframe) {

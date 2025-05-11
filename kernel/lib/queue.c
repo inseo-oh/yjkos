@@ -19,9 +19,7 @@ bool queue_isempty(struct queue const *self) {
     return ((self->enqueueindex == self->dequeueindex) && (!self->lastwasenqueue));
 }
 
-WARN_UNUSED_RESULT int __queue_enqueue(
-    struct queue *self, void const *data, size_t itemsize)
-{
+NODISCARD int __queue_enqueue(struct queue *self, void const *data, size_t itemsize) {
     assert(itemsize == self->itemsize);
     if (queue_isfull(self)) {
         return -ENOMEM;
@@ -33,23 +31,19 @@ WARN_UNUSED_RESULT int __queue_enqueue(
     return 0;
 }
 
-WARN_UNUSED_RESULT bool __queue_dequeue(
-    void *out_buf, struct queue *self, size_t itemsize)
-{
+NODISCARD bool __queue_dequeue(void *out_buf, struct queue *self, size_t itemsize) {
     assert(itemsize == self->itemsize);
     if (queue_isempty(self)) {
         return false;
     }
     size_t dequeueindex = (self->dequeueindex + 1) % self->cap;
-    memcpy(
-        out_buf,
-        ((char *)self->buf) + (self->dequeueindex * itemsize),itemsize);
+    memcpy(out_buf, ((char *)self->buf) + (self->dequeueindex * itemsize), itemsize);
     self->dequeueindex = dequeueindex;
     self->lastwasenqueue = false;
     return true;
 }
 
-WARN_UNUSED_RESULT void *queue_peek(struct queue const *self, size_t itemsize) {
+NODISCARD void *queue_peek(struct queue const *self, size_t itemsize) {
     assert(itemsize == self->itemsize);
     if (queue_isempty(self)) {
         return NULL;

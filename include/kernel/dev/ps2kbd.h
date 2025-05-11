@@ -3,5 +3,5 @@
 #include <kernel/lib/diagnostics.h>
 #include <stdint.h>
 
-WARN_UNUSED_RESULT int ps2kbd_init(struct ps2port *port);
+NODISCARD int ps2kbd_init(struct ps2port *port);
 

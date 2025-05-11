@@ -1,12 +1,12 @@
 #include "ctype.h"
 #include <stdint.h>
 
-typedef uint8_t charclass_type;
+typedef uint8_t CHARCLASS_TYPE;
 
-static charclass_type const CCLASS_FLAG_SPACE = 1U << 0U;
-static charclass_type const CCLASS_FLAG_DIGIT = 1U << 1U;
+static CHARCLASS_TYPE const CCLASS_FLAG_SPACE = 1U << 0U;
+static CHARCLASS_TYPE const CCLASS_FLAG_DIGIT = 1U << 1U;
 
-static charclass_type const CHARS[128] = {
+static CHARCLASS_TYPE const CHARS[128] = {
     ['0'] = CCLASS_FLAG_DIGIT,
     ['1'] = CCLASS_FLAG_DIGIT,
     ['2'] = CCLASS_FLAG_DIGIT,
@@ -21,7 +21,7 @@ static charclass_type const CHARS[128] = {
     [' '] = CCLASS_FLAG_SPACE,
 };
 
-static int const CCLASS_MAX_CHAR = (sizeof(CHARS)/sizeof(*CHARS)) - 1;
+static int const CCLASS_MAX_CHAR = (sizeof(CHARS) / sizeof(*CHARS)) - 1;
 
 int isspace(int c) {
     if ((c < 0) || (CCLASS_MAX_CHAR <= c)) {

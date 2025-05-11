@@ -2,9 +2,9 @@
 #include <assert.h> // IWYU pragma: export
 
 #ifdef __GNUC__
-#define WARN_UNUSED_RESULT      __attribute__((warn_unused_result))
+#define NODISCARD      __attribute__((warn_unused_result))
 #else
-#define WARN_UNUSED_RESULT
+#define NODISCARD
 #endif
 
 #define STATIC_ASSERT_SIZE(_type, _size) \

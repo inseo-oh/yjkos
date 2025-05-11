@@ -1,6 +1,6 @@
+#include "ps2ctrl.h"
 #include "../ioport.h"
 #include "../pic.h"
-#include "ps2ctrl.h"
 #include <assert.h>
 #include <errno.h>
 #include <kernel/dev/ps2.h>
@@ -20,42 +20,40 @@ static bool const CONFIG_COMM_DEBUG = false;
 
 //-----------------------------------------------------------------------------
 
-
-#define DATA_PORT   0x60
+#define DATA_PORT 0x60
 #define STATUS_PORT 0x64 // Read only
-#define CMD_PORT    0x64 // Write only
+#define CMD_PORT 0x64    // Write only
 
 // PS/2 controller commands
-#define CMD_READ_CTRL_CONFIG    0x20
-#define CMD_WRITE_CTRL_CONFIG   0x60
-#define CMD_DISABLE_PORT1       0xa7
-#define CMD_ENABLE_PORT1        0xa8
-#define CMD_TEST_PORT1          0xa9
-#define CMD_TEST_CTRL           0xaa
-#define CMD_TEST_PORT0          0xab
-#define CMD_DISABLE_PORT0       0xad
-#define CMD_ENABLE_PORT0        0xae
-#define CMD_WRITE_PORT1         0xd4
+#define CMD_READ_CTRL_CONFIG 0x20
+#define CMD_WRITE_CTRL_CONFIG 0x60
+#define CMD_DISABLE_PORT1 0xa7
+#define CMD_ENABLE_PORT1 0xa8
+#define CMD_TEST_PORT1 0xa9
+#define CMD_TEST_CTRL 0xaa
+#define CMD_TEST_PORT0 0xab
+#define CMD_DISABLE_PORT0 0xad
+#define CMD_ENABLE_PORT0 0xae
+#define CMD_WRITE_PORT1 0xd4
 
-#define IRQ_PORT0   1
-#define IRQ_PORT1   12
+#define IRQ_PORT0 1
+#define IRQ_PORT1 12
 
 // PS/2 controller configuration
-#define CONFIG_FLAG_PORT0_INT       (1U << 0)
-#define CONFIG_FLAG_PORT1_INT       (1U << 1)
-#define CONFIG_FLAG_SYS             (1U << 2)
-#define CONFIG_FLAG_PORT0_CLK_OFF   (1U << 4)
-#define CONFIG_FLAG_PORT1_CLK_OFF   (1U << 5)
-#define CONFIG_FLAG_PORT0_TRANS     (1U << 6)
+#define CONFIG_FLAG_PORT0_INT (1U << 0)
+#define CONFIG_FLAG_PORT1_INT (1U << 1)
+#define CONFIG_FLAG_SYS (1U << 2)
+#define CONFIG_FLAG_PORT0_CLK_OFF (1U << 4)
+#define CONFIG_FLAG_PORT1_CLK_OFF (1U << 5)
+#define CONFIG_FLAG_PORT0_TRANS (1U << 6)
 
 // PS/2 controller status
-#define STATUS_FLAG_OUTBUF_FULL     (1U << 0)
-#define STATUS_FLAG_INBUF_FULL      (1U << 1)
-#define STATUS_FLAG_SYS             (1U << 2)
-#define STATUS_FLAG_CMD_DATA        (1U << 3)
-#define STATUS_TIMEOUT_ERR          (1U << 6)
-#define STATUS_PARITY_ERR           (1U << 7)
-
+#define STATUS_FLAG_OUTBUF_FULL (1U << 0)
+#define STATUS_FLAG_INBUF_FULL (1U << 1)
+#define STATUS_FLAG_SYS (1U << 2)
+#define STATUS_FLAG_CMD_DATA (1U << 3)
+#define STATUS_TIMEOUT_ERR (1U << 6)
+#define STATUS_PARITY_ERR (1U << 7)
 
 struct portcontext {
     struct ps2port ps2port;
@@ -63,8 +61,8 @@ struct portcontext {
     struct archi586_pic_irq_handler irqhandler;
 };
 
-WARN_UNUSED_RESULT static int waitforrecv(void) {
-    ticktime oldtime = g_ticktime;
+NODISCARD static int waitforrecv(void) {
+    TICKTIME oldtime = g_ticktime;
     bool timeout = true;
     while ((g_ticktime - oldtime) < PS2_TIMEOUT) {
         uint8_t ctrl_status = archi586_in8(STATUS_PORT);
@@ -80,8 +78,8 @@ WARN_UNUSED_RESULT static int waitforrecv(void) {
     return 0;
 }
 
-WARN_UNUSED_RESULT static int waitforsend(void) {
-    ticktime oldtime = g_ticktime;
+NODISCARD static int waitforsend(void) {
+    TICKTIME oldtime = g_ticktime;
     bool timeout = true;
     while ((g_ticktime - oldtime) < PS2_TIMEOUT) {
         uint8_t ctrl_status = archi586_in8(STATUS_PORT);
@@ -172,11 +170,10 @@ static struct stream_ops const OPS = {
     .write = stream_op_write,
 };
 
-WARN_UNUSED_RESULT static int discovered_port(size_t port_index) {
+NODISCARD static int discovered_port(size_t port_index) {
     assert(port_index < 2);
     int ret = 0;
-    struct portcontext *port = heap_alloc(
-        sizeof(*port), HEAP_FLAG_ZEROMEMORY);
+    struct portcontext *port = heap_alloc(sizeof(*port), HEAP_FLAG_ZEROMEMORY);
     if (port == NULL) {
         goto fail;
     }
@@ -200,7 +197,7 @@ WARN_UNUSED_RESULT static int discovered_port(size_t port_index) {
     if (ret < 0) {
         goto fail;
     }
-    /* 
+    /*
      * We can't undo ps2port_register as of writing this code, so no further
      * errors are allowed.
      */
@@ -211,7 +208,7 @@ out:
     return ret;
 }
 
-WARN_UNUSED_RESULT static int disable_all(void) {
+NODISCARD static int disable_all(void) {
     int ret = 0;
 
     // Disable PS/2 devices
@@ -227,12 +224,12 @@ WARN_UNUSED_RESULT static int disable_all(void) {
 }
 
 static void empty_output_buffer(void) {
-    while(archi586_in8(STATUS_PORT) & STATUS_FLAG_OUTBUF_FULL) {
+    while (archi586_in8(STATUS_PORT) & STATUS_FLAG_OUTBUF_FULL) {
         archi586_in8(DATA_PORT);
     }
 }
 
-WARN_UNUSED_RESULT static int read_ctrl_config(uint8_t *out) {
+NODISCARD static int read_ctrl_config(uint8_t *out) {
     int ret = 0;
     uint8_t ctrl_config = 0;
     ret = send_to_ctrl(CMD_READ_CTRL_CONFIG);
@@ -269,9 +266,7 @@ static int init_port0_config(void) {
     if (ret < 0) {
         return ret;
     }
-    ctrl_config &= ~(
-        CONFIG_FLAG_PORT0_INT | CONFIG_FLAG_PORT0_TRANS |
-        CONFIG_FLAG_PORT0_CLK_OFF);
+    ctrl_config &= ~(CONFIG_FLAG_PORT0_INT | CONFIG_FLAG_PORT0_TRANS | CONFIG_FLAG_PORT0_CLK_OFF);
     write_ctrl_config(ctrl_config);
     if (ret < 0) {
         return ret;
@@ -332,13 +327,11 @@ static int ctrl_self_test(void) {
         return ret;
     }
     if (response != 0x55) {
-        co_printf(
-            "ps2: controller self test failed(response: %#x)\n",
-            response);
+        co_printf("ps2: controller self test failed(response: %#x)\n", response);
         ret = -EIO;
         return ret;
     }
-    return 0;    
+    return 0;
 }
 
 static int port_self_test(int port) {
@@ -346,15 +339,15 @@ static int port_self_test(int port) {
     uint8_t response;
     int ret;
 
-    switch(port) {
-        case 0:
-            cmd = CMD_TEST_PORT0;
-            break;
-        case 1:
-            cmd = CMD_TEST_PORT1;
-            break;
-        default:
-            assert(false);
+    switch (port) {
+    case 0:
+        cmd = CMD_TEST_PORT0;
+        break;
+    case 1:
+        cmd = CMD_TEST_PORT1;
+        break;
+    default:
+        assert(false);
     }
     ret = send_to_ctrl(cmd);
     if (ret < 0) {
@@ -365,9 +358,7 @@ static int port_self_test(int port) {
         return ret;
     }
     if (response != 0x00) {
-        co_printf(
-            "ps2: port %d self test failed(response: %#x)\n",
-            port, response);
+        co_printf("ps2: port %d self test failed(response: %#x)\n", port, response);
         return -EIO;
     }
     return 0;
@@ -404,7 +395,7 @@ void archi586_ps2ctrl_init(void) {
 
     /*
      * Self-test may have resetted the controller, so we reconfigure
-     * Port 0 again. 
+     * Port 0 again.
      */
     ret = init_port0_config();
     if (ret < 0) {
@@ -415,12 +406,10 @@ void archi586_ps2ctrl_init(void) {
     int port_count = 2;
     ret = configure_second_port();
     if (ret < 0) {
-        co_printf(
-            "ps2: failed to configure second port(error %d)\n", ret);
+        co_printf("ps2: failed to configure second port(error %d)\n", ret);
         port_count = 1;
     }
-    co_printf(
-        "ps2: detected as %d-port controller\n", port_count);
+    co_printf("ps2: detected as %d-port controller\n", port_count);
 
     // Test each port
     bool port_ok[] = {true, true};
@@ -466,7 +455,5 @@ void archi586_ps2ctrl_init(void) {
     }
     return;
 fail:
-    co_printf(
-        "ps2: error %d occured. aborting controller initialization\n",
-        ret);
+    co_printf("ps2: error %d occured. aborting controller initialization\n", ret);
 }

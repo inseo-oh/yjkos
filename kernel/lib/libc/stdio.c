@@ -14,13 +14,11 @@
 
 struct vsnprintf_stream {
     struct stream stream;
-    char * restrict dest;
+    char *restrict dest;
     size_t remaininglen;
 };
 
-WARN_UNUSED_RESULT static ssize_t vsnprintf_stream_op_write(
-    struct stream *self, void *buf, size_t size)
-{
+NODISCARD static ssize_t vsnprintf_stream_op_write(struct stream *self, void *buf, size_t size) {
     assert(size < STREAM_MAX_TRANSFER_SIZE);
     struct vsnprintf_stream *stream = self->data;
     size_t writelen = size;
@@ -38,8 +36,7 @@ static const struct stream_ops VSNPRINTF_STREAM_OPS = {
     .write = vsnprintf_stream_op_write,
 };
 
-
-int vsnprintf(char * restrict str, size_t size, char const *fmt, va_list ap) {
+int vsnprintf(char *restrict str, size_t size, char const *fmt, va_list ap) {
     assert(size <= INT_MAX);
     struct vsnprintf_stream stream;
     stream.dest = str;
@@ -49,11 +46,11 @@ int vsnprintf(char * restrict str, size_t size, char const *fmt, va_list ap) {
     return stream_vprintf(&stream.stream, fmt, ap);
 }
 
-int vsprintf(char * restrict str, char const *fmt, va_list ap) {
+int vsprintf(char *restrict str, char const *fmt, va_list ap) {
     return vsnprintf(str, SIZE_MAX, fmt, ap);
 }
 
-int snprintf(char * restrict str, size_t size, char const *fmt, ...) {
+int snprintf(char *restrict str, size_t size, char const *fmt, ...) {
     assert(size <= INT_MAX);
     va_list ap;
     va_start(ap, fmt);
@@ -62,7 +59,7 @@ int snprintf(char * restrict str, size_t size, char const *fmt, ...) {
     return ret;
 }
 
-int sprintf(char * restrict str, char const *fmt, ...) {
+int sprintf(char *restrict str, char const *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
     int ret = vsprintf(str, fmt, ap);

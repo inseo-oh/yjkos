@@ -15,13 +15,10 @@ static void stacktrace_with_frame(struct funcstackframe *startingframe) {
     co_printf("stack trace:\n");
     struct funcstackframe *frame = startingframe;
     while (frame != NULL) {
-        physptr physaddr;
-        int ret = arch_mmu_virt_to_phys(
-            &physaddr, frame);
+        PHYSPTR physaddr;
+        int ret = arch_mmu_virt_to_phys(&physaddr, frame);
         if (ret < 0) {
-            co_printf(
-                "  stackframe at %p inaccessible(error %d) - STOP.\n",
-                ret, frame);
+            co_printf("  stackframe at %p inaccessible(error %d) - STOP.\n", ret, frame);
             break;
         }
         co_printf("  %#lx\n", frame->eip);
@@ -35,13 +32,11 @@ void arch_stacktrace_for_trapframe(void *trapframe) {
         return;
     }
     co_printf("pc: %#lx\n", ((struct trapframe *)trapframe)->eip);
-    stacktrace_with_frame(
-        /* NOLINTNEXTLINE(performance-no-int-to-ptr) */
-        (void *)((struct trapframe *)trapframe)->ebp);
+    stacktrace_with_frame((void *)((struct trapframe *)trapframe)->ebp);
 }
 
 void arch_stacktrace(void) {
     struct funcstackframe *frame;
-    __asm__ ("mov %%ebp, %0" : "=r"(frame));
+    __asm__("mov %%ebp, %0" : "=r"(frame));
     stacktrace_with_frame(frame);
 }

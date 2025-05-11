@@ -13,9 +13,7 @@ struct opts {
     bool dummy;
 };
 
-WARN_UNUSED_RESULT static bool getopts(
-    struct opts *out, int argc, char *argv[])
-{
+NODISCARD static bool getopts(struct opts *out, int argc, char *argv[]) {
     bool ok = true;
     int c;
     memset(out, 0, sizeof(*out));
@@ -24,30 +22,26 @@ WARN_UNUSED_RESULT static bool getopts(
         if (c == -1) {
             break;
         }
-        switch(c) {
-            case 'u':
-                break;
-            case '?':
-            case ':':
-                ok = false;
-                break;
-            default:
-                assert(false);
+        switch (c) {
+        case 'u':
+            break;
+        case '?':
+        case ':':
+            ok = false;
+            break;
+        default:
+            assert(false);
         }
     }
     return ok;
 }
 
-static void showfile(
-    char const *progname, char const *path, struct opts const *opts)
-{
+static void showfile(char const *progname, char const *path, struct opts const *opts) {
     (void)opts;
     struct fd *fd = NULL;
-    ssize_t ret = vfs_openfile(&fd, path, 0);
+    ssize_t ret = vfs_open_file(&fd, path, 0);
     if (ret < 0) {
-        co_printf(
-            "%s: failed to open directory %s (error %d)\n",
-            progname, path, ret);
+        co_printf("%s: failed to open directory %s (error %d)\n", progname, path, ret);
         return;
     }
     while (1) {
@@ -57,9 +51,7 @@ static void showfile(
             break;
         }
         if (ret < 0) {
-            co_printf(
-                "%s: failed to read file %s (error %d)\n",
-                progname, path, ret);
+            co_printf("%s: failed to read file %s (error %d)\n", progname, path, ret);
             break;
         }
         for (ssize_t i = 0; i < ret; i++) {
@@ -74,8 +66,7 @@ static int program_main(int argc, char *argv[]) {
         return 1;
     }
     if (argc <= optind) {
-        co_printf(
-            "%s: reading from stdin is not supported yet\n", argv[0]);
+        co_printf("%s: reading from stdin is not supported yet\n", argv[0]);
         return 1;
     }
     for (int i = optind; i < argc; i++) {

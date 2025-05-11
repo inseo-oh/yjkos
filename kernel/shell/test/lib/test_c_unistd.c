@@ -83,13 +83,14 @@ static bool do_getopt_nonflag(void) {
     char const *options = "+:s:g:";
     char *argv[] = {
         "<if you see me, something went wrong>",
-        "-s", "kokona",
+        "-s",
+        "kokona",
         "ibuki",
         "--",
         "-cherino",
     };
     enum {
-        ARGC = sizeof(argv)/sizeof(*argv)
+        ARGC = sizeof(argv) / sizeof(*argv)
     };
     optind = 1;
     TEST_EXPECT(getopt(ARGC, argv, options) == 's');
@@ -104,14 +105,13 @@ static bool do_getopt_nonflag(void) {
 }
 
 static struct test const TESTS[] = {
-    { .name = "getopt",                   .fn = do_getopt        },
-    { .name = "getopt(with stderr)",      .fn = do_getopt_stderr },
-    { .name = "getopt(non-flag options)", .fn = do_getopt_nonflag },
+    {.name = "getopt", .fn = do_getopt},
+    {.name = "getopt(with stderr)", .fn = do_getopt_stderr},
+    {.name = "getopt(non-flag options)", .fn = do_getopt_nonflag},
 };
 
 const struct testgroup TESTGROUP_C_UNISTD = {
     .name = "c_unistd",
     .tests = TESTS,
-    .testslen = sizeof(TESTS)/sizeof(*TESTS),
+    .testslen = sizeof(TESTS) / sizeof(*TESTS),
 };
-

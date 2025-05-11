@@ -13,14 +13,14 @@ struct testgroup {
     size_t testslen;
 };
 
-bool __test_expect(
-    bool b, char const *expr, char const *func, char const *file, int line);
+bool __test_expect(bool b, char const *expr, char const *func, char const *file, int line);
 
 #define TEST_EXPECT(_x)                                          \
     if (!__test_expect(_x, #_x, __func__, __FILE__, __LINE__)) { \
         return false;                                            \
     }
 
+// clang-format off
 #define ENUMERATE_TESTGROUPS(_x)    \
     /* lib */                       \
     _x(TESTGROUP_BITMAP)            \
@@ -34,8 +34,10 @@ bool __test_expect(
     _x(TESTGROUP_PMM)               \
     _x(TESTGROUP_HEAP)              \
     /* tasks */                     \
-    _x(TESTGROUP_MUTEX)             \
+    _x(TESTGROUP_MUTEX)
 
-#define X(_x)   extern const struct testgroup _x;
+// clang-format on
+
+#define X(_x) extern const struct testgroup _x;
 ENUMERATE_TESTGROUPS(X)
 #undef X

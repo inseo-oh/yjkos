@@ -29,19 +29,16 @@ static struct iodevtype *getiodevtypefor(char const *devtype) {
     return NULL;
 }
 
-WARN_UNUSED_RESULT int iodev_register(
-    struct iodev *dev_out, char const *devtype, void *data)
-{
+NODISCARD int iodev_register(struct iodev *dev_out, char const *devtype, void *data) {
     int result = 0;
-    bool previnterrupts = arch_interrupts_disable();
+    bool prev_interrupts = arch_interrupts_disable();
     // Look for existing iodevtype
     dev_out->devtype = devtype;
     dev_out->data = data;
     struct iodevtype *desttype = getiodevtypefor(devtype);
     // If there's no such type, create a new type.
     if (desttype == NULL) {
-        struct iodevtype *type = heap_alloc(
-            sizeof(*type), HEAP_FLAG_ZEROMEMORY);
+        struct iodevtype *type = heap_alloc(sizeof(*type), HEAP_FLAG_ZEROMEMORY);
         if (type == NULL) {
             goto fail_oom;
         }
@@ -54,13 +51,12 @@ WARN_UNUSED_RESULT int iodev_register(
         // nextid overflowed
         panic("iodev: TODO: Handle nextid integer overflow");
     }
-    list_insertback(
-        &desttype->devices, &dev_out->node, dev_out);
+    list_insertback(&desttype->devices, &dev_out->node, dev_out);
     goto out;
 fail_oom:
     result = -ENOMEM;
 out:
-    interrupts_restore(previnterrupts);
+    interrupts_restore(prev_interrupts);
     return result;
 }
 

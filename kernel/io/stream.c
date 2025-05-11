@@ -10,11 +10,11 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-WARN_UNUSED_RESULT static size_t measure_dec_unsigned(uint32_t i) {
+NODISCARD static size_t measure_dec_unsigned(uint32_t i) {
     size_t len = 0;
-    ulong divisor = 1;
+    ULONG divisor = 1;
     {
-        ulong current = i;
+        ULONG current = i;
         while (current / 10) {
             divisor *= 10;
             current /= 10;
@@ -26,7 +26,7 @@ WARN_UNUSED_RESULT static size_t measure_dec_unsigned(uint32_t i) {
     return len;
 }
 
-WARN_UNUSED_RESULT static size_t measure_dec_signed(int64_t i) {
+NODISCARD static size_t measure_dec_signed(int64_t i) {
     size_t len = 0;
     if (i < 0) {
         len++;
@@ -35,13 +35,11 @@ WARN_UNUSED_RESULT static size_t measure_dec_signed(int64_t i) {
     return len + measure_dec_unsigned(i);
 }
 
-WARN_UNUSED_RESULT static ssize_t print_dec_unsigned(
-    struct stream *self, uint64_t i)
-{
+NODISCARD static ssize_t print_dec_unsigned(struct stream *self, uint64_t i) {
     size_t written_count = 0;
-    ulong divisor = 1;
+    ULONG divisor = 1;
     {
-        ulong current = i;
+        ULONG current = i;
         while (current / 10) {
             divisor *= 10;
             current /= 10;
@@ -58,9 +56,7 @@ WARN_UNUSED_RESULT static ssize_t print_dec_unsigned(
     return (ssize_t)written_count;
 }
 
-WARN_UNUSED_RESULT static ssize_t print_dec_signed(
-    struct stream *self, int64_t i)
-{
+NODISCARD static ssize_t print_dec_signed(struct stream *self, int64_t i) {
     size_t written_count = 0;
     if (i < 0) {
         int result = stream_putchar(self, '-');
@@ -78,11 +74,11 @@ WARN_UNUSED_RESULT static ssize_t print_dec_signed(
     return (ssize_t)written_count;
 }
 
-static size_t measurehex(ulong i) {
+static size_t measurehex(ULONG i) {
     size_t len = 0;
-    ulong divisor = 1;
+    ULONG divisor = 1;
     {
-        ulong current = i;
+        ULONG current = i;
         while (current / 16) {
             divisor *= 16;
             current /= 16;
@@ -94,14 +90,13 @@ static size_t measurehex(ulong i) {
     return len;
 }
 
-WARN_UNUSED_RESULT static ssize_t print_hex(struct stream *self,
-    uint64_t i, bool uppercase
-) {
+NODISCARD static ssize_t print_hex(struct stream *self,
+                                   uint64_t i, bool uppercase) {
     size_t written_count = 0;
     char a = uppercase ? 'A' : 'a';
-    ulong divisor = 1;
+    ULONG divisor = 1;
     {
-        ulong current = i;
+        ULONG current = i;
         while (current / 16) {
             divisor *= 16;
             current /= 16;
@@ -123,7 +118,7 @@ WARN_UNUSED_RESULT static ssize_t print_hex(struct stream *self,
     return (ssize_t)written_count;
 }
 
-WARN_UNUSED_RESULT int stream_putchar(struct stream *self, int c) {
+NODISCARD int stream_putchar(struct stream *self, int c) {
     ssize_t result = self->ops->write(self, &c, 1);
     if (result < 0) {
         return result;
@@ -132,15 +127,12 @@ WARN_UNUSED_RESULT int stream_putchar(struct stream *self, int c) {
     return result;
 }
 
-WARN_UNUSED_RESULT ssize_t stream_putstr(struct stream *self, char const *s) {
+NODISCARD ssize_t stream_putstr(struct stream *self, char const *s) {
     if (!s) {
         s = "<null>";
     }
     size_t written_count = 0;
-    for (
-        char const *nextchar = s; *nextchar != '\0';
-        nextchar++, written_count++
-    ) {
+    for (char const *nextchar = s; *nextchar != '\0'; nextchar++, written_count++) {
         int result = stream_putchar(self, *nextchar);
         if (result < 0) {
             return result;
@@ -149,10 +141,10 @@ WARN_UNUSED_RESULT ssize_t stream_putstr(struct stream *self, char const *s) {
     return (ssize_t)written_count;
 }
 
-static uint8_t const FMTFLAG_ALTERNATEFORM    = 1U << 0U;
+static uint8_t const FMTFLAG_ALTERNATEFORM = 1U << 0U;
 static uint8_t const FMTFLAG_MINWIDTH_PRESENT = 1U << 1U;
 
-enum lenmod {
+typedef enum {
     LENMOD_INT,
     LENMOD_CHAR,
     LENMOD_SHORT,
@@ -161,16 +153,12 @@ enum lenmod {
     LENMOD_INTMAX,
     LENMOD_SIZE,
     LENMOD_PTRDIFF,
-};
+} LENMOD;
 
-WARN_UNUSED_RESULT ssize_t
-stream_vprintf( // NOLINT(readability-function-cognitive-complexity)
-    struct stream *self, char const *fmt,
-    va_list ap // NOLINT(readability-non-const-parameter)
-) {
+NODISCARD ssize_t stream_vprintf(struct stream *self, char const *fmt, va_list ap) {
     uint8_t flags;
     char padchar;
-    enum lenmod lenmod;
+    LENMOD lenmod;
     uint32_t minwidth;
     size_t measureresult;
     size_t written_count = 0;
@@ -199,18 +187,18 @@ fmtflag:
     if (!fmt[0]) {
         goto end;
     }
-    switch(fmt[0]) {
-        case '#':
-            fmt++;
-            flags |= FMTFLAG_ALTERNATEFORM;
-            goto fmtflag;
-        case '0':
-            fmt++;
-            padchar = '0';
-            goto fmtflag;
-        // TODO: -, <space>, +, 
-        default:
-            break;
+    switch (fmt[0]) {
+    case '#':
+        fmt++;
+        flags |= FMTFLAG_ALTERNATEFORM;
+        goto fmtflag;
+    case '0':
+        fmt++;
+        padchar = '0';
+        goto fmtflag;
+    // TODO: -, <space>, +,
+    default:
+        break;
     }
     goto fmtminwidth;
 fmtminwidth:
@@ -233,231 +221,231 @@ fmtlenmod:
     if (!fmt[0]) {
         goto end;
     }
-    switch(fmt[0]) {
-        case 'h':
+    switch (fmt[0]) {
+    case 'h':
+        fmt++;
+        if (fmt[0] == 'h') {
+            // hh
             fmt++;
-            if (fmt[0] == 'h') {
-                // hh
-                fmt++;
-                lenmod = LENMOD_CHAR;
-            } else {
-                // h
-                lenmod = LENMOD_SHORT;
-            }
-            break;
-        case 'l':
+            lenmod = LENMOD_CHAR;
+        } else {
+            // h
+            lenmod = LENMOD_SHORT;
+        }
+        break;
+    case 'l':
+        fmt++;
+        if (fmt[0] == 'l') {
+            // ll
             fmt++;
-            if (fmt[0] == 'l') {
-                // ll
-                fmt++;
-                lenmod = LENMOD_LONG_LONG;
-            } else {
-                // l
-                lenmod = LENMOD_LONG;
-            }
-            break;
-        case 'j':
-            fmt++;
-            lenmod = LENMOD_INTMAX;
-            break;
-        case 'z':
-            fmt++;
-            lenmod = LENMOD_SIZE;
-            break;
-        default:
-            break;
+            lenmod = LENMOD_LONG_LONG;
+        } else {
+            // l
+            lenmod = LENMOD_LONG;
+        }
+        break;
+    case 'j':
+        fmt++;
+        lenmod = LENMOD_INTMAX;
+        break;
+    case 'z':
+        fmt++;
+        lenmod = LENMOD_SIZE;
+        break;
+    default:
+        break;
     }
     goto doformat;
 doformat:
     if (!fmt[0]) {
         goto end;
     }
-    switch(fmt[0]) {
-        /*
-         * NOLINT is used here because clang-tidy sees multiple types as the 
-         * same underlying type, but those are platform-dependent types.
-         * So it makes sense to ignore it here.
-         */
-        // NOLINTBEGIN(bugprone-branch-clone)
-        case 'c': {
-            char c = va_arg(ap, int);
-            ret = stream_putchar(self, c);
-            if (ret < 0) {
-                return ret;
-            }
-            written_count++;
+    switch (fmt[0]) {
+    /*
+     * NOLINT is used here because clang-tidy sees multiple types as the
+     * same underlying type, but those are platform-dependent types.
+     * So it makes sense to ignore it here.
+     */
+    // NOLINTBEGIN(bugprone-branch-clone)
+    case 'c': {
+        char c = va_arg(ap, int);
+        ret = stream_putchar(self, c);
+        if (ret < 0) {
+            return ret;
+        }
+        written_count++;
+        break;
+    }
+    case 's': {
+        char const *s = va_arg(ap, char *);
+        ret = stream_putstr(self, s);
+        if (ret < 0) {
+            return ret;
+        }
+        written_count += ret;
+        break;
+    }
+    case 'd': {
+        intmax_t val;
+        switch (lenmod) {
+        case LENMOD_CHAR:
+        case LENMOD_SHORT:
+        case LENMOD_INT:
+            val = va_arg(ap, int);
+            break;
+        case LENMOD_LONG:
+            val = va_arg(ap, long);
+            break;
+        case LENMOD_LONG_LONG:
+            val = va_arg(ap, long long);
+            break;
+        case LENMOD_SIZE:
+            val = va_arg(ap, size_t);
+            break;
+        case LENMOD_INTMAX:
+            val = va_arg(ap, uintmax_t);
+            break;
+        case LENMOD_PTRDIFF:
+            val = va_arg(ap, ptrdiff_t);
             break;
         }
-        case 's': {
-            char const *s = va_arg(ap, char *);
-            ret = stream_putstr(self, s);
-            if (ret < 0) {
-                return ret;
-            }
-            written_count += ret;
-            break;
-        }
-        case 'd': {
-            intmax_t val;
-            switch(lenmod) {
-                case LENMOD_CHAR:
-                case LENMOD_SHORT:
-                case LENMOD_INT:
-                    val = va_arg(ap, int);
-                    break;
-                case LENMOD_LONG:
-                    val = va_arg(ap, long);
-                    break;
-                case LENMOD_LONG_LONG:
-                    val = va_arg(ap, long long);
-                    break;
-                case LENMOD_SIZE:
-                    val = va_arg(ap, size_t);
-                    break;
-                case LENMOD_INTMAX:
-                    val = va_arg(ap, uintmax_t);
-                    break;
-                case LENMOD_PTRDIFF:
-                        val = va_arg(ap, ptrdiff_t);
-                        break;
-            }
-            if (flags & FMTFLAG_MINWIDTH_PRESENT) {
-                measureresult = measure_dec_signed(val);
-                for (size_t i = measureresult; i < minwidth; i++) {
-                    ret = stream_putchar(self, padchar);
-                    if (ret < 0) {
-                        return ret;
-                    }
-                    written_count += ret;
-                }
-            }
-            ret = print_dec_signed(self, val);
-            if (ret < 0) {
-                return ret;
-            }
-            written_count += ret;
-            break;
-        }
-        case 'u': {
-            uintmax_t val;
-            switch(lenmod) {
-                case LENMOD_CHAR:
-                case LENMOD_SHORT:
-                case LENMOD_INT:
-                    val = va_arg(ap, uint);
-                    break;
-                case LENMOD_LONG:
-                    val = va_arg(ap, ulong);
-                    break;
-                case LENMOD_LONG_LONG:
-                    val = va_arg(ap, unsigned long long);
-                    break;
-                case LENMOD_SIZE:
-                    val = va_arg(ap, size_t);
-                    break;
-                case LENMOD_INTMAX:
-                    val = va_arg(ap, uintmax_t);
-                    break;
-              case LENMOD_PTRDIFF:
-                    val = va_arg(ap, ptrdiff_t);
-                    break;
-            }
-            if (flags & FMTFLAG_MINWIDTH_PRESENT) {
-                measureresult = measure_dec_unsigned(val);
-                for (size_t i = measureresult; i < minwidth; i++) {
-                    ret = stream_putchar(self, padchar);
-                    if (ret < 0) {
-                        return ret;
-                    }
-                    written_count += ret;
-                }
-            }
-            ret = print_dec_unsigned(self, val);
-            if (ret < 0) {
-                return ret;
-            }
-            written_count += ret;
-            break;
-        }
-        case 'x':
-        case 'X': {
-            bool isuppercase = fmt[0] == 'X';
-            uintmax_t val;
-            switch(lenmod) {
-                case LENMOD_CHAR:
-                case LENMOD_SHORT:
-                case LENMOD_INT:
-                    val = va_arg(ap, uint);
-                    break;
-                case LENMOD_LONG:
-                    val = va_arg(ap, ulong);
-                    break;
-                case LENMOD_LONG_LONG:
-                    val = va_arg(ap, unsigned long long);
-                    break;
-                case LENMOD_SIZE:
-                    val = va_arg(ap, size_t);
-                    break;
-                case LENMOD_INTMAX:
-                    val = va_arg(ap, uintmax_t);
-                    break;
-              case LENMOD_PTRDIFF:
-                    val = va_arg(ap, ptrdiff_t);
-                    break;
-            }
-            measureresult = 0;
-            if (flags & FMTFLAG_MINWIDTH_PRESENT) {
-                measureresult = measurehex(val);
-                if (flags & FMTFLAG_ALTERNATEFORM) {
-                    measureresult += 2;
-                }
-            }
-    
-            if (flags & FMTFLAG_ALTERNATEFORM) {
-                ret = stream_putstr(self, isuppercase ? "0X" : "0x");
+        if (flags & FMTFLAG_MINWIDTH_PRESENT) {
+            measureresult = measure_dec_signed(val);
+            for (size_t i = measureresult; i < minwidth; i++) {
+                ret = stream_putchar(self, padchar);
                 if (ret < 0) {
                     return ret;
                 }
                 written_count += ret;
             }
-            if (flags & FMTFLAG_MINWIDTH_PRESENT) {
-                for (size_t i = measureresult; i < minwidth; i++) {
-                    ret = stream_putchar(self, padchar);
-                    if (ret < 0) {
-                        return ret;
-                    }
-                    written_count += ret;
+        }
+        ret = print_dec_signed(self, val);
+        if (ret < 0) {
+            return ret;
+        }
+        written_count += ret;
+        break;
+    }
+    case 'u': {
+        uintmax_t val;
+        switch (lenmod) {
+        case LENMOD_CHAR:
+        case LENMOD_SHORT:
+        case LENMOD_INT:
+            val = va_arg(ap, UINT);
+            break;
+        case LENMOD_LONG:
+            val = va_arg(ap, ULONG);
+            break;
+        case LENMOD_LONG_LONG:
+            val = va_arg(ap, unsigned long long);
+            break;
+        case LENMOD_SIZE:
+            val = va_arg(ap, size_t);
+            break;
+        case LENMOD_INTMAX:
+            val = va_arg(ap, uintmax_t);
+            break;
+        case LENMOD_PTRDIFF:
+            val = va_arg(ap, ptrdiff_t);
+            break;
+        }
+        if (flags & FMTFLAG_MINWIDTH_PRESENT) {
+            measureresult = measure_dec_unsigned(val);
+            for (size_t i = measureresult; i < minwidth; i++) {
+                ret = stream_putchar(self, padchar);
+                if (ret < 0) {
+                    return ret;
                 }
+                written_count += ret;
             }
-            ret = print_hex(self, val, isuppercase);
-            if (ret < 0) {
-                return ret;
-            }
-            written_count += ret;
+        }
+        ret = print_dec_unsigned(self, val);
+        if (ret < 0) {
+            return ret;
+        }
+        written_count += ret;
+        break;
+    }
+    case 'x':
+    case 'X': {
+        bool isuppercase = fmt[0] == 'X';
+        uintmax_t val;
+        switch (lenmod) {
+        case LENMOD_CHAR:
+        case LENMOD_SHORT:
+        case LENMOD_INT:
+            val = va_arg(ap, UINT);
+            break;
+        case LENMOD_LONG:
+            val = va_arg(ap, ULONG);
+            break;
+        case LENMOD_LONG_LONG:
+            val = va_arg(ap, unsigned long long);
+            break;
+        case LENMOD_SIZE:
+            val = va_arg(ap, size_t);
+            break;
+        case LENMOD_INTMAX:
+            val = va_arg(ap, uintmax_t);
+            break;
+        case LENMOD_PTRDIFF:
+            val = va_arg(ap, ptrdiff_t);
             break;
         }
-        case 'p': {
-            void *p = va_arg(ap, void *);
-            ret = stream_putstr(self, "0x");
-            if (ret < 0) {
-                return ret;
+        measureresult = 0;
+        if (flags & FMTFLAG_MINWIDTH_PRESENT) {
+            measureresult = measurehex(val);
+            if (flags & FMTFLAG_ALTERNATEFORM) {
+                measureresult += 2;
             }
-            written_count += ret;
-            ret = print_hex(self, (uintptr_t)p, false);
-            if (ret < 0) {
-                return ret;
-            }
-            written_count += ret;
-            break;
         }
-        // NOLINTEND(bugprone-branch-clone)
-        default:
-            ret = stream_putchar(self, fmt[0]);
+
+        if (flags & FMTFLAG_ALTERNATEFORM) {
+            ret = stream_putstr(self, isuppercase ? "0X" : "0x");
             if (ret < 0) {
                 return ret;
             }
             written_count += ret;
-            break;
+        }
+        if (flags & FMTFLAG_MINWIDTH_PRESENT) {
+            for (size_t i = measureresult; i < minwidth; i++) {
+                ret = stream_putchar(self, padchar);
+                if (ret < 0) {
+                    return ret;
+                }
+                written_count += ret;
+            }
+        }
+        ret = print_hex(self, val, isuppercase);
+        if (ret < 0) {
+            return ret;
+        }
+        written_count += ret;
+        break;
+    }
+    case 'p': {
+        void *p = va_arg(ap, void *);
+        ret = stream_putstr(self, "0x");
+        if (ret < 0) {
+            return ret;
+        }
+        written_count += ret;
+        ret = print_hex(self, (uintptr_t)p, false);
+        if (ret < 0) {
+            return ret;
+        }
+        written_count += ret;
+        break;
+    }
+    // NOLINTEND(bugprone-branch-clone)
+    default:
+        ret = stream_putchar(self, fmt[0]);
+        if (ret < 0) {
+            return ret;
+        }
+        written_count += ret;
+        break;
     }
     fmt++;
     goto percentorchar;
@@ -474,13 +462,13 @@ ssize_t stream_printf(struct stream *self, char const *fmt, ...) {
     return result;
 }
 
-int stream_waitchar(struct stream *self, ticktime timeout) {
+int stream_waitchar(struct stream *self, TICKTIME timeout) {
     ssize_t size = 0;
     if (timeout != 0) {
         assert(arch_interrupts_areenabled());
     }
 
-    ticktime starttime = g_ticktime;
+    TICKTIME starttime = g_ticktime;
     uint8_t chr;
     while (1) {
         if ((timeout != 0) && (timeout <= (g_ticktime - starttime))) {

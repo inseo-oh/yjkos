@@ -10,10 +10,8 @@ void pathreader_init(struct pathreader *out, char const *path) {
     out->remaining_path = path;
 }
 
-WARN_UNUSED_RESULT int pathreader_next(
-    char const **name_out, struct pathreader *self)
-{
-    while(*self->remaining_path != '\0') {
+NODISCARD int pathreader_next(char const **name_out, struct pathreader *self) {
+    while (*self->remaining_path != '\0') {
         char *nextslash = strchr(self->remaining_path, '/');
         char const *name;
         char const *new_remaining_path;

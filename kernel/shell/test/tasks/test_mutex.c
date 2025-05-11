@@ -23,10 +23,8 @@ struct sharedcontext {
     struct mutex mtx;
 };
 
-enum {
-    TEST_COUNTTARGET = 100,
-    TEST_THREADCOUNT = 5,
-};
+#define TEST_COUNTTARGET 100
+#define TEST_THREADCOUNT 5
 
 static void testthread(void *arg) {
     arch_interrupts_enable();
@@ -36,9 +34,7 @@ static void testthread(void *arg) {
         int oldcnt = ctx->cnt;
         sched_schedule();
         if (ctx->cnt != oldcnt) {
-            co_printf(
-                "shared var suddenly changed! expected: %d, got: %d\n",
-                oldcnt, ctx->cnt);
+            co_printf("shared var suddenly changed! expected: %d, got: %d\n", oldcnt, ctx->cnt);
         }
         ctx->cnt = oldcnt + 1;
         mutex_unlock(&ctx->mtx);
@@ -53,9 +49,7 @@ static bool do_threadsync(void) {
     struct thread *threads[TEST_THREADCOUNT];
     ctx.cnt = 0;
     for (int i = 0; i < TEST_THREADCOUNT; i++) {
-        threads[i] = thread_create(
-            THREAD_STACK_SIZE, testthread,
-            &ctx);
+        threads[i] = thread_create(THREAD_STACK_SIZE, testthread, &ctx);
         co_printf("created thread %p\n", threads[i]);
     }
     bool failed = false;
@@ -75,7 +69,7 @@ static bool do_threadsync(void) {
     if (failed) {
         goto out;
     }
-    while(1) {
+    while (1) {
         MUTEX_LOCK(&ctx.mtx);
         bool done = (TEST_COUNTTARGET * TEST_THREADCOUNT) <= ctx.cnt;
         co_printf("\r%d", ctx.cnt);
@@ -98,13 +92,12 @@ out:
 }
 
 static struct test const TESTS[] = {
-    { .name = "basic lock & unlock test", .fn = do_basic      },
-    { .name = "thread synchronization",   .fn = do_threadsync },
+    {.name = "basic lock & unlock test", .fn = do_basic},
+    {.name = "thread synchronization", .fn = do_threadsync},
 };
 
 const struct testgroup TESTGROUP_MUTEX = {
     .name = "mutex",
     .tests = TESTS,
-    .testslen = sizeof(TESTS)/sizeof(*TESTS),
+    .testslen = sizeof(TESTS) / sizeof(*TESTS),
 };
-

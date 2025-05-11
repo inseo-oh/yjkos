@@ -16,17 +16,14 @@
 #include <stdint.h>
 
 NORETURN void kernel_init(void) {
-    co_printf(
-        "\nYJK Operating System " YJKOS_RELEASE "-" YJKOS_VERSION "\n");
+    co_printf("\nYJK Operating System " YJKOS_RELEASE "-" YJKOS_VERSION "\n");
     co_printf("Copyright (c) 2025 YJK(Oh Inseo)\n\n");
-    co_printf(
-        "%zu mibytes allocatable memory\n",
-        pmm_get_totalmem() / (1024 * 1024));
-    
+    co_printf("%zu mibytes allocatable memory\n", pmm_get_totalmem() / (1024 * 1024));
+
     heap_expand();
     fsinit_init_all();
     shell_init();
-    sched_initbootthread();
+    sched_init_boot_thread();
     co_printf("\n:: system is now listing PCI devices...\n");
     pci_printbus();
     co_printf("\n:: system is now initializing PS/2 devices\n");
@@ -34,14 +31,12 @@ NORETURN void kernel_init(void) {
     co_printf("\n:: system is now initializing logical disks\n");
     ldisk_discover();
     co_printf("\n:: system is now mounting the root filesystem\n");
-    vfs_mountroot();
+    vfs_mount_root();
 
     windowd_start();
 
-    co_printf(
-        "\n :: system is ready for use. Use keyboard to type commands.\n");
-    while(1) {
+    co_printf("\n :: system is ready for use. Use keyboard to type commands.\n");
+    while (1) {
         shell_repl();
     }
 }
-

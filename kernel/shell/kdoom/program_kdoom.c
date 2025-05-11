@@ -33,11 +33,10 @@
 #pragma GCC diagnostic ignored "-Wunused-but-set-parameter"
 #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
-#define DOOM_IMPLEMENTATION 
+#define DOOM_IMPLEMENTATION
 #include "thirdparty/PureDOOM.h"
 // Leave the 90s world
 #pragma GCC diagnostic pop
-
 
 void __floatsidf(void) {
     // STUB
@@ -64,10 +63,9 @@ void __fixdfsi(void) {
     assert(0);
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
 
-static void* dmalloc(int size) {
+static void *dmalloc(int size) {
     size_t finalsize = size * 2;
     void *ptr = heap_alloc(finalsize, 0);
     if (ptr == NULL) {
@@ -76,19 +74,20 @@ static void* dmalloc(int size) {
     return ptr;
 }
 
-static void dfree(void* ptr) {
+static void dfree(void *ptr) {
     return;
     heap_free(ptr);
 }
 
-static void dprint(const char* str) {
+static void dprint(const char *str) {
     co_printf("%s", str);
 }
 
 static void dexit(int exitcode) {
     co_printf("[kdoom] exited with code %d. Halting system.\n", exitcode);
     arch_hcf();
-    while(1) {}
+    while (1) {
+    }
 }
 
 static char *dgetenv(char const *env) {
@@ -99,16 +98,14 @@ static char *dgetenv(char const *env) {
     return NULL;
 }
 
-static void* dopen(const char* filename, const char* mode) {
+static void *dopen(const char *filename, const char *mode) {
     if (mode[0] == 'w') {
         return NULL;
     }
     struct fd *fd;
     int ret = vfs_openfile(&fd, filename, 0);
     if (ret < 0) {
-        co_printf(
-            "[kdoom] failed to open file %s (error %d)\n",
-            filename, ret);
+        co_printf("[kdoom] failed to open file %s (error %d)\n", filename, ret);
         return NULL;
     }
     co_printf("[kdoom] opened file %s (fd %p)\n", filename, fd);
@@ -116,14 +113,14 @@ static void* dopen(const char* filename, const char* mode) {
     return fd;
 }
 
-static void dclose(void* handle) {
+static void dclose(void *handle) {
     if (handle == NULL) {
         return;
     }
     vfs_closefile(handle);
 }
 
-static int dread(void* handle, void *buf, int count) {
+static int dread(void *handle, void *buf, int count) {
     size_t len = count;
     ssize_t ret = vfs_readfile(handle, buf, len);
     if (ret < 0) {
@@ -134,7 +131,7 @@ static int dread(void* handle, void *buf, int count) {
     return ret;
 }
 
-static int dwrite(void* handle, const void *buf, int count) {
+static int dwrite(void *handle, const void *buf, int count) {
     assert(!"TODO");
     (void)handle;
     (void)buf;
@@ -142,20 +139,20 @@ static int dwrite(void* handle, const void *buf, int count) {
     return 0;
 }
 
-static int dseek(void* handle, int offset, doom_seek_t origin) {
+static int dseek(void *handle, int offset, doom_seek_t origin) {
     int whence;
-    switch(origin) {
-        case DOOM_SEEK_END:
-            whence = SEEK_END;
-            break;
-        case DOOM_SEEK_CUR:
-            whence = SEEK_CUR;
-            break;
-        case DOOM_SEEK_SET:
-            whence = SEEK_SET;
-            break;
-        default:
-            panic("kdoom: unknown origin value");
+    switch (origin) {
+    case DOOM_SEEK_END:
+        whence = SEEK_END;
+        break;
+    case DOOM_SEEK_CUR:
+        whence = SEEK_CUR;
+        break;
+    case DOOM_SEEK_SET:
+        whence = SEEK_SET;
+        break;
+    default:
+        panic("kdoom: unknown origin value");
     }
     int ret = vfs_seekfile(handle, offset, whence);
     if (ret < 0) {
@@ -166,19 +163,19 @@ static int dseek(void* handle, int offset, doom_seek_t origin) {
     return offset;
 }
 
-static int dtell(void* handle) {
+static int dtell(void *handle) {
     (void)handle;
     assert(!"TODO");
     return 0;
 }
 
-static int deof(void* handle) {
+static int deof(void *handle) {
     (void)handle;
     assert(!"TODO");
     return 0;
 }
 
-static void dgettime(int* sec, int* usec) {
+static void dgettime(int *sec, int *usec) {
     ticktime currenttime = g_ticktime;
     *sec = currenttime / 1000;
     *usec = (currenttime % 1000) * 1000;
@@ -263,4 +260,3 @@ struct shell_program g_shell_program_kdoom = {
     .name = "kdoom",
     .main = program_main,
 };
-

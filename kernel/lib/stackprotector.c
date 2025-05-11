@@ -2,9 +2,7 @@
 #include <kernel/panic.h>
 #include <stdint.h>
 
-enum {
-    STACK_CHECK_GUARD_MAGIC = 0x7afebade
-};
+#define STACK_CHECK_GUARD_MAGIC 0x7afebade
 
 uintptr_t __stack_chk_guard __attribute__((used)) = STACK_CHECK_GUARD_MAGIC;
 

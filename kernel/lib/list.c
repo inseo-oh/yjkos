@@ -33,10 +33,7 @@ void list_insertback(struct list *list, struct list_node *node, void *data) {
     }
 }
 
-void list_insertafter(
-    struct list *list, struct list_node *after, struct list_node *node,
-    void *data)
-{
+void list_insertafter(struct list *list, struct list_node *after, struct list_node *node, void *data) {
     node->prev = after;
     node->next = after->next;
     node->data = data;
@@ -49,10 +46,7 @@ void list_insertafter(
     }
 }
 
-void list_insertbefore(
-    struct list *list, struct list_node *before, struct list_node *node,
-    void *data)
-{
+void list_insertbefore(struct list *list, struct list_node *before, struct list_node *node, void *data) {
     node->next = before;
     node->prev = before->prev;
     node->data = data;

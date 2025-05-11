@@ -14,8 +14,7 @@ prepare:
 	@cp support/res/grub.cfg $(BOOTROOT)/boot/grub/
 	@./support/tools/genversionfile.sh > include/kernel/version.h
 
-# NOTE: We reconfigure the terminus-font after building, to prevent 
-#       accidentally commiting with someone's home folder path left in Makefile.
+# NOTE: We reconfigure the terminus-font after building, to prevent accidentally commiting with someone's home folder path left in Makefile.
 kernelfont: prepare
 	$(info [Target Font]     $(FONT))
 	@cd support/thirdparty/terminus-font-4.49.1 && ./configure --psfdir=$(CURDIR)/$(FONTDIR)

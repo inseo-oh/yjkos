@@ -4,17 +4,17 @@
 #include <kernel/types.h>
 
 static bool do_randalloc(void) {
-    bool previnterrupts = arch_interrupts_disable();
+    bool prev_interrupts = arch_interrupts_disable();
     TEST_EXPECT(pmm_pagepool_test_random());
-    interrupts_restore(previnterrupts);
+    interrupts_restore(prev_interrupts);
     return true;
 }
 
 static bool do_badalloc(void) {
-    bool previnterrupts = arch_interrupts_disable();
-    size_t pagecount = ~0U;
-    TEST_EXPECT(pmm_alloc(&pagecount) == PHYSICALPTR_NULL);
-    interrupts_restore(previnterrupts);
+    bool prev_interrupts = arch_interrupts_disable();
+    size_t page_count = ~0U;
+    TEST_EXPECT(pmm_alloc(&page_count) == PHYSICALPTR_NULL);
+    interrupts_restore(prev_interrupts);
     return true;
 }
 

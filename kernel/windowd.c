@@ -19,14 +19,14 @@
 #include <stdint.h>
 #include <string.h>
 
-enum proto_byteorder {
+typedef enum {
     BYTEORDER_MSB_FIRST,
     BYTEORDER_LSB_FIRST,
-};
+} PROTO_BYTEORDER;
 
 struct connection {
     struct stream *stream;
-    enum proto_byteorder byteorder;
+    PROTO_BYTEORDER byteorder;
 };
 
 //------------------------------------------------------------------------------
@@ -58,14 +58,14 @@ static void proto_send_card16(struct connection *conn, uint16_t val) {
     uint8_t msb = val >> 8;
     uint8_t lsb = val;
     switch (conn->byteorder) {
-        case BYTEORDER_MSB_FIRST:
-            proto_send_card8(conn, msb);
-            proto_send_card8(conn, lsb);
-            break;
-        case BYTEORDER_LSB_FIRST:
-            proto_send_card8(conn, lsb);
-            proto_send_card8(conn, msb);
-            break;
+    case BYTEORDER_MSB_FIRST:
+        proto_send_card8(conn, msb);
+        proto_send_card8(conn, lsb);
+        break;
+    case BYTEORDER_LSB_FIRST:
+        proto_send_card8(conn, lsb);
+        proto_send_card8(conn, msb);
+        break;
     }
 }
 
@@ -73,20 +73,18 @@ static void proto_send_card32(struct connection *conn, uint32_t val) {
     uint16_t msb = val >> 16;
     uint16_t lsb = val;
     switch (conn->byteorder) {
-        case BYTEORDER_MSB_FIRST:
-            proto_send_card16(conn, msb);
-            proto_send_card16(conn, lsb);
-            break;
-        case BYTEORDER_LSB_FIRST:
-            proto_send_card16(conn, lsb);
-            proto_send_card16(conn, msb);
-            break;
+    case BYTEORDER_MSB_FIRST:
+        proto_send_card16(conn, msb);
+        proto_send_card16(conn, lsb);
+        break;
+    case BYTEORDER_LSB_FIRST:
+        proto_send_card16(conn, lsb);
+        proto_send_card16(conn, msb);
+        break;
     }
 }
 
-static void proto_send_string8(
-    struct connection *conn, char const *str, size_t len)
-{
+static void proto_send_string8(struct connection *conn, char const *str, size_t len) {
     assert(strlen(str) <= len);
     for (size_t i = 0; i < len; i++) {
         proto_send_card8(conn, str[i]);
@@ -107,10 +105,10 @@ static uint16_t proto_recv_card16(struct connection *conn) {
     uint8_t val0 = proto_recv_card8(conn);
     uint8_t val1 = proto_recv_card8(conn);
     switch (conn->byteorder) {
-        case BYTEORDER_MSB_FIRST:
-            return ((uint32_t)val0 << 8) | val1;
-        case BYTEORDER_LSB_FIRST:
-            return ((uint32_t)val1 << 8) | val0;
+    case BYTEORDER_MSB_FIRST:
+        return ((uint32_t)val0 << 8) | val1;
+    case BYTEORDER_LSB_FIRST:
+        return ((uint32_t)val1 << 8) | val0;
     }
     assert(false);
 }
@@ -119,17 +117,16 @@ static uint32_t proto_recv_card32(struct connection *conn) {
     uint16_t val0 = proto_recv_card16(conn);
     uint16_t val1 = proto_recv_card16(conn);
     switch (conn->byteorder) {
-        case BYTEORDER_MSB_FIRST:
-            return ((uint32_t)val0 << 16) | val1;
-        case BYTEORDER_LSB_FIRST:
-            return ((uint32_t)val1 << 16) | val0;
+    case BYTEORDER_MSB_FIRST:
+        return ((uint32_t)val0 << 16) | val1;
+    case BYTEORDER_LSB_FIRST:
+        return ((uint32_t)val1 << 16) | val0;
     }
     assert(false);
 }
 
 static char *proto_recv_string8(struct connection *conn, size_t len) {
-    char *str = heap_calloc(
-        sizeof(char), len + 1, HEAP_FLAG_ZEROMEMORY);
+    char *str = heap_calloc(sizeof(char), len + 1, HEAP_FLAG_ZEROMEMORY);
     if (str == NULL) {
         return NULL;
     }
@@ -141,32 +138,28 @@ static char *proto_recv_string8(struct connection *conn, size_t len) {
 }
 
 struct proto_connection_setup {
-    enum proto_byteorder byteorder;
+    PROTO_BYTEORDER byteorder;
     uint16_t protocol_major_version;
     uint16_t protocol_minor_version;
     char *authorization_protocol_name;
     char *authorization_protocol_data;
 };
 
-WARN_UNUSED_RESULT static int proto_recv_connection_setup(
-    struct proto_connection_setup *out, struct stream *client)
-{
+NODISCARD static int proto_recv_connection_setup(struct proto_connection_setup *out, struct stream *client) {
     struct connection conn;
     memset(out, 0, sizeof(*out));
     memset(&conn, 0, sizeof(conn));
     int byte_order_raw = stream_getchar(client);
-    switch(byte_order_raw) {
-        case 'B':
-            out->byteorder = BYTEORDER_MSB_FIRST;
-            break;
-        case 'l':
-            out->byteorder = BYTEORDER_LSB_FIRST;
-            break;
-        default:
-            co_printf(
-                "windowd: WARNING: bad byteorder byte %u - assuming LSB first\n",
-                byte_order_raw);
-            out->byteorder = BYTEORDER_LSB_FIRST;
+    switch (byte_order_raw) {
+    case 'B':
+        out->byteorder = BYTEORDER_MSB_FIRST;
+        break;
+    case 'l':
+        out->byteorder = BYTEORDER_LSB_FIRST;
+        break;
+    default:
+        co_printf("windowd: WARNING: bad byteorder byte %u - assuming LSB first\n", byte_order_raw);
+        out->byteorder = BYTEORDER_LSB_FIRST;
     }
     conn.stream = client;
     conn.byteorder = out->byteorder;
@@ -180,10 +173,7 @@ WARN_UNUSED_RESULT static int proto_recv_connection_setup(
     proto_recv_unused(&conn, proto_pad(n));
     out->authorization_protocol_data = proto_recv_string8(&conn, d);
     proto_recv_unused(&conn, proto_pad(d));
-    if (
-        (out->authorization_protocol_name == NULL) ||
-        (out->authorization_protocol_data == NULL))
-    {
+    if ((out->authorization_protocol_name == NULL) || (out->authorization_protocol_data == NULL)) {
         goto oom;
     }
     return 0;
@@ -193,12 +183,7 @@ oom:
     return -ENOMEM;
 }
 
-static void proto_send_connection_refuse(
-    struct connection *conn,
-    char const *reason,
-    uint16_t protocol_major_version,
-    uint16_t protocol_minor_version)
-{
+static void proto_send_connection_refuse(struct connection *conn, char const *reason, uint16_t protocol_major_version, uint16_t protocol_minor_version) {
     size_t n = strlen(reason);
     assert(n <= 255);
     size_t p = proto_pad(n);
@@ -211,16 +196,7 @@ static void proto_send_connection_refuse(
     proto_send_unused(conn, p);
 }
 
-static void proto_send_connection_accept(
-    struct connection *conn,
-    uint16_t protocol_major_version,
-    uint16_t protocol_minor_version,
-    uint32_t release_number,
-    size_t formats_len,
-    char const *vendor,
-    size_t screens_len
-    )
-{
+static void proto_send_connection_accept(struct connection *conn, uint16_t protocol_major_version, uint16_t protocol_minor_version, uint32_t release_number, size_t formats_len, char const *vendor, size_t screens_len) {
     size_t n = formats_len;
     size_t v = strlen(vendor);
     size_t m = screens_len;
@@ -234,12 +210,10 @@ static void proto_send_connection_accept(
     // TODO: This thing is incomplete
 }
 
-#define REASON_FOOTER   \
+#define REASON_FOOTER \
     "\n[YJK Operating System " YJKOS_RELEASE "-" YJKOS_VERSION "]\n"
 
-WARN_UNUSED_RESULT static int proto_handle_connection_setup(
-    struct connection *out, struct stream *client)
-{
+NODISCARD static int proto_handle_connection_setup(struct connection *out, struct stream *client) {
     memset(out, 0, sizeof(*out));
     int ret = 0;
     struct proto_connection_setup setup;
@@ -249,16 +223,9 @@ WARN_UNUSED_RESULT static int proto_handle_connection_setup(
     }
     out->stream = client;
     out->byteorder = setup.byteorder;
-    co_printf(
-        "windowd: protocol version %u.%u\n",
-        setup.protocol_major_version, setup.protocol_minor_version);
+    co_printf("windowd: protocol version %u.%u\n", setup.protocol_major_version, setup.protocol_minor_version);
 
-    proto_send_connection_refuse(
-        out,
-        "I hate you"
-        REASON_FOOTER,
-        setup.protocol_major_version, setup.protocol_minor_version);
-
+    proto_send_connection_refuse(out, "I hate you" REASON_FOOTER, setup.protocol_major_version, setup.protocol_minor_version);
 
     ret = 0;
     return ret;
@@ -292,9 +259,7 @@ static void tmain(void *arg) {
 
 void windowd_start(void) {
     bool thread_started = false;
-    struct thread *thread = thread_create(
-        THREAD_STACK_SIZE, tmain,
-        NULL);
+    struct thread *thread = thread_create(THREAD_STACK_SIZE, tmain, NULL);
     if (thread == NULL) {
         co_printf("not enough memory to create thread\n");
         goto die;
@@ -311,5 +276,3 @@ die:
         thread->shutdown = true;
     }
 }
-
-

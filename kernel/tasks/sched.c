@@ -12,18 +12,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-enum {
-    BOOT_THREAD_PRIORITY = 20
-};
+#define BOOT_THREAD_PRIORITY 20
 
 /*
- * Each queue has associated priority, and when selecting the next thread we 
- * start from lowest priority, but every time a queue is selected, remaining 
+ * Each queue has associated priority, and when selecting the next thread we
+ * start from lowest priority, but every time a queue is selected, remaining
  * opportunities is decreased.
- * (Initial opportunities count is 1 for lowest priority, 2 for next lowest, 
+ * (Initial opportunities count is 1 for lowest priority, 2 for next lowest,
  * and so on...)
  *
- * When opportunities become zero, that queue is no longer selected, thus lower 
+ * When opportunities become zero, that queue is no longer selected, thus lower
  * priority queues are selected less than higher priority ones.
  */
 static struct list s_queues;
@@ -32,28 +30,21 @@ static struct thread *s_runningthread;
 static struct list s_mutexwaitthreads;
 
 // If insert_after is NULL, queue will be inserted at front.
-WARN_UNUSED_RESULT static struct sched_queue *alloc_queue(
-    struct sched_queue *insert_after, int8_t priority)
-{
-    struct sched_queue *resultqueue = heap_alloc(
-        sizeof(*resultqueue), HEAP_FLAG_ZEROMEMORY);
+NODISCARD static struct sched_queue *alloc_queue(struct sched_queue *insert_after, int8_t priority) {
+    struct sched_queue *resultqueue = heap_alloc(sizeof(*resultqueue), HEAP_FLAG_ZEROMEMORY);
     if (resultqueue == NULL) {
         return NULL;
     }
     resultqueue->priority = priority;
     if (insert_after == NULL) {
-        list_insertfront(
-            &s_queues, &resultqueue->node,
-            resultqueue);
+        list_insertfront(&s_queues, &resultqueue->node, resultqueue);
     } else {
-        list_insertafter(
-            &s_queues, &insert_after->node,
-            &resultqueue->node, resultqueue);
+        list_insertafter(&s_queues, &insert_after->node, &resultqueue->node, resultqueue);
     }
     return resultqueue;
 }
 
-WARN_UNUSED_RESULT static struct sched_queue *get_queue(int8_t priority) {
+NODISCARD static struct sched_queue *get_queue(int8_t priority) {
     struct list_node *insert_after = NULL;
     struct sched_queue *result_queue = NULL;
     bool should_insert_front = false;
@@ -67,8 +58,7 @@ WARN_UNUSED_RESULT static struct sched_queue *get_queue(int8_t priority) {
         LIST_FOREACH(&s_queues, queue_node) {
             struct sched_queue *queue = queue_node->data;
             assert(queue);
-            struct sched_queue *next_queue =
-                list_data_or_null(queue_node->next);
+            struct sched_queue *next_queue = list_data_or_null(queue_node->next);
             // Found the queue
             if (queue->priority == priority) {
                 result_queue = queue;
@@ -81,8 +71,7 @@ WARN_UNUSED_RESULT static struct sched_queue *get_queue(int8_t priority) {
             }
             // Given priority is between current and next queue's priority.
             if ((queue->priority < priority) &&
-                (priority < next_queue->priority))
-            {
+                (priority < next_queue->priority)) {
                 insert_after = queue_node;
                 break;
             }
@@ -91,8 +80,7 @@ WARN_UNUSED_RESULT static struct sched_queue *get_queue(int8_t priority) {
     if (result_queue != NULL) {
         return result_queue;
     }
-    return alloc_queue(
-        list_data_or_null(insert_after), priority);
+    return alloc_queue(list_data_or_null(insert_after), priority);
 }
 
 static void reset_queues(void) {
@@ -118,8 +106,7 @@ static struct sched_queue *pick_next_queue(void) {
     for (size_t i = 0; i < 2; i++) {
         for (; node != NULL; node = node->next) {
             if ((s_current_queue_node != NULL) &&
-                (&s_current_queue_node->node == node))
-            {
+                (&s_current_queue_node->node == node)) {
                 continue;
             }
             struct sched_queue *queue = node->data;
@@ -154,21 +141,16 @@ static struct thread *pick_next_task_from_mutex_waitlist(void) {
     LIST_FOREACH(&s_mutexwaitthreads, threadnode) {
         struct thread *thread = threadnode->data;
         assert(thread->waitingmutex != NULL);
-        if (__mutex_trylock(
-            thread->waitingmutex,
-            thread->desired_locksource))
-        {
-            list_removenode(
-                &s_mutexwaitthreads, &thread->sched_listnode);
+        if (__mutex_trylock(thread->waitingmutex, thread->desired_locksource)) {
+            list_removenode(&s_mutexwaitthreads, &thread->sched_listnode);
             result = thread;
             if (result->shutdown) {
-                co_printf(
-                    "sched: thread is about to shutdown - unlocking mutex\n");
+                co_printf("sched: thread is about to shutdown - unlocking mutex\n");
                 mutex_unlock(thread->waitingmutex);
             }
             thread->waitingmutex = NULL;
             /*
-             * Since the list was mutated inside loop, we must get out of 
+             * Since the list was mutated inside loop, we must get out of
              * here
              */
             break;
@@ -178,7 +160,7 @@ static struct thread *pick_next_task_from_mutex_waitlist(void) {
 }
 
 static struct thread *picknexttask(void) {
-    bool previnterrupts = arch_interrupts_disable();
+    bool prev_interrupts = arch_interrupts_disable();
     struct thread *result = NULL;
 
     while (1) {
@@ -194,7 +176,7 @@ static struct thread *picknexttask(void) {
                     break;
                 }
                 result = node->data;
-            } while(0);
+            } while (0);
         }
         if ((result == NULL) || (!result->shutdown)) {
             break;
@@ -203,7 +185,7 @@ static struct thread *picknexttask(void) {
         thread_delete(result);
         result = NULL;
     }
-    interrupts_restore(previnterrupts);
+    interrupts_restore(prev_interrupts);
     return result;
 }
 
@@ -211,78 +193,61 @@ void sched_printqueues(void) {
     co_printf("----- QUEUE LIST -----\n");
     LIST_FOREACH(&s_queues, queuenode) {
         struct sched_queue *queue = queuenode->data;
-        co_printf(
-            "queue %p - Pri %d [threads exist: %d]\n",
-            queue, queue->priority, queue->threads.front != NULL);
+        co_printf("queue %p - Pri %d [threads exist: %d]\n", queue, queue->priority, queue->threads.front != NULL);
         LIST_FOREACH(&queue->threads, threadnode) {
             co_printf(" - thread %p\n", threadnode);
         }
     }
 }
 
-void sched_waitmutex(
-    struct mutex *mutex, struct sourcelocation const *locksource)
-{
+void sched_waitmutex(struct mutex *mutex, struct sourcelocation const *locksource) {
     assert(mutex->locked);
-    bool previnterrupts = arch_interrupts_disable();
-    memcpy(
-        &s_runningthread->desired_locksource, locksource,
-        sizeof(*locksource));
+    bool prev_interrupts = arch_interrupts_disable();
+    memcpy(&s_runningthread->desired_locksource, locksource, sizeof(*locksource));
     struct thread *nextthread = picknexttask();
     if (nextthread == NULL) {
-        co_printf(
-            "sched: WARNING: there is no thread to wait for mutex\n");
-        co_printf(
-            "mutex is currently locked by %s:%d (%s)\n",
-            mutex->locksource.filename, mutex->locksource.line,
-            mutex->locksource.function);
-        co_printf(
-            "lock requested by %s:%d (%s)\n",
-            locksource->filename, locksource->line,
-            locksource->function);
+        co_printf("sched: WARNING: there is no thread to wait for mutex\n");
+        co_printf("mutex is currently locked by %s:%d (%s)\n", mutex->locksource.filename, mutex->locksource.line, mutex->locksource.function);
+        co_printf("lock requested by %s:%d (%s)\n", locksource->filename, locksource->line, locksource->function);
         sched_printqueues();
-        while(1) {
+        while (1) {
         }
         goto out;
     }
     assert(s_runningthread != NULL);
     assert(s_runningthread->waitingmutex == NULL);
     s_runningthread->waitingmutex = mutex;
-    list_insertfront(
-        &s_mutexwaitthreads, &s_runningthread->sched_listnode,
-        s_runningthread);
+    list_insertfront(&s_mutexwaitthreads, &s_runningthread->sched_listnode, s_runningthread);
     struct thread *oldthread = s_runningthread;
     assert(nextthread != oldthread);
     s_runningthread = nextthread;
     thread_switch(oldthread, nextthread);
 out:
-    interrupts_restore(previnterrupts);
+    interrupts_restore(prev_interrupts);
 }
 
-WARN_UNUSED_RESULT int sched_queue(struct thread *thread) {
+NODISCARD int sched_queue(struct thread *thread) {
     int ret = 0;
-    bool previnterrupts = arch_interrupts_disable();
+    bool prev_interrupts = arch_interrupts_disable();
     struct sched_queue *queue = get_queue(thread->priority);
     if (queue == NULL) {
         ret = -ENOMEM;
         goto out;
     }
-    list_insertfront(
-        &queue->threads, &thread->sched_listnode,
-        thread);
+    list_insertfront(&queue->threads, &thread->sched_listnode, thread);
     goto out;
 out:
-    interrupts_restore(previnterrupts);
+    interrupts_restore(prev_interrupts);
     return ret;
 }
 
 void sched_schedule(void) {
-    bool previnterrupts = arch_interrupts_disable();
+    bool prev_interrupts = arch_interrupts_disable();
     struct thread *nextthread = picknexttask();
     if (nextthread == NULL) {
         goto out;
     }
-    /* 
+    /*
      * Note that it is safe to call sched_schedule() before calling
      * sched_initbootthread(), as long as it's called before creating
      * any other threads.
@@ -292,9 +257,7 @@ void sched_schedule(void) {
     assert(s_runningthread != NULL);
     int ret = sched_queue(s_runningthread);
     if (ret < 0) {
-        co_printf(
-            "sched: failed to queue current thread(error %d)\n",
-            ret);
+        co_printf("sched: failed to queue current thread(error %d)\n", ret);
     }
     struct thread *oldthread = s_runningthread;
     assert(oldthread != NULL);
@@ -302,17 +265,16 @@ void sched_schedule(void) {
     s_runningthread = nextthread;
     thread_switch(oldthread, nextthread);
 out:
-    interrupts_restore(previnterrupts);
+    interrupts_restore(prev_interrupts);
 }
 
-void sched_initbootthread(void) {
+void sched_init_boot_thread(void) {
     assert(s_runningthread == NULL);
     /*
-     * Init values for thread is not used, as those are only used for fresh new 
+     * Init values for thread is not used, as those are only used for fresh new
      * threads, and boot thread is what we are running now.
      */
-    s_runningthread = thread_create(
-        0, NULL, NULL);
+    s_runningthread = thread_create(0, NULL, NULL);
     assert(s_runningthread != NULL);
     s_runningthread->priority = BOOT_THREAD_PRIORITY;
 }

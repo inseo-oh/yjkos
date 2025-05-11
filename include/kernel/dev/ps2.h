@@ -6,24 +6,23 @@
 #include <kernel/lib/list.h>
 #include <kernel/lib/queue.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
 
-enum {
-    PS2_TIMEOUT = 200,
+#define PS2_TIMEOUT 200
 
-    PS2_CMD_IDENTIFY         = 0xf2,
-    PS2_CMD_ENABLESCANNING   = 0xf4,
-    PS2_CMD_DISABLESCANNING  = 0xf5,
-    PS2_CMD_RESET            = 0xff,
+#define PS2_CMD_IDENTIFY 0xf2
+#define PS2_CMD_ENABLESCANNING 0xf4
+#define PS2_CMD_DISABLESCANNING 0xf5
+#define PS2_CMD_RESET 0xff
 
-    PS2_RESPONSE_ACK    = 0xfa,
-    PS2_RESPONSE_RESEND = 0xfe,
-};
+#define PS2_RESPONSE_ACK 0xfa
+#define PS2_RESPONSE_RESEND 0xfe
 
 struct ps2port;
 struct ps2port_ops {
-    WARN_UNUSED_RESULT int (*bytereceived)(struct ps2port *port, uint8_t byte);
+    NODISCARD int (*bytereceived)(struct ps2port *port, uint8_t byte);
 };
 struct ps2port {
     struct iodev device;
@@ -46,11 +45,8 @@ struct ps2port {
 #define PS2_COMMON_STREAM_CALLBACKS \
     .read = ps2port_stream_op_read
 
-WARN_UNUSED_RESULT ssize_t ps2port_stream_op_read(
-    struct stream *self, void *buf, size_t size);
+NODISCARD ssize_t ps2port_stream_op_read(struct stream *self, void *buf, size_t size);
 // Note that `device->file`'s read callback must be set to ps2port_op_fileread.
-WARN_UNUSED_RESULT int ps2port_register(
-    struct ps2port *port_out, struct stream_ops const *ops, void *data);
+NODISCARD int ps2port_register(struct ps2port *port_out, struct stream_ops const *ops, void *data);
 void ps2port_receivedbyte(struct ps2port *port, uint8_t byte);
 void ps2_initdevices(void);
-

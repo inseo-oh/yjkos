@@ -1,5 +1,5 @@
-#include "asm/i586.h"
 #include "exceptions.h"
+#include "asm/i586.h"
 #include <kernel/arch/hcf.h>
 #include <kernel/arch/stacktrace.h>
 #include <kernel/io/co.h>
@@ -8,7 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-static void dumptrapframe(struct trapframe *self) {
+static void dump_trapframe(struct trapframe *self) {
     co_printf(
         "eax=%08lx ebx=%08lx ecx=%08lx edx=%08lx esi=%08lx edi=%08lx\n"
         "ebp=%08lx eip=%08lx efl=%08lx cs =%08lx ds =%08lx es =%08lx\n"
@@ -23,42 +23,33 @@ static void defaulthandler(int trapnum, void *trapframe, void *data) {
     (void)data;
 
     struct trapframe *frame = trapframe;
-    co_printf(
-        "fatal exception %d occured (error code %#x)\n",
-        trapnum, frame->errcode);
-    dumptrapframe(frame);
+    co_printf("fatal exception %d occured (error code %#x)\n", trapnum, frame->errcode);
+    dump_trapframe(frame);
     arch_hcf();
 }
 
-#define PF_FLAG_P   (1U << 0) // Present
-#define PF_FLAG_W   (1U << 1) // write
-#define PF_FLAG_U   (1U << 2) // User
+#define PF_FLAG_P (1U << 0) // Present
+#define PF_FLAG_W (1U << 1) // write
+#define PF_FLAG_U (1U << 2) // User
 
 static void pagefaulthandler(int trapnum, void *trapframe, void *data) {
     (void)data;
     (void)trapnum;
     struct trapframe *frame = trapframe;
-    void *faultaddr = archi586_readcr2();
-    vmm_pagefault(
-        faultaddr, frame->errcode & PF_FLAG_P,
-        frame->errcode & PF_FLAG_W,
-        frame->errcode & PF_FLAG_U, frame);
+    void *faultaddr = archi586_read_cr2();
+    vmm_pagefault(faultaddr, frame->errcode & PF_FLAG_P, frame->errcode & PF_FLAG_W, frame->errcode & PF_FLAG_U, frame);
 }
 
 static struct traphandler s_traphandler[32];
 
 void archi586_exceptions_init(void) {
     for (int i = 0; i < 32; i++) {
-        switch(i) {
-            case 14:
-                trapmanager_register(
-                    &s_traphandler[i], i,
-                    pagefaulthandler, NULL);
-                break;
-            default:
-                trapmanager_register(
-                    &s_traphandler[i], i,
-                    defaulthandler, NULL);
+        switch (i) {
+        case 14:
+            trapmanager_register(&s_traphandler[i], i, pagefaulthandler, NULL);
+            break;
+        default:
+            trapmanager_register(&s_traphandler[i], i, defaulthandler, NULL);
         }
     }
 }

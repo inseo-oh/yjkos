@@ -1,5 +1,5 @@
-#include "ioport.h"
 #include "pic.h"
+#include "ioport.h"
 #include <assert.h>
 #include <kernel/arch/interrupts.h>
 #include <kernel/io/co.h>
@@ -8,22 +8,22 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define CMDPORT_MASTER      0x20
-#define DATAPORT_MASTER     0x21
-#define CMDPORT_SLAVE       0xa0
-#define DATAPORT_SLAVE      0xa1
+#define CMDPORT_MASTER 0x20
+#define DATAPORT_MASTER 0x21
+#define CMDPORT_SLAVE 0xa0
+#define DATAPORT_SLAVE 0xa1
 
-#define CMD_READIRR     0x0a
-#define CMD_READISR     0x0b
-#define CMD_EOI         0x20
+#define CMD_READIRR 0x0a
+#define CMD_READISR 0x0b
+#define CMD_EOI 0x20
 
-#define SLAVEPIN_ON_MASTER  2
-#define IRQS_PER_PIC        8
-#define IRQS_TOTAL          (IRQS_PER_PIC * 2)
-#define PIC_VECTOR_BASE     0x20
+#define SLAVEPIN_ON_MASTER 2
+#define IRQS_PER_PIC 8
+#define IRQS_TOTAL (IRQS_PER_PIC * 2)
+#define PIC_VECTOR_BASE 0x20
 
-static uint8_t const PIC_ICW1_FLAG_ICW4     = 1 << 0;
-static uint8_t const PIC_ICW1_FLAG_INIT     = 1 << 4;
+static uint8_t const PIC_ICW1_FLAG_ICW4 = 1 << 0;
+static uint8_t const PIC_ICW1_FLAG_INIT = 1 << 4;
 static uint8_t const PIC_ICW4_FLAG_8086MODE = 1 << 0;
 
 static uint16_t readirqreg(uint8_t readcmd) {
@@ -90,7 +90,7 @@ void archi586_pic_maskirq(uint8_t irq) {
 }
 
 void archi586_pic_unmaskirq(uint8_t irq) {
-    setirqmask(getirqmask()&  ~(1U << irq));
+    setirqmask(getirqmask() & ~(1U << irq));
 }
 
 static struct traphandler s_traphandler[IRQS_TOTAL];
@@ -121,10 +121,8 @@ static void irqhandler(int trapnum, void *trapframe, void *data) {
 
 void archi586_pic_init(void) {
     // ICW1
-    archi586_out8(
-        CMDPORT_MASTER, PIC_ICW1_FLAG_INIT | PIC_ICW1_FLAG_ICW4);
-    archi586_out8(
-        CMDPORT_SLAVE, PIC_ICW1_FLAG_INIT | PIC_ICW1_FLAG_ICW4);
+    archi586_out8(CMDPORT_MASTER, PIC_ICW1_FLAG_INIT | PIC_ICW1_FLAG_ICW4);
+    archi586_out8(CMDPORT_SLAVE, PIC_ICW1_FLAG_INIT | PIC_ICW1_FLAG_ICW4);
     // ICW2
     archi586_out8(DATAPORT_MASTER, PIC_VECTOR_BASE);
     archi586_out8(DATAPORT_SLAVE, PIC_VECTOR_BASE + IRQS_PER_PIC);
@@ -136,25 +134,17 @@ void archi586_pic_init(void) {
     archi586_out8(DATAPORT_SLAVE, PIC_ICW4_FLAG_8086MODE);
     // Setup default PIC handler
     for (size_t i = 0; i < 8; i++) {
-        trapmanager_register(
-            &s_traphandler[i],
-            PIC_VECTOR_BASE + i, irqhandler, NULL);
-        trapmanager_register(
-            &s_traphandler[IRQS_PER_PIC + i],
-            PIC_VECTOR_BASE + IRQS_PER_PIC + i,
-            irqhandler, NULL);
+        trapmanager_register(&s_traphandler[i], PIC_VECTOR_BASE + i, irqhandler, NULL);
+        trapmanager_register(&s_traphandler[IRQS_PER_PIC + i], PIC_VECTOR_BASE + IRQS_PER_PIC + i, irqhandler, NULL);
     }
     // Disable IRQs except for IRQ2(which is connected to slave PIC)
     setirqmask(~(uint16_t)(1U << 2));
 }
 
-void archi586_pic_registerhandler(
-    struct archi586_pic_irq_handler *out, int irqnum,
-    void (*callback)(int irqnum, void *data), void *data)
-{
-    bool previnterrupts = arch_interrupts_disable();
+void archi586_pic_registerhandler(struct archi586_pic_irq_handler *out, int irqnum, void (*callback)(int irqnum, void *data), void *data) {
+    bool prev_interrupts = arch_interrupts_disable();
     out->callback = callback;
     out->data = data;
     list_insertback(&s_irqs[irqnum], &out->node, out);
-    interrupts_restore(previnterrupts);
+    interrupts_restore(prev_interrupts);
 }

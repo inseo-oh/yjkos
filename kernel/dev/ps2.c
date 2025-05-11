@@ -17,12 +17,11 @@
 
 static struct list s_ports;
 
-WARN_UNUSED_RESULT ssize_t ps2port_stream_op_read(
-    struct stream *self, void *buf, size_t size) {
+NODISCARD ssize_t ps2port_stream_op_read(struct stream *self, void *buf, size_t size) {
     struct ps2port *port = self->data;
     size_t writtensize = 0;
     ////////////////////////////////////////////////////////////////////////
-    bool previnterrupts = arch_interrupts_disable();
+    bool prev_interrupts = arch_interrupts_disable();
     arch_iodelay();
     for (size_t idx = 0; idx < size; idx++) {
         bool ok = QUEUE_DEQUEUE(&((uint8_t *)buf)[idx], &port->recvqueue);
@@ -31,7 +30,7 @@ WARN_UNUSED_RESULT ssize_t ps2port_stream_op_read(
         }
         writtensize++;
     }
-    interrupts_restore(previnterrupts);
+    interrupts_restore(prev_interrupts);
     ////////////////////////////////////////////////////////////////////////
     return (ssize_t)writtensize;
 }
@@ -39,9 +38,7 @@ WARN_UNUSED_RESULT ssize_t ps2port_stream_op_read(
 /*
  * Returns 0, or IOERROR_~ value on failure.
  */
-WARN_UNUSED_RESULT static int send_and_wait_ack(
-    struct ps2port *port, uint8_t cmd
-) {
+NODISCARD static int send_and_wait_ack(struct ps2port *port, uint8_t cmd) {
     int ret = stream_putchar(&port->stream, cmd);
     if (ret < 0) {
         return ret;
@@ -51,19 +48,14 @@ WARN_UNUSED_RESULT static int send_and_wait_ack(
         return ret;
     }
     if (ret != PS2_RESPONSE_ACK) {
-        iodev_printf(
-            &port->device,
-        "command %#x - expected ACK(0xfa), got %#x\n", cmd, ret);
+        iodev_printf(&port->device, "command %#x - expected ACK(0xfa), got %#x\n", cmd, ret);
         return -EIO;
     }
     return 0;
 }
 
-enum {
-    DEVICETYPE_KEYBOARD = 'K',
-    DEVICETYPE_MOUSE = 'M',
-};
-
+#define DEVICETYPE_KEYBOARD 'K'
+#define DEVICETYPE_MOUSE 'M'
 
 /*
  * Returns DEVICETYPE_~ values, or IOERROR_~ value on failure.
@@ -78,7 +70,7 @@ static int identify_device(struct ps2port *port) {
     int result = DEVICETYPE_KEYBOARD;
     size_t identlen = 0;
     uint8_t ident[2];
-    for (size_t i = 0; i < sizeof(ident)/sizeof(*ident); i++) {
+    for (size_t i = 0; i < sizeof(ident) / sizeof(*ident); i++) {
         int ret = stream_waitchar(&port->stream, PS2_TIMEOUT);
         if (ret == STREAM_EOF) {
             break;
@@ -89,42 +81,34 @@ static int identify_device(struct ps2port *port) {
         ident[i] = ret;
         identlen++;
     }
-    switch(identlen) {
-        case 0:
-            break;
-        case 1:
-            switch(ident[0]) {
-                case 0x00:
-                case 0x03:
-                case 0x04:
-                    result = DEVICETYPE_MOUSE;
-                    break;
-                default:
-                    iodev_printf(&port->device,
-                        "unknown device ID %#x - assuming it's keyboard\n",
-                        ident[0]);
-            }
+    switch (identlen) {
+    case 0:
+        break;
+    case 1:
+        switch (ident[0]) {
+        case 0x00:
+        case 0x03:
+        case 0x04:
+            result = DEVICETYPE_MOUSE;
             break;
         default:
-            assert(identlen == 2);
-            if (ident[0] != 0xab) {
-                iodev_printf(&port->device,
-                    "unknown device ID %#x %#x - assuming it's keyboard\n",
-                    ident[0], ident[1]
-                );
-            }
-            break;
+            iodev_printf(&port->device, "unknown device ID %#x - assuming it's keyboard\n", ident[0]);
+        }
+        break;
+    default:
+        assert(identlen == 2);
+        if (ident[0] != 0xab) {
+            iodev_printf(&port->device, "unknown device ID %#x %#x - assuming it's keyboard\n", ident[0], ident[1]);
+        }
+        break;
     }
     ret = result;
-out:
-    {
-        int ret = send_and_wait_ack(port, PS2_CMD_ENABLESCANNING);
-        if (ret != 0) {
-            iodev_printf(
-                &port->device,
-                "scanning couldn't be enabled(error %d)\n", ret);
-        }
+out: {
+    int ret = send_and_wait_ack(port, PS2_CMD_ENABLESCANNING);
+    if (ret != 0) {
+        iodev_printf(&port->device, "scanning couldn't be enabled(error %d)\n", ret);
     }
+}
     return ret;
 }
 
@@ -160,9 +144,7 @@ static int reset_device(struct ps2port *port) {
         }
     }
     if (bad_response) {
-        iodev_printf(
-            &port->device,
-            "device did not respond to reset command properly\n");
+        iodev_printf(&port->device, "device did not respond to reset command properly\n");
         goto fail_io;
     }
 fail_bad_ret:
@@ -199,10 +181,7 @@ static int init_device(struct ps2port *port) {
         ret = identify_device(port);
         if (ret == -EIO) {
             ret = DEVICETYPE_KEYBOARD;
-            iodev_printf(
-                &port->device,
-                "identification failed due to I/O error. assuming it's keyboard.\n",
-                port);
+            iodev_printf(&port->device, "identification failed due to I/O error. assuming it's keyboard.\n", port);
         } else if (ret < 0) {
             return ret;
         } else {
@@ -210,18 +189,17 @@ static int init_device(struct ps2port *port) {
         }
     }
     switch (type) {
-        case DEVICETYPE_KEYBOARD:
-            ret = ps2kbd_init(port);
-            if (ret < 0) {
-                goto fail_bad_ret;
-            }
-            break;
-        case DEVICETYPE_MOUSE:
-            iodev_printf(
-                &port->device, "mouse is not supported yet\n");
-            break;
-        default:
-            assert(false);
+    case DEVICETYPE_KEYBOARD:
+        ret = ps2kbd_init(port);
+        if (ret < 0) {
+            goto fail_bad_ret;
+        }
+        break;
+    case DEVICETYPE_MOUSE:
+        iodev_printf(&port->device, "mouse is not supported yet\n");
+        break;
+    default:
+        assert(false);
     }
     goto out;
 fail_bad_ret:
@@ -230,29 +208,23 @@ out:
     return ret;
 }
 
-WARN_UNUSED_RESULT int ps2port_register(
-    struct ps2port *port_out, struct stream_ops const *ops, void *data)
-{
+NODISCARD int ps2port_register(struct ps2port *port_out, struct stream_ops const *ops, void *data) {
     port_out->ops = NULL;
     port_out->stream.ops = ops;
     port_out->stream.data = data;
     assert(port_out->stream.ops->read == ps2port_stream_op_read);
     QUEUE_INIT_FOR_ARRAY(&port_out->recvqueue, port_out->recvqueuebuf);
     list_insertback(&s_ports, &port_out->node, port_out);
-    return iodev_register(
-        &port_out->device, IODEV_TYPE_PS2PORT,
-        port_out);
+    return iodev_register(&port_out->device, IODEV_TYPE_PS2PORT, port_out);
 }
 
 void ps2_initdevices(void) {
     // XXX: Use iodev to enumerate devices instead.
     LIST_FOREACH(&s_ports, devicenode) {
         struct ps2port *port = devicenode->data;
-        int ret = init_device(port); 
+        int ret = init_device(port);
         if (ret < 0) {
-            iodev_printf(
-                &port->device,
-                "failed to initialize (error %d)\n", ret);
+            iodev_printf(&port->device, "failed to initialize (error %d)\n", ret);
         }
     }
 }
@@ -261,19 +233,12 @@ void ps2port_receivedbyte(struct ps2port *port, uint8_t byte) {
     if (port->ops == NULL) {
         int ret = QUEUE_ENQUEUE(&port->recvqueue, &byte);
         if (ret < 0) {
-            iodev_printf(
-                &port->device,
-                "failed to enqueue data from the device (error %d)\n",
-                ret);
+            iodev_printf(&port->device, "failed to enqueue data from the device (error %d)\n", ret);
         }
     } else {
         int ret = port->ops->bytereceived(port, byte);
         if (ret < 0) {
-            iodev_printf(
-                &port->device,
-                "error occured while processing received data from the device (error %d)\n",
-                ret);
+            iodev_printf(&port->device, "error occured while processing received data from the device (error %d)\n", ret);
         }
     }
-
 }

@@ -17,9 +17,7 @@ static void getopt_nextarg(void) {
     s_next_char_idx = 1;
 }
 
-static bool getopt_get_arg(
-    int argc, char * const argv[], char *argopt, int opt_char)
-{
+static bool getopt_get_arg(int argc, char *const argv[], char *argopt, int opt_char) {
     if (argopt[1] == '\0') {
         if ((argc - optind) < 2) {
             goto fail;
@@ -42,12 +40,10 @@ fail:
 }
 
 /*
- * Returns nonzero(skip length) if current option needs to be skipped. 
+ * Returns nonzero(skip length) if current option needs to be skipped.
  * Otherwise it returns 0.
  */
-static int getopt_opt_char_skip_len(
-    const char *argopt, const char *next_opt_char)
-{
+static int getopt_opt_char_skip_len(const char *argopt, const char *next_opt_char) {
     char opt_char = *next_opt_char;
     if ((opt_char == '+') || (opt_char == ':') || (opt_char == '?')) {
         return 1;
@@ -63,7 +59,7 @@ static int getopt_opt_char_skip_len(
 }
 
 // https://pubs.opengroup.org/onlinepubs/9799919799/functions/getopt.html
-int getopt(int argc, char * const argv[], const char *optstring) {
+int getopt(int argc, char *const argv[], const char *optstring) {
     char const *errmsg = NULL;
     if (argc <= optind) {
         return -1;

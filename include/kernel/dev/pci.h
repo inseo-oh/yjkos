@@ -4,12 +4,12 @@
 #include <stdint.h>
 
 // PCI path consists of Bus, Device, and Function number.
-typedef uint16_t pcipath;
+typedef uint16_t PCIPATH;
 
-pcipath pci_makepath(uint8_t bus, uint8_t device, uint8_t function);
-uint8_t pcipath_getbus(pcipath path);
-uint8_t pcipath_getdev(pcipath path);
-uint8_t pcipath_getfunc(pcipath path);
+PCIPATH pci_makepath(uint8_t bus, uint8_t device, uint8_t function);
+uint8_t pcipath_getbus(PCIPATH path);
+uint8_t pcipath_getdev(PCIPATH path);
+uint8_t pcipath_getfunc(PCIPATH path);
 
 #define PCI_CMDFLAG_INTERRUPT_DISABLE               (1U << 10)
 #define PCI_CMDFLAG_FAST_BACK_TO_BACK               (1U << 9)
@@ -38,30 +38,23 @@ uint8_t pcipath_getfunc(pcipath path);
 #define PCI_STATUSFLAG_DETECTED_PARITY_ERROR     (1U << 15)
 
 void pci_probe_bus(
-    void (*callback)(pcipath path, uint16_t venid, uint16_t devid, uint8_t baseclass, uint8_t subclass, void *data),
+    void (*callback)(PCIPATH path, uint16_t venid, uint16_t devid, uint8_t baseclass, uint8_t subclass, void *data),
     void *data
 );
-void pci_readvendevid(uint16_t *venid_out, uint16_t *devid_out, pcipath path);
-void pci_readclass(uint8_t *baseclass_out, uint8_t *subclass_out, pcipath path);
-uint8_t pci_read_config_header_type(pcipath path);
-uint8_t pci_readprogif(pcipath path);
-void pci_writeprogif(pcipath path, uint8_t progif);
-uint8_t pci_readinterruptline(pcipath path);
-uint16_t pci_readcmdreg(pcipath path);
-void pci_writecmdreg(pcipath path, uint16_t value);
-uint16_t pci_readstatusreg(pcipath path);
-/*
- * Note that writing 1 to status register bit clears that flag
- * (If it's writable)
- */
-void pci_writestatusreg(pcipath path, uint16_t value);
-void pci_printf(pcipath path, char const *fmt, ...);
+void pci_readvendevid(uint16_t *venid_out, uint16_t *devid_out, PCIPATH path);
+void pci_readclass(uint8_t *baseclass_out, uint8_t *subclass_out, PCIPATH path);
+uint8_t pci_read_config_header_type(PCIPATH path);
+uint8_t pci_readprogif(PCIPATH path);
+void pci_writeprogif(PCIPATH path, uint8_t progif);
+uint8_t pci_readinterruptline(PCIPATH path);
+uint16_t pci_readcmdreg(PCIPATH path);
+void pci_writecmdreg(PCIPATH path, uint16_t value);
+uint16_t pci_readstatusreg(PCIPATH path);
+// Note that writing 1 to status register bit clears that flag (If it's writable)
+void pci_writestatusreg(PCIPATH path, uint16_t value);
+void pci_printf(PCIPATH path, char const *fmt, ...);
 // NOTE: Prefetchable is not applicable if it's I/O BAR.
-WARN_UNUSED_RESULT int pci_readbar(
-    uintptr_t *addr_out, bool *isiobar_out, bool *isprefetchable_out,
-    pcipath path, uint8_t bar);
-WARN_UNUSED_RESULT int pci_read_mem_bar(
-    uintptr_t *addr_out, bool *isprefetchable_out, pcipath path, int bar);
-WARN_UNUSED_RESULT int pci_read_io_bar(
-    uintptr_t *addr_out, pcipath path, int bar);
+NODISCARD int pci_readbar( uintptr_t *addr_out, bool *isiobar_out, bool *isprefetchable_out, PCIPATH path, uint8_t bar);
+NODISCARD int pci_read_mem_bar(uintptr_t *addr_out, bool *isprefetchable_out, PCIPATH path, int bar);
+NODISCARD int pci_read_io_bar(uintptr_t *addr_out, PCIPATH path, int bar);
 void pci_printbus(void);
