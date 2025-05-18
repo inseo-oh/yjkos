@@ -9,8 +9,7 @@ FONTDIR           = $(OUTDIR)/kernelfont
 FONTNAME          = kernelfont.psf
 FONTOBJ           = kernelfont.o
 
-# We have to to remove './' from the result, because without it
-# $(OBJDIR)/kdoom/kdoom.o rule doesn't work due to that ./
+# We have to to remove './' from the result, because without it $(OBJDIR)/kdoom/kdoom.o rule doesn't work due to that ./
 C_SRCS        := $(shell find . -name '*.c' | sed 's/^.\///')
 C_OBJ_NAMES    = $(patsubst %.c, %.o, $(C_SRCS))
 ASM_SRCS      := $(shell find . -name '*.S' | sed 's/^.\///')
@@ -63,10 +62,8 @@ cleandep:
 prepare:
 	@mkdir -p $(OBJDIRS)
 
-# We need to override many diagnostic flags for DOOM, because it's using C code 
-# from late 90s.
-# Most of them are declared inside KDOOM itself to only apply those to PureDOOM 
-# header file, but we still need few command-line flags.
+# We need to override many diagnostic flags for DOOM, because it's using C code from late 90s.
+# Most of them are declared inside KDOOM itself to only apply those to PureDOOM header file, but we still need few command-line flags.
 # In addition to disabling warnings, it also disables UBSanitizer.
 $(OBJDIR)/shell/kdoom/program_kdoom.o: shell/kdoom/program_kdoom.c
 	$(info [Target C(DOOM)] $@)
