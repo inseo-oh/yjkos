@@ -1,5 +1,4 @@
 #pragma once
-#include <stdbool.h>
 #include <stdint.h>
 
-void archi586_ps2ctrl_init(void);
+void ArchI586_Ps2Ctrl_Init(void);

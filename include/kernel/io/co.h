@@ -1,20 +1,19 @@
 #pragma once
 #include <stdarg.h>
-#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
-struct stream;
+struct Stream;
 
 #define CON_BACKSPACE   '\x7f'
 #define CON_DELETE      '\x08'
 
-// For tty_~console functions, pass NULL to disable the console.
-void co_set_primary(struct stream *device);
-void co_set_debug(struct stream *device);
-void co_ask_primary_console(void);
-void co_putc(char c);
-void co_puts(char const *s);
-void co_vprintf(char const *fmt, va_list ap);
-int co_getchar(void);
-void co_printf(char const *fmt, ...);
+/* For Co~Set~Console functions, pass NULL to disable the console. */
+void Co_SetPrimaryConsole(struct Stream *device);
+void Co_SetDebugConsole(struct Stream *device);
+void Co_AskPrimaryConsole(void);
+void Co_PutChar(char c);
+void Co_PutString(char const *s);
+void Co_VPrintf(char const *fmt, va_list ap);
+int Co_GetChar(void);
+void Co_Printf(char const *fmt, ...);

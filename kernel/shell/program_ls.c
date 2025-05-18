@@ -11,23 +11,23 @@
 #include <string.h>
 #include <unistd.h>
 
-// https://pubs.opengroup.org/onlinepubs/9799919799/utilities/ls.html
+/* https://pubs.opengroup.org/onlinepubs/9799919799/utilities/ls.html */
 
 struct opts {
-    //--------------------------------------------------------------------------
-    // Filtering options
-    //--------------------------------------------------------------------------
-    bool all : 1;     // -a
-    bool all_alt : 1; // -A
+    /***************************************************************************
+     * Filtering options
+     **************************************************************************/
+    bool all : 1;     /* -a */
+    bool all_alt : 1; /* -A */
 
-    //--------------------------------------------------------------------------
-    // Output options
-    //--------------------------------------------------------------------------
-    // I don't know why it's called stream output format in POSIX
-    bool streamformat : 1; // -m
+    /**************************************************************************
+     * Output options
+     **************************************************************************/
+    /* I don't know why it's called stream output format in POSIX */
+    bool stream_format : 1; /* -m */
 };
 
-NODISCARD static bool getopts(struct opts *out, int argc, char *argv[]) {
+[[nodiscard]] static bool getopts(struct opts *out, int argc, char *argv[]) {
     bool ok = true;
     int c;
     memset(out, 0, sizeof(*out));
@@ -44,20 +44,20 @@ NODISCARD static bool getopts(struct opts *out, int argc, char *argv[]) {
             out->all_alt = true;
             break;
         case 'm':
-            out->streamformat = true;
+            out->stream_format = true;
             break;
         case '?':
         case ':':
             ok = false;
             break;
         default:
-            co_printf("NOT IMPLEMENTED: %c flag\n", c);
+            Co_Printf("NOT IMPLEMENTED: %c flag\n", c);
         }
     }
     return ok;
 }
 
-// XXX: Query this from current stdout, after we implement support for that.
+/* XXX: Query this from current stdout, after we implement support for that. */
 #define COLUMNS 80
 
 struct entry {
@@ -65,7 +65,7 @@ struct entry {
 };
 
 static int format(char *buf, size_t size, struct entry const *ent, struct opts const *opts, bool is_last_entry) {
-    if (opts->streamformat) {
+    if (opts->stream_format) {
         if (is_last_entry) {
             return snprintf(buf, size, "%s", ent->name);
         }
@@ -91,7 +91,7 @@ static bool should_hide_dirent(struct dirent *ent, struct opts const *opts) {
 
 static int collect_entries(struct entry **entries_out, size_t *entries_len_out, char const *path, struct opts const *opts) {
     DIR *dir = NULL;
-    int ret = vfs_opendir(&dir, path);
+    int ret = Vfs_OpenDir(&dir, path);
     if (ret < 0) {
         return ret;
     }
@@ -99,7 +99,7 @@ static int collect_entries(struct entry **entries_out, size_t *entries_len_out, 
     size_t entries_len = 0;
     while (1) {
         struct dirent ent;
-        ret = vfs_readdir(&ent, dir);
+        ret = Vfs_ReadDir(&ent, dir);
         if (ret < 0) {
             break;
         }
@@ -109,7 +109,7 @@ static int collect_entries(struct entry **entries_out, size_t *entries_len_out, 
         if (WILL_ADD_OVERFLOW(entries_len, 1, SIZE_MAX)) {
             goto oom;
         }
-        void *new_entries = heap_reallocarray(entries, sizeof(*entries), entries_len + 1, 0);
+        void *new_entries = Heap_ReallocArray(entries, sizeof(*entries), entries_len + 1, 0);
         if (new_entries == NULL) {
             goto oom;
         }
@@ -127,12 +127,12 @@ static int collect_entries(struct entry **entries_out, size_t *entries_len_out, 
 oom:
     ret = -ENOMEM;
     for (size_t i = 0; i < entries_len; i++) {
-        heap_free(entries[i].name);
+        Heap_Free(entries[i].name);
     }
-    heap_free(entries);
+    Heap_Free(entries);
     goto out;
 out:
-    vfs_closedir(dir);
+    Vfs_CloseDir(dir);
     *entries_out = entries;
     *entries_len_out = entries_len;
     return ret;
@@ -143,7 +143,7 @@ static void show_dir(char const *progname, char const *path, struct opts const *
     size_t entries_len = 0;
     int ret = collect_entries(&entries, &entries_len, path, opts);
     if (ret < 0) {
-        co_printf("%s: failed to read directory %s (error %d)\n", progname, path, ret);
+        Co_Printf("%s: failed to read directory %s (error %d)\n", progname, path, ret);
         goto out;
     }
     int line_len = 0;
@@ -152,21 +152,21 @@ static void show_dir(char const *progname, char const *path, struct opts const *
         struct entry const *ent = &entries[i];
         bool is_last_entry = i == (entries_len - 1);
         int len = format(buf, sizeof(buf), ent, opts, is_last_entry);
-        bool ishorizontal = opts->streamformat;
+        bool ishorizontal = opts->stream_format;
         if ((ishorizontal && (COLUMNS - line_len) < len) ||
             (!ishorizontal && i != 0)) {
-            co_printf("\n");
+            Co_Printf("\n");
             line_len = 0;
         }
-        co_printf("%s", buf);
+        Co_Printf("%s", buf);
         line_len += len;
     }
-    co_printf("\n");
+    Co_Printf("\n");
 out:
     for (size_t i = 0; i < entries_len; i++) {
-        heap_free(entries[i].name);
+        Heap_Free(entries[i].name);
     }
-    heap_free(entries);
+    Heap_Free(entries);
 }
 
 static int program_main(int argc, char *argv[]) {
@@ -180,14 +180,14 @@ static int program_main(int argc, char *argv[]) {
     }
     for (int i = optind; i < argc; i++) {
         if (optind + 1 != argc) {
-            co_printf("%s:\n", argv[i]);
+            Co_Printf("%s:\n", argv[i]);
         }
         show_dir(argv[0], argv[i], &opts);
     }
     return 0;
 }
 
-struct shell_program g_shell_program_ls = {
+struct Shell_Program g_shell_program_ls = {
     .name = "ls",
     .main = program_main,
 };

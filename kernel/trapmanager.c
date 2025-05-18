@@ -6,11 +6,11 @@
 #include <stdint.h>
 #include <string.h>
 
-// Each trap entry is a list of trap handlers.
-static struct list s_traps[YJKERNEL_ARCH_TRAP_COUNT];
+/* Each trap entry is a list of trap handlers. */
+static struct List s_traps[YJKERNEL_ARCH_TRAP_COUNT];
 
-static uint32_t calculatechecksum(struct traphandler const *handler) {
-    struct traphandler temp;
+static uint32_t calculate_checksum(struct TrapHandler const *handler) {
+    struct TrapHandler temp;
     memcpy(&temp, handler, sizeof(temp));
     temp.checksum = 0;
     STATIC_ASSERT_TEST(sizeof(*handler) % sizeof(uint32_t) == 0);
@@ -22,45 +22,44 @@ static uint32_t calculatechecksum(struct traphandler const *handler) {
     return ((uint32_t)~0) - sum;
 }
 
-void trapmanager_register(struct traphandler *out, int trapnum, void (*callback)(int trapnum, void *trapframe, void *data), void *data) {
-    bool prev_interrupts = arch_interrupts_disable();
+void TrapManager_Register(struct TrapHandler *out, int trapnum, void (*callback)(int trapnum, void *trapframe, void *data), void *data) {
+    bool prev_interrupts = Arch_Irq_Disable();
     out->callback = callback;
     out->data = data;
-    list_insertback(&s_traps[trapnum], &out->node, out);
-    out->checksum = calculatechecksum(out);
+    List_InsertBack(&s_traps[trapnum], &out->node, out);
+    out->checksum = calculate_checksum(out);
     if (out->node.prev != NULL) {
-        struct traphandler *handler = out->node.prev->data;
-        handler->checksum = calculatechecksum(handler);
+        struct TrapHandler *handler = out->node.prev->data;
+        handler->checksum = calculate_checksum(handler);
     }
     if (out->node.next != NULL) {
-        struct traphandler *handler = out->node.next->data;
-        handler->checksum = calculatechecksum(handler);
+        struct TrapHandler *handler = out->node.next->data;
+        handler->checksum = calculate_checksum(handler);
     }
-    interrupts_restore(prev_interrupts);
+    Arch_Irq_Restore(prev_interrupts);
 }
 
-void trapmanager_trap(int trapnum, void *trapframe) {
-    ASSERT_INTERRUPTS_DISABLED();
+void TrapManager_Trap(int trapnum, void *trapframe) {
+    ASSERT_IRQ_DISABLED();
     enum {
-        HANDLERS_COUNT = sizeof(s_traps)/sizeof(*s_traps),
+        HANDLERS_COUNT = sizeof(s_traps) / sizeof(*s_traps),
     };
     if (HANDLERS_COUNT <= trapnum) {
-        co_printf("trap %d is outside of valid trap range(0~%d)\n", trapnum, HANDLERS_COUNT - 1);
+        Co_Printf("trap %d is outside of valid trap range(0~%d)\n", trapnum, HANDLERS_COUNT - 1);
         return;
     }
     if (!s_traps[trapnum].front) {
-        co_printf("no trap handler registered for trap %d\n", trapnum);
+        Co_Printf("no trap handler registered for trap %d\n", trapnum);
         return;
     }
     LIST_FOREACH(&s_traps[trapnum], handlernode) {
-        struct traphandler *handler = handlernode->data;
-        uint32_t expectedchecksum = calculatechecksum(handler);
-        uint32_t gotchecksum = handler->checksum;
-        if (expectedchecksum != gotchecksum) {
-            co_printf("bad trap handler checksum in trap %d: expected %#x, got %#x\n", trapnum, expectedchecksum, gotchecksum);
+        struct TrapHandler *handler = handlernode->data;
+        uint32_t expected_checksum = calculate_checksum(handler);
+        uint32_t got_checksum = handler->checksum;
+        if (expected_checksum != got_checksum) {
+            Co_Printf("bad trap handler checksum in trap %d: expected %#x, got %#x\n", trapnum, expected_checksum, got_checksum);
         } else {
             handler->callback(trapnum, trapframe, handler->data);
         }
     }
-
 }

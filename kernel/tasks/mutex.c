@@ -5,11 +5,11 @@
 #include <stdatomic.h>
 #include <string.h>
 
-void mutex_init(struct mutex *out) {
+void Mutex_Init(struct Mutex *out) {
     memset(out, 0, sizeof(*out));
 }
 
-NODISCARD bool __mutex_trylock(struct mutex *self, struct sourcelocation loc) {
+[[nodiscard]] bool __Mutex_TryLock(struct Mutex *self, struct SourceLocation loc) {
     bool expected = false;
     if (!atomic_compare_exchange_strong_explicit(&self->locked, &expected, true, memory_order_acquire, memory_order_relaxed)) {
         return false;
@@ -18,17 +18,17 @@ NODISCARD bool __mutex_trylock(struct mutex *self, struct sourcelocation loc) {
     return true;
 }
 
-void __mutex_lock(struct mutex *self, struct sourcelocation loc) {
+void __Mutex_Lock(struct Mutex *self, struct SourceLocation loc) {
     assert(self);
-    bool prev_interrupts = arch_interrupts_disable();
-    if (!__mutex_trylock(self, loc)) {
-        sched_waitmutex(self, &loc);
+    bool prev_interrupts = Arch_Irq_Disable();
+    if (!__Mutex_TryLock(self, loc)) {
+        Sched_WaitMutex(self, &loc);
         assert(self->locked);
     }
-    interrupts_restore(prev_interrupts);
+    Arch_Irq_Restore(prev_interrupts);
 }
 
-void mutex_unlock(struct mutex *self) {
+void Mutex_Unlock(struct Mutex *self) {
     self->locksource.filename = NULL;
     self->locksource.function = NULL;
     self->locksource.line = 0;

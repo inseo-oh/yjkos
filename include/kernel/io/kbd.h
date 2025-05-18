@@ -2,15 +2,14 @@
 #include <kernel/io/iodev.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
-#include <stdbool.h>
 #include <stdint.h>
 
-// Lock key flags
+/* Lock key flags */
 #define KBD_FLAG_LOCK_CAPS (1U << 0)
 #define KBD_FLAG_LOCK_NUM (1U << 1)
 #define KBD_FLAG_LOCK_SCROLL (1U << 2)
 
-// Modifier key flags
+/* Modifier key flags */
 #define KBD_FLAG_MOD_LSHIFT (1U << 8)
 #define KBD_FLAG_MOD_RSHIFT (1U << 9)
 #define KBD_FLAG_MOD_LCTRL (1U << 10)
@@ -68,8 +67,8 @@ typedef enum {
     KBD_KEY_T,
     KBD_KEY_Y,
     KBD_KEY_U,
-    KBD_KEY_I, // NOLINT(misc-confusable-identifiers)
-    KBD_KEY_O, // NOLINT(misc-confusable-identifiers)
+    KBD_KEY_I,
+    KBD_KEY_O,
     KBD_KEY_P,
     KBD_KEY_OPEN_BRACKET,
     KBD_KEY_CLOSE_BRACKET,
@@ -143,24 +142,24 @@ typedef enum {
     KBD_KEY_COUNT
 } KBD_KEY;
 
-struct kbd_keyevent {
+struct Kbd_KeyEvent {
     KBD_KEY key;
     char chr;
     bool is_down : 1;
 };
 
-struct kbddev;
-struct kbddev_ops {
-    NODISCARD int (*updateleds)(struct kbddev *self, bool scroll, bool caps, bool num);
+struct Kbd_Dev;
+struct Kbd_DevOps {
+    int (*updateleds)(struct Kbd_Dev *self, bool scroll, bool caps, bool num);
 };
-struct kbddev {
-    struct list_node node;
-    struct iodev iodev;
+struct Kbd_Dev {
+    struct List_Node node;
+    struct IoDev iodev;
     void *data;
-    struct kbddev_ops const *ops;
+    struct Kbd_DevOps const *ops;
 };
 
-bool kbd_pull_event(struct kbd_keyevent *out);
-void kbd_key_pressed(KBD_KEY key);
-void kbd_key_released(KBD_KEY key);
-NODISCARD int kbd_register(struct kbddev *dev_out, struct kbddev_ops const *ops, void *data);
+bool Kbd_PullEvent(struct Kbd_KeyEvent *out);
+void Kbd_KeyPressed(KBD_KEY key);
+void Kbd_KeyReleased(KBD_KEY key);
+[[nodiscard]] int Kbd_Register(struct Kbd_Dev *dev_out, struct Kbd_DevOps const *ops, void *data);

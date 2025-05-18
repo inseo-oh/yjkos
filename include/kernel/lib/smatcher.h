@@ -1,19 +1,17 @@
 #pragma once
-#include <stdbool.h>
 #include <stddef.h>
 
-struct smatcher {
+struct SMatcher {
     char const *str;
     size_t len;
     size_t currentindex;
 };
 
-void smatcher_init(struct smatcher *out, char const *str);
-void smatcher_init_with_len(struct smatcher *out, char const *str, size_t len);
-void smatcher_slice(struct smatcher *out, struct smatcher const *self, size_t firstchar, size_t lastchar);
-bool smatcher_consume_string_if_match(struct smatcher *self, char const *str);
-// Note that while this only matches if given string is followed by whitespace, it will not
-// consume the whitespace.
-bool smatcher_consume_word_if_match(struct smatcher *self, char const *str);
-void smatcher_skip_whitespaces(struct smatcher *self);
-bool smatcher_consume_word(char const **str_out, size_t *len_out, struct smatcher *self);
+void Smatcher_Init(struct SMatcher *out, char const *str);
+void Smatcher_InitWithLen(struct SMatcher *out, char const *str, size_t len);
+void Smatcher_Slice(struct SMatcher *out, struct SMatcher const *self, size_t firstchar, size_t lastchar);
+bool Smatcher_ConsumeStrIfMatch(struct SMatcher *self, char const *str);
+/* Note that while this only matches if given string is followed by whitespace, it will not consume the whitespace. */
+bool Smatcher_ConsumeWordIfMatch(struct SMatcher *self, char const *str);
+void Smatcher_SkipWhitespaces(struct SMatcher *self);
+bool Smatcher_ConsumeWord(char const **str_out, size_t *len_out, struct SMatcher *self);

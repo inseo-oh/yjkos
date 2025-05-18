@@ -1,9 +1,9 @@
 #ifndef _STRING_H
-#define _STRING_H   1
+#define _STRING_H 1
 
-#include <stddef.h> // IWYU pragma: export
+#include <stddef.h> /* IWYU pragma: export */
 
-// https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/string.h.html
+/* https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/string.h.html */
 
 size_t strlen(char const *s);
 int strcmp(char const *s1, char const *s2);

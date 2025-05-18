@@ -1,5 +1,5 @@
 #pragma once
 
-void fsinit_init_ext2(void);
-void fsinit_init_dummyfs(void);
-void fsinit_init_all(void);
+void FsInit_InitExt2(void);
+void FsInit_InitDummyFs(void);
+void FsInit_InitAll(void);

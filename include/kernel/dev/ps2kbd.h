@@ -3,5 +3,5 @@
 #include <kernel/lib/diagnostics.h>
 #include <stdint.h>
 
-NODISCARD int ps2kbd_init(struct ps2port *port);
+[[nodiscard]] int Ps2kbd_Init(struct Ps2Port *port);
 

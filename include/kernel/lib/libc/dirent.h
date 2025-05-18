@@ -1,10 +1,10 @@
 #ifndef _DIRENT_H
-#define _DIRENT_H   1
+#define _DIRENT_H 1
 
 #include <limits.h>
 #include <sys/types.h>
 
-// https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/dirent.h.html
+/* https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/dirent.h.html */
 
 typedef struct DIR DIR;
 

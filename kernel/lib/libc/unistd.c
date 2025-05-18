@@ -1,5 +1,4 @@
 
-#include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
 #ifdef YJKERNEL_SOURCE
@@ -58,7 +57,7 @@ static int getopt_opt_char_skip_len(const char *argopt, const char *next_opt_cha
     return 0;
 }
 
-// https://pubs.opengroup.org/onlinepubs/9799919799/functions/getopt.html
+/* https://pubs.opengroup.org/onlinepubs/9799919799/functions/getopt.html */
 int getopt(int argc, char *const argv[], const char *optstring) {
     char const *errmsg = NULL;
     if (argc <= optind) {
@@ -123,7 +122,7 @@ int getopt(int argc, char *const argv[], const char *optstring) {
     goto error;
 error:
     if (print_err) {
-        co_printf("%s: %s -- '%c'\n", argv[0], errmsg, optopt);
+        Co_Printf("%s: %s -- '%c'\n", argv[0], errmsg, optopt);
         result_opt = '?';
     }
 out:

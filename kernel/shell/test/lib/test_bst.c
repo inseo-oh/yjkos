@@ -6,8 +6,8 @@
 
 static struct bst_node *assertnonnullnode(struct bst_node *node, char const *assertion, char const *function, char const *file, int line) {
     if (node == NULL) {
-        co_printf("non-null assertion failed at %s(%s:%d): %s\n", function, file, line, assertion);
-        panic(NULL);
+        Co_Printf("non-null assertion failed at %s(%s:%d): %s\n", function, file, line, assertion);
+        Panic(NULL);
     }
     return node;
 }
@@ -674,7 +674,7 @@ static bool do_height(void) {
     return true;
 }
 
-static struct test const TESTS[] = {
+static struct Test const TESTS[] = {
     { .name = "insert node unbalenced",     .fn = do_insertnode_unbalenced },
     { .name = "remove node unbalenced",     .fn = do_removenode_unbalenced },
     { .name = "insert node & balencing",    .fn = do_balencing             },
@@ -687,7 +687,7 @@ static struct test const TESTS[] = {
     { .name = "height",                     .fn = do_height                },
 };
 
-const struct testgroup TESTGROUP_BST = {
+const struct TestGroup TESTGROUP_BST = {
     .name = "bst",
     .tests = TESTS,
     .testslen = sizeof(TESTS)/sizeof(*TESTS),

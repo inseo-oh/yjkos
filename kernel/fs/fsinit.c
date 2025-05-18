@@ -1,6 +1,6 @@
 #include "fsinit.h"
 
-void fsinit_init_all(void) {
-    fsinit_init_ext2();
-    fsinit_init_dummyfs();
+void FsInit_InitAll(void) {
+    FsInit_InitExt2();
+    FsInit_InitDummyFs();
 }

@@ -5,7 +5,7 @@
 #include <assert.h>
 #endif
 
-// https://pubs.opengroup.org/onlinepubs/9799919799/functions/strlen.html
+/* https://pubs.opengroup.org/onlinepubs/9799919799/functions/strlen.html */
 size_t strlen(char const *s) {
     size_t len = 0;
     for (char const *next = s; *next != '\0'; next++, len++) {
@@ -13,7 +13,7 @@ size_t strlen(char const *s) {
     return len;
 }
 
-// https://pubs.opengroup.org/onlinepubs/9799919799/functions/strcmp.html
+/* https://pubs.opengroup.org/onlinepubs/9799919799/functions/strcmp.html */
 int strcmp(char const *s1, char const *s2) {
     for (size_t idx = 0;; idx++) {
         if (s1[idx] != s2[idx]) {
@@ -26,7 +26,7 @@ int strcmp(char const *s1, char const *s2) {
     return 0;
 }
 
-// https://pubs.opengroup.org/onlinepubs/9799919799/functions/strncmp.html
+/* https://pubs.opengroup.org/onlinepubs/9799919799/functions/strncmp.html */
 int strncmp(char const *s1, char const *s2, size_t n) {
     for (size_t idx = 0; idx < n; idx++) {
         if (s1[idx] != s2[idx]) {
@@ -39,7 +39,7 @@ int strncmp(char const *s1, char const *s2, size_t n) {
     return 0;
 }
 
-// https://pubs.opengroup.org/onlinepubs/9799919799/functions/strchr.html
+/* https://pubs.opengroup.org/onlinepubs/9799919799/functions/strchr.html */
 char *strchr(char const *s, int c) {
     for (char *next = (char *)s;; next++) {
         if (*next == c) {
@@ -52,7 +52,7 @@ char *strchr(char const *s, int c) {
     return NULL;
 }
 
-// https://pubs.opengroup.org/onlinepubs/9799919799/functions/strrchr.html
+/* https://pubs.opengroup.org/onlinepubs/9799919799/functions/strrchr.html */
 char *strrchr(char const *s, int c) {
     char *result = NULL;
     for (char *next = (char *)s;; next++) {
@@ -66,7 +66,7 @@ char *strrchr(char const *s, int c) {
     return result;
 }
 
-// https://pubs.opengroup.org/onlinepubs/9799919799/functions/memset.html
+/* https://pubs.opengroup.org/onlinepubs/9799919799/functions/memset.html */
 void memset(void *s, int c, size_t n) {
     char *next = (char *)s;
     for (size_t i = 0; i < n; i++) {
@@ -74,11 +74,11 @@ void memset(void *s, int c, size_t n) {
     }
 }
 
-// https://pubs.opengroup.org/onlinepubs/9799919799/functions/memcpy.html
+/* https://pubs.opengroup.org/onlinepubs/9799919799/functions/memcpy.html */
 void memcpy(void *restrict dest, const void *restrict src, size_t n) {
 #ifdef YJKERNEL_ARCH_I586
     int dummy[3];
-    __asm__ volatile (
+    __asm__ volatile(
         "pushf\n"
         "cld\n"
         "rep movsb\n"
@@ -88,23 +88,22 @@ void memcpy(void *restrict dest, const void *restrict src, size_t n) {
           "=D"(dummy[2])
         : "c"(n),
           "S"(src),
-          "D"(dest)
-    );
+          "D"(dest));
 #else
-    for (size_t i = 0 ; i < n; i++) {
+    for (size_t i = 0; i < n; i++) {
         ((char *)s1)[i] = ((char const *)s2)[i];
     }
 #endif
 }
 
-// https://pubs.opengroup.org/onlinepubs/9799919799/functions/strdup.html
+/* https://pubs.opengroup.org/onlinepubs/9799919799/functions/strdup.html */
 char *strdup(char const *s) {
     char *mem;
     size_t size = strlen(s) + 1;
     if (size == 0) {
         goto oom;
     }
-    mem = (char *)heap_alloc(size, 0);
+    mem = (char *)Heap_Alloc(size, 0);
     if (mem == NULL) {
         goto oom;
     }
@@ -114,10 +113,8 @@ char *strdup(char const *s) {
 oom:
 #ifndef YJKERNEL_SOURCE
     /*
-     * We don't have global errno in kernel, so errno setup can only be done in 
-     * userspace libc.
+     * We don't have global errno in kernel, so errno setup can only be done in userspace libc.
      */
-    // 
     assert(!"TODO: Set errno value");
 #endif
     return NULL;

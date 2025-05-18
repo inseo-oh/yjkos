@@ -1,6 +1,5 @@
 #include "gdt.h"
 #include <kernel/lib/diagnostics.h>
-#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -50,8 +49,7 @@ STATIC_ASSERT_SIZE(struct tss, 108);
 #define GDT_FLAG_G (1U << 3)
 #define GDT_FLAG_DB (1U << 2)
 #define GDT_FLAG_L (1U << 1)
-// Clear -> System segment descriptor
-#define GDT_ACCESS_FLAG_S (1U << 4)
+#define GDT_ACCESS_FLAG_S (1U << 4) /* Clear -> System segment descriptor */
 #define GDT_ACCESS_FLAG_DPL(_n) ((_n) << 5)
 #define GDT_ACCESS_FLAG_DPL0 GDT_ACCESS_FLAG_DPL(0U)
 #define GDT_ACCESS_FLAG_DPL1 GDT_ACCESS_FLAG_DPL(1U)
@@ -59,19 +57,18 @@ STATIC_ASSERT_SIZE(struct tss, 108);
 #define GDT_ACCESS_FLAG_DPL3 GDT_ACCESS_FLAG_DPL(3U)
 #define GDT_ACCESS_FLAG_P (1U << 7)
 
-// Below applies to non-system segment descriptors
+/* Below applies to non-system segment descriptors */
 #define GDT_ACCESS_FLAG_ACCESSED (1U << 0)
-// Data segments: Writable bit, Code segments: Readable bit
-#define GDT_ACCESS_FLAG_RW (1U << 1)
+#define GDT_ACCESS_FLAG_RW (1U << 1) /* Data segments: Writable bit, Code segments: Readable bit */
 #define GDT_ACCESS_FLAG_DC (1U << 2)
 #define GDT_ACCESS_FLAG_E (1U << 3)
 
-// Below applies to system segment descriptors
+/* Below applies to system segment descriptors */
 #define GDT_ACCESS_FLAG_TYPE_LDT 0x2U
 #define GDT_ACCESS_FLAG_TYPE_TSS32_AVL 0x9U
 #define GDT_ACCESS_FLAG_TYPE_BUSY 0xbU
 
-static void init_descriptor(struct archi586_gdt_segment_descriptor *out, uint32_t base, uint32_t limit, uint8_t flags, uint8_t access_byte) {
+static void init_descriptor(struct ArchI586_Gdt_SegmentDescriptor *out, uint32_t base, uint32_t limit, uint8_t flags, uint8_t access_byte) {
     out->limit_b15tob0 = limit & 0xffffU;
     out->base_b15tob0 = (base & 0xffffU);
     out->base_b23tob16 = ((base >> 16) & 0xffffU);
@@ -80,17 +77,17 @@ static void init_descriptor(struct archi586_gdt_segment_descriptor *out, uint32_
     out->base_b31tob24 = ((base >> 24) & 0xffU);
 }
 
-static struct archi586_gdt s_gdt;
+static struct ArchI586_Gdt s_gdt;
 static struct tss s_tss;
 static uint8_t s_esp0stack[4096];
 
-void archi586_gdt_init(void) {
-    // Setup TSS
+void ArchI586_Gdt_Init(void) {
+    /* Setup TSS **************************************************************/
     s_tss.ss0 = ARCHI586_GDT_KERNEL_DS;
     s_tss.esp0 = (uintptr_t)s_esp0stack;
     s_tss.iopb = sizeof(s_tss);
 
-    // Setup gdt
+    /* Setup GDT **************************************************************/
     init_descriptor(&s_gdt.kernelcode, 0, 0xfffff, GDT_FLAG_G | GDT_FLAG_DB,
                     GDT_ACCESS_FLAG_P | GDT_ACCESS_FLAG_S | GDT_ACCESS_FLAG_RW | GDT_ACCESS_FLAG_DPL0 | GDT_ACCESS_FLAG_E | GDT_ACCESS_FLAG_ACCESSED);
     init_descriptor(&s_gdt.kerneldata, 0, 0xfffff, GDT_FLAG_G | GDT_FLAG_DB,
@@ -99,7 +96,7 @@ void archi586_gdt_init(void) {
                     GDT_ACCESS_FLAG_P | GDT_ACCESS_FLAG_DPL0 | GDT_ACCESS_FLAG_TYPE_TSS32_AVL);
 }
 
-void archi586_gdt_load(void) {
+void ArchI586_Gdt_Load(void) {
     struct gdtr {
         uint16_t size;
         uint32_t offset;
@@ -111,12 +108,11 @@ void archi586_gdt_load(void) {
     __asm__ volatile("lgdt (%0)" ::"r"(&gdtr));
 }
 
-void archi586_gdt_reload_selectors(void) {
+void ArchI586_Gdt_ReloadSelectors(void) {
     uint32_t cs = ARCHI586_GDT_KERNEL_CS;
     uint32_t ds = ARCHI586_GDT_KERNEL_DS;
     uint16_t tss = ARCHI586_GDT_TSS;
 
-    // Reload segment selectors
     __asm__ volatile(
         "  lea 1f, %%eax\n"
         "  push %0\n"
@@ -131,6 +127,6 @@ void archi586_gdt_reload_selectors(void) {
         "  ltr %2\n" ::"r"(cs),
         "r"(ds),
         "r"(tss)
-        : "eax" // Used as temporary storage for LEA result
+        : "eax" /* Used as temporary storage for LEA result */
     );
 }

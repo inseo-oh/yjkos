@@ -32,7 +32,8 @@ OBJS      = $(addprefix $(OBJDIR)/, $(OBJ_NAMES))
 DEPS      = $(patsubst %.o, %.d, $(OBJS))
 OBJDIRS   = $(sort $(dir $(OBJS)))
 
-CFLAGS  = -Wall -Wextra -Werror -pedantic
+CFLAGS  = -std=c23
+CFLAGS += -Wall -Wextra -Werror -pedantic
 CFLAGS += -I$(PROJECTDIR)/include
 CFLAGS += -I$(PROJECTDIR)/include/kernel/lib/libc
 CFLAGS += -ffreestanding -fstack-protector-all

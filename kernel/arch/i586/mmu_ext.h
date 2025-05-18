@@ -1,6 +1,6 @@
 #pragma once
 
-// This file mostly uses #define(other than C types and functions) to share with assembly code.
+/* This file mostly uses #define(other than C types and functions) to share with assembly code. */
 
 #define ARCHI586_MMU_COMMON_FLAG_P (1U << 0)
 #define ARCHI586_MMU_COMMON_FLAG_RW (1U << 1)
@@ -45,18 +45,17 @@
 #define ARCHI586_MMU_MAX_MEMORY_PER_PDE (ARCHI586_MMU_MAX_MEMORY_PER_PTE * ARCHI586_MMU_ENTRY_COUNT)
 #define ARCHI586_MMU_KERNEL_AREA_SIZE (ARCHI586_MMU_MAX_MEMORY_PER_PDE * ARCHI586_MMU_KERNEL_PDE_COUNT)
 
-// PDE for recursive mapping the PD itself
+/* PDE for recursive mapping the PD itself */
 #define ARCHI586_MMU_PAGEDIR_PDE (ARCHI586_MMU_ENTRY_COUNT - 1)
 
-//------------------------------------------------------------------------------
-// Below are only applicable to C
-//------------------------------------------------------------------------------
+/*******************************************************************************
+ * Below are only applicable to C
+ ******************************************************************************/
 
 #ifndef YJKERNEL_ASMFILE
 
 #include <kernel/lib/diagnostics.h>
 #include <kernel/types.h>
-#include <stdbool.h>
 #include <stdint.h>
 
 STATIC_ASSERT_TEST(sizeof(uint32_t) == ARCHI586_MMU_ENTRY_SIZE);
@@ -69,14 +68,14 @@ static uint8_t const ARCHI586_MMU_EMUTRANS_FAULT_FLAG_PTE_MISSING = 1 << 3;
 static uint8_t const ARCHI586_MMU_EMUTRANS_FAULT_FLAG_PTE_WRITE = 1 << 4;
 static uint8_t const ARCHI586_MMU_EMUTRANS_FAULT_FLAG_PTE_USER = 1 << 5;
 
-struct archi586_mmu_emulateresult {
+struct ArchI586_Mmu_EmulateResult {
     PHYSPTR physaddr;
-    uint8_t faultflags; // See ARCHI586_MMU_EMUTRANS_*
+    uint8_t faultflags; /* See ARCHI586_MMU_EMUTRANS_* */
 };
 
-void archi586_mmu_write_protect_kernel_text(void);
-void archi586_mmu_write_protect_after_early_init(void);
-void archi586_mmu_init(void);
-void archi586_mmu_setupstackbottomtrap(void);
+void ArchI586_Mmu_WriteProtectKernelText(void);
+void ArchI586_Mmu_WriteProtectAfterEarlyInit(void);
+void ArchI586_Mmu_Init(void);
+void ArchI586_SetupStackBottomTrap(void);
 
 #endif

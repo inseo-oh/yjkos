@@ -16,7 +16,7 @@
 #include <string.h>
 #include <sys/types.h>
 
-// It's 90s code time - I mean, time for many diagnostic overrides!
+/* It's 90s code time - I mean, time for many diagnostic overrides! ***********/
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wall"
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -35,63 +35,63 @@
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #define DOOM_IMPLEMENTATION
 #include "thirdparty/PureDOOM.h"
-// Leave the 90s world
+/* Leave the 90s world ********************************************************/
 #pragma GCC diagnostic pop
 
 void __floatsidf(void) {
-    // STUB
+    /* STUB */
     assert(0);
 }
 void __divdf3(void) {
-    // STUB
+    /* STUB */
     assert(0);
 }
 void __muldf3(void) {
-    // STUB
+    /* STUB */
     assert(0);
 }
 void __gedf2(void) {
-    // STUB
+    /* STUB */
     assert(0);
 }
 void __ltdf2(void) {
-    // STUB
+    /* STUB */
     assert(0);
 }
 void __fixdfsi(void) {
-    // STUB
+    /* STUB */
     assert(0);
 }
 
-////////////////////////////////////////////////////////////////////////////////
+/******************************************************************************/
 
 static void *dmalloc(int size) {
     size_t finalsize = size * 2;
-    void *ptr = heap_alloc(finalsize, 0);
+    void *ptr = Heap_Alloc(finalsize, 0);
     if (ptr == NULL) {
-        co_printf("[kdoom] not enough memory (Requested %d bytes)\n", size);
+        Co_Printf("[kdoom] not enough memory (Requested %d bytes)\n", size);
     }
     return ptr;
 }
 
 static void dfree(void *ptr) {
     return;
-    heap_free(ptr);
+    Heap_Free(ptr);
 }
 
 static void dprint(const char *str) {
-    co_printf("%s", str);
+    Co_Printf("%s", str);
 }
 
 static void dexit(int exitcode) {
-    co_printf("[kdoom] exited with code %d. Halting system.\n", exitcode);
-    arch_hcf();
+    Co_Printf("[kdoom] exited with code %d. Halting system.\n", exitcode);
+    Arch_Hcf();
     while (1) {
     }
 }
 
 static char *dgetenv(char const *env) {
-    // STUB
+    /* STUB */
     if (strcmp(env, "HOME") == 0) {
         return "/";
     }
@@ -105,10 +105,10 @@ static void *dopen(const char *filename, const char *mode) {
     struct fd *fd;
     int ret = vfs_openfile(&fd, filename, 0);
     if (ret < 0) {
-        co_printf("[kdoom] failed to open file %s (error %d)\n", filename, ret);
+        Co_Printf("[kdoom] failed to open file %s (error %d)\n", filename, ret);
         return NULL;
     }
-    co_printf("[kdoom] opened file %s (fd %p)\n", filename, fd);
+    Co_Printf("[kdoom] opened file %s (fd %p)\n", filename, fd);
     (void)mode;
     return fd;
 }
@@ -122,10 +122,10 @@ static void dclose(void *handle) {
 
 static int dread(void *handle, void *buf, int count) {
     size_t len = count;
-    ssize_t ret = vfs_readfile(handle, buf, len);
+    ssize_t ret = Vfs_ReadFile(handle, buf, len);
     if (ret < 0) {
-        co_printf("[kdoom] failed to read file %p\n", handle);
-        // idk if returning -1 is correct behavior
+        Co_Printf("[kdoom] failed to read file %p\n", handle);
+        /* idk if returning -1 is correct behavior */
         return -1;
     }
     return ret;
@@ -154,10 +154,10 @@ static int dseek(void *handle, int offset, doom_seek_t origin) {
     default:
         panic("kdoom: unknown origin value");
     }
-    int ret = vfs_seekfile(handle, offset, whence);
+    int ret = Vfs_SeekFile(handle, offset, whence);
     if (ret < 0) {
-        co_printf("[kdoom] failed to seek file %p\n", handle);
-        // idk if returning -1 is correct behavior
+        Co_Printf("[kdoom] failed to seek file %p\n", handle);
+        /* idk if returning -1 is correct behavior */
         return -1;
     }
     return offset;
@@ -181,7 +181,7 @@ static void dgettime(int *sec, int *usec) {
     *usec = (currenttime % 1000) * 1000;
 }
 
-#define MIDIPERIOD (1000 / 140) // 140Hz
+#define MIDIPERIOD (1000 / 140) /* 140Hz */
 
 static int program_main(int argc, char *argv[]) {
     doom_set_malloc(dmalloc, dfree);
@@ -205,22 +205,24 @@ static int program_main(int argc, char *argv[]) {
             starttime = g_ticktime;
             uint32_t midimsg;
             while ((midimsg = doom_tick_midi())) {
-                // XXX: The OS does not support MIDI devices(e.g. through Game Port on your sound card or MPU-401),
-                //      but it's just stream of bytes so I managed to get MIDI bytes out of QEMU through second serial
-                //      port, connected to a remote TCP server on a laptop running OpenBSD. But as of writing this comment,
-                //      there is no clean way to access any TTY other than VGA console and serial0, so I had to hack it to
-                //      initialize and expose the second serial port as a global variable.
-                //
-                //      Note that the TCP server on OpenBSD server was just a single nc command that was redirected to rmidi0
-                //      device: nc -l 4000 > /dev/rmidi0
-                //      (On Linux it seems like /dev/snd/midi~ devices will do the same job, but I haven't tested it)
-                //
-                //      Anyway, for the record, here's the code I used:
-                // status_t status;
-                // status = stream_putchar(&g_serial1.stream, midimsg);
-                // status = stream_putchar(&g_serial1.stream, midimsg >> 8);
-                // status = stream_putchar(&g_serial1.stream, midimsg >> 16);
-                // (void)status;
+                /*
+                 * XXX: The OS does not support MIDI devices(e.g. through Game Port on your sound card or MPU-401),
+                 *      but it's just stream of bytes so I managed to get MIDI bytes out of QEMU through second serial
+                 *      port, connected to a remote TCP server on a laptop running OpenBSD. But as of writing this comment,
+                 *      there is no clean way to access any TTY other than VGA console and serial0, so I had to hack it to
+                 *      initialize and expose the second serial port as a global variable.
+                 *
+                 *      Note that the TCP server on OpenBSD server was just a single nc command that was redirected to rmidi0
+                 *      device: nc -l 4000 > /dev/rmidi0
+                 *      (On Linux it seems like /dev/snd/midi~ devices will do the same job, but I haven't tested it)
+                 *
+                 *      Anyway, for the record, here's the code I used:
+                 * status_t status;
+                 * status = stream_putchar(&g_serial1.stream, midimsg);
+                 * status = stream_putchar(&g_serial1.stream, midimsg >> 8);
+                 * status = stream_putchar(&g_serial1.stream, midimsg >> 16);
+                 * (void)status;
+                 */
             }
         }
         doom_update();
@@ -231,14 +233,14 @@ static int program_main(int argc, char *argv[]) {
                 uint8_t r = framebuffer[y * (SCREENWIDTH * 4) + (x * 4) + 0];
                 uint8_t g = framebuffer[y * (SCREENWIDTH * 4) + (x * 4) + 1];
                 uint8_t b = framebuffer[y * (SCREENWIDTH * 4) + (x * 4) + 2];
-                newfb[y * SCREENWIDTH + x] = makecolor(r, g, b);
+                newfb[y * SCREENWIDTH + x] = MakeColor(r, g, b);
             }
         }
         fb_drawimage(newfb, SCREENWIDTH, SCREENHEIGHT, SCREENWIDTH, 0, 0);
-        fb_drawrect(188, 16, 0, 0, makecolor(255, 255, 255));
+        fb_drawrect(188, 16, 0, 0, MakeColor(255, 255, 255));
         char textbuf[16];
         snprintf(textbuf, sizeof(textbuf), "FPS: %d", fps);
-        fb_drawtext(textbuf, 0, 0, makecolor(0, 0, 0));
+        fb_drawtext(textbuf, 0, 0, MakeColor(0, 0, 0));
         fb_update();
         framecount++;
     }
@@ -250,13 +252,13 @@ static int program_main(int argc, char *argv[]) {
 static int program_main(int argc, char *argv[]) {
     (void)argc;
     (void)argv;
-    co_printf("ERROR: YJKERNEL_ENABLE_KDOOM was disabled during compilation\n");
+    Co_Printf("ERROR: YJKERNEL_ENABLE_KDOOM was disabled during compilation\n");
     return 1;
 }
 
 #endif
 
-struct shell_program g_shell_program_kdoom = {
+struct Shell_Program g_shell_program_kdoom = {
     .name = "kdoom",
     .main = program_main,
 };

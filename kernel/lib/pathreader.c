@@ -6,11 +6,11 @@
 #include <stddef.h>
 #include <string.h>
 
-void pathreader_init(struct pathreader *out, char const *path) {
+void PathReader_Init(struct PathReader *out, char const *path) {
     out->remaining_path = path;
 }
 
-NODISCARD int pathreader_next(char const **name_out, struct pathreader *self) {
+[[nodiscard]] int PathReader_Next(char const **name_out, struct PathReader *self) {
     while (*self->remaining_path != '\0') {
         char *nextslash = strchr(self->remaining_path, '/');
         char const *name;

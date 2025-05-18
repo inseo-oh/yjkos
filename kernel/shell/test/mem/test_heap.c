@@ -3,23 +3,23 @@
 #include <stddef.h>
 
 static bool do_randalloc(void) {
-    TEST_EXPECT(heap_run_random_test());
+    TEST_EXPECT(Heap_RunRandomTest());
     return true;
 }
 
 static bool do_badalloc(void) {
-    TEST_EXPECT(heap_alloc(0, 0) == NULL);
-    TEST_EXPECT(heap_alloc(~0U, 0) == NULL);
+    TEST_EXPECT(Heap_Alloc(0, 0) == NULL);
+    TEST_EXPECT(Heap_Alloc(~0U, 0) == NULL);
     return true;
 }
 
-static struct test const TESTS[] = {
+static struct Test const TESTS[] = {
     { .name = "heap random test", .fn = do_randalloc },
-    { .name = "bad heap_alloc",   .fn = do_badalloc  },
-    // TODO: Add tests for calloc and reallocarray
+    { .name = "bad Heap_Alloc",   .fn = do_badalloc  },
+    /* TODO: Add tests for Calloc and ReallocArray */
 };
 
-const struct testgroup TESTGROUP_HEAP = {
+const struct TestGroup TESTGROUP_HEAP = {
     .name = "heap",
     .tests = TESTS,
     .testslen = sizeof(TESTS)/sizeof(*TESTS),

@@ -1,26 +1,26 @@
-.global archi586_geteflags
-archi586_geteflags:
+.global ArchI586_GetEFlags
+ArchI586_GetEFlags:
     pushf
     pop %eax
     ret
 
-.global archi586_cli
-archi586_cli:
+.global ArchI586_Cli
+ArchI586_Cli:
     cli
     ret
 
-.global archi586_sti
-archi586_sti:
+.global ArchI586_Sti
+ArchI586_Sti:
     sti
     ret
 
-.global archi586_hlt
-archi586_hlt:
+.global ArchI586_Hlt
+ArchI586_Hlt:
     sti
     ret
 
-.global archi586_rdtsc
-archi586_rdtsc:
+.global ArchI586_Rdtsc
+ArchI586_Rdtsc:
     push %ebp
     mov %esp, %ebp
     rdtsc
@@ -31,39 +31,39 @@ archi586_rdtsc:
     pop %ebp
     ret
 
-.global archi586_invlpg
-archi586_invlpg:
+.global ArchI586_Invlpg
+ArchI586_Invlpg:
 	mov 4(%esp),%eax
 	invlpg (%eax)
     ret
 
-.global archi586_reload_cr3
-archi586_reload_cr3:
+.global ArchI586_ReloadCr3
+ArchI586_ReloadCr3:
     mov %cr3, %eax
     mov %eax, %cr3
     ret
 
-.global archi586_read_cr0
-archi586_read_cr0:
+.global ArchI586_ReadCr0
+ArchI586_ReadCr0:
     mov %cr0, %eax
     ret
 
-.global archi586_read_cr2
-archi586_read_cr2:
+.global ArchI586_ReadCr2
+ArchI586_ReadCr2:
     mov %cr2, %eax
     ret
 
-.global archi586_read_cr3
-archi586_read_cr3:
+.global ArchI586_ReadCr3
+ArchI586_ReadCr3:
     mov %cr3, %eax
     ret
 
-.global archi586_read_cr4
-archi586_read_cr4:
+.global ArchI586_ReadCr4
+ArchI586_ReadCr4:
     mov %cr3, %eax
     ret
 
-.global archi586_read_cr8
-archi586_read_cr8:
+.global ArchI586_ReadCr8
+ArchI586_ReadCr8:
     mov %cr3, %eax
     ret

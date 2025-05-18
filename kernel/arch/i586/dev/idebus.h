@@ -1,4 +1,4 @@
 #pragma once
 #include <stdint.h>
 
-void archi586_idebus_init(void);
+void ArchI586_IdeBus_Init(void);

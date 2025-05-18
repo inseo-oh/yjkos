@@ -16,7 +16,7 @@
 #include <string.h>
 #include <sys/types.h>
 
-////////////////////////////////////////////////////////////////////////////////
+/******************************************************************************/
 
 /*
  * File descriptor management
@@ -27,54 +27,54 @@
 
 static _Atomic int s_next_fd_num = 0;
 
-NODISCARD int vfs_register_file(struct fd *out, struct fd_ops const *ops, struct vfs_fscontext *fscontext, void *data) {
+[[nodiscard]] int Vfs_RegisterFile(struct File *out, struct FileOps const *ops, struct Vfs_FsContext *fscontext, void *data) {
     out->id = s_next_fd_num++;
     if (out->id == INT_MAX) {
         /*
          * it's more likely that UBSan catched signed integer overflow, but we
          * check for it anyway.
          */
-        panic("vfs: TODO: Handle s_nextfdnum integer overflow");
+        Panic("vfs: TODO: Handle s_nextfdnum integer overflow");
     }
     out->ops = ops;
     out->data = data;
     out->fscontext = fscontext;
-    fscontext->openfilecount++;
+    fscontext->open_file_count++;
     return 0;
 }
 
-void vfs_unregisterfile(struct fd *self) {
+void Vfs_UnregisterFile(struct File *self) {
     if (self == NULL) {
         return;
     }
-    self->fscontext->openfilecount--;
+    self->fscontext->open_file_count--;
 }
 
-////////////////////////////////////////////////////////////////////////////////
+/******************************************************************************/
 
-static struct list s_fstypes; // struct vfs_fstype items
-static struct list s_mounts;  // struct vfs_fscontext items
+static struct List s_fstypes; /* struct Vfs_FsType items */
+static struct List s_mounts;  /* struct Vfs_FsContext items */
 
-// Resolves and removes . and .. in the path.
-NODISCARD static int remove_rel_path(char **newpath_out, char const *path) {
+/* Resolves and removes . and .. in the path. */
+[[nodiscard]] static int remove_rel_path(char **newpath_out, char const *path) {
     int ret = 0;
     char *new_path = NULL;
-    size_t size = strlen(path) + 2; // Leave room for / and NULL terminator.
+    size_t size = strlen(path) + 2; /* Leave room for / and NULL terminator. */
     if (size == 0) {
         ret = -ENOMEM;
         goto fail;
     }
-    new_path = heap_alloc(size, 0);
+    new_path = Heap_Alloc(size, 0);
     if (new_path == NULL) {
         ret = -ENOMEM;
         goto fail;
     }
-    struct pathreader reader;
-    pathreader_init(&reader, path);
+    struct PathReader reader;
+    PathReader_Init(&reader, path);
     char *dest = new_path;
     while (1) {
         char const *name;
-        ret = pathreader_next(&name, &reader);
+        ret = PathReader_Next(&name, &reader);
         if (ret == -ENOENT) {
             ret = 0;
             break;
@@ -83,7 +83,7 @@ NODISCARD static int remove_rel_path(char **newpath_out, char const *path) {
             goto out;
         }
         if (strcmp(name, ".") == 0) {
-            // Do nothing
+            /* Do nothing */
         } else if (strcmp(name, "..") == 0) {
             char *found_pos = strrchr(new_path, '/');
             if (found_pos == NULL) {
@@ -104,13 +104,13 @@ NODISCARD static int remove_rel_path(char **newpath_out, char const *path) {
     *newpath_out = new_path;
     goto out;
 fail:
-    heap_free(new_path);
+    Heap_Free(new_path);
 out:
     return ret;
 }
 
-NODISCARD static int mount(struct vfs_fstype *fstype, struct ldisk *disk, char const *mountpath) {
-    struct vfs_fscontext *context;
+[[nodiscard]] static int mount(struct Vfs_FsType *fstype, struct LDisk *disk, char const *mountpath) {
+    struct Vfs_FsContext *context;
     char *newmountpath;
     int ret;
     ret = remove_rel_path(&newmountpath, mountpath);
@@ -118,7 +118,7 @@ NODISCARD static int mount(struct vfs_fstype *fstype, struct ldisk *disk, char c
     if (ret < 0) {
         goto fail;
     }
-    ret = fstype->ops->mount(&context, disk);
+    ret = fstype->ops->Mount(&context, disk);
     if (ret < 0) {
         goto fail;
     }
@@ -126,18 +126,18 @@ NODISCARD static int mount(struct vfs_fstype *fstype, struct ldisk *disk, char c
      * Since unmounting can also technically fail, we don't want any errors
      * after this point.
      */
-    list_insertback(&s_mounts, &context->node, context);
-    context->mountpath = newmountpath;
+    List_InsertBack(&s_mounts, &context->node, context);
+    context->mount_path = newmountpath;
     context->fstype = fstype;
     goto out;
 fail:
-    heap_free(newmountpath);
+    Heap_Free(newmountpath);
 out:
     return ret;
 }
 
-// Returns ERR_INVAL if `mountpath` is not a mount point.
-NODISCARD static int findmount(struct vfs_fscontext **out, char const *mountpath) {
+/* Returns ERR_INVAL if `mountpath` is not a mount point. */
+[[nodiscard]] static int findmount(struct Vfs_FsContext **out, char const *mountpath) {
     int ret = 0;
     char *newmountpath = NULL;
     ret = remove_rel_path(&newmountpath, mountpath);
@@ -145,11 +145,11 @@ NODISCARD static int findmount(struct vfs_fscontext **out, char const *mountpath
         goto out;
     }
     assert(s_mounts.front != NULL);
-    struct vfs_fscontext *fscontext = NULL;
+    struct Vfs_FsContext *fscontext = NULL;
     LIST_FOREACH(&s_mounts, mountnode) {
-        struct vfs_fscontext *entry = mountnode->data;
+        struct Vfs_FsContext *entry = mountnode->data;
         assert(entry);
-        if (strcmp(entry->mountpath, newmountpath) == 0) {
+        if (strcmp(entry->mount_path, newmountpath) == 0) {
             fscontext = entry;
             break;
         }
@@ -160,21 +160,18 @@ NODISCARD static int findmount(struct vfs_fscontext **out, char const *mountpath
     }
     *out = fscontext;
 out:
-    heap_free(newmountpath);
+    Heap_Free(newmountpath);
     return ret;
 }
 
-NODISCARD int vfs_mount(char const *fstype, struct ldisk *disk, char const *mountpath) {
+[[nodiscard]] int Vfs_Mount(char const *fstype, struct LDisk *disk, char const *mountpath) {
     int ret = -ENODEV;
     if (fstype == NULL) {
-        // Try all possible filesystems
+        /* Try all possible filesystems */
         LIST_FOREACH(&s_fstypes, fstypenode) {
             ret = mount(fstypenode->data, disk, mountpath);
             if ((ret < 0) && (ret != -EINVAL)) {
-                /*
-                 * If it was EINVAL, that's probably wrong filesystem type. For
-                 * others, abort and report the error.
-                 */
+                /* If it was EINVAL, that's probably wrong filesystem type. For  others, abort and report the error. */
                 goto out;
             } else if (ret == 0) {
                 break;
@@ -183,10 +180,10 @@ NODISCARD int vfs_mount(char const *fstype, struct ldisk *disk, char const *moun
             }
         }
     } else {
-        // Find filesystem with given name.
-        struct vfs_fstype *fstyperesult = NULL;
+        /* Find filesystem with given name. */
+        struct Vfs_FsType *fstyperesult = NULL;
         LIST_FOREACH(&s_fstypes, fstypenode) {
-            struct vfs_fstype *currentfstype = fstypenode->data;
+            struct Vfs_FsType *currentfstype = fstypenode->data;
             if (strcmp(currentfstype->name, fstype) == 0) {
                 fstyperesult = currentfstype;
             }
@@ -204,43 +201,43 @@ out:
     return ret;
 }
 
-NODISCARD int vfs_umount(char const *mountpath) {
+[[nodiscard]] int Vfs_Umount(char const *mountpath) {
     int ret = 0;
-    struct vfs_fscontext *fscontext;
+    struct Vfs_FsContext *fscontext;
     ret = findmount(&fscontext, mountpath);
     if (ret < 0) {
         goto out;
     }
-    char *contextmountpath = fscontext->mountpath;
-    ret = fscontext->fstype->ops->umount(fscontext);
+    char *contextmountpath = fscontext->mount_path;
+    ret = fscontext->fstype->ops->Umount(fscontext);
     if (ret < 0) {
         goto out;
     }
-    heap_free(contextmountpath);
+    Heap_Free(contextmountpath);
 out:
     return ret;
 }
 
-void vfs_register_fs_type(struct vfs_fstype *out, char const *name, struct vfs_fstype_ops const *ops) {
+void Vfs_RegisterFsType(struct Vfs_FsType *out, char const *name, struct Vfs_FsTypeOps const *ops) {
     memset(out, 0, sizeof(*out));
     out->name = name;
     out->ops = ops;
-    list_insertback(&s_fstypes, &out->node, out);
+    List_InsertBack(&s_fstypes, &out->node, out);
 }
 
-void vfs_mount_root(void) {
-    co_printf("vfs: mounting the first usable filesystem...\n");
-    struct list *devlist = iodev_getlist(IODEV_TYPE_LOGICAL_DISK);
+void Vfs_MountRoot(void) {
+    Co_Printf("vfs: mounting the first usable filesystem...\n");
+    struct List *devlist = Iodev_GetList(IODEV_TYPE_LOGICAL_DISK);
     if (devlist == NULL || devlist->front == NULL) {
-        co_printf("no logical disks. Mounting dummyfs as root\n");
-        int ret = vfs_mount("dummyfs", NULL, "/");
+        Co_Printf("no logical disks. Mounting dummyfs as root\n");
+        int ret = Vfs_Mount("dummyfs", NULL, "/");
         MUST_SUCCEED(ret);
         return;
     }
     LIST_FOREACH(devlist, devnode) {
-        struct iodev *iodev = devnode->data;
-        struct ldisk *disk = iodev->data;
-        int status = vfs_mount(NULL, disk, "/");
+        struct IoDev *iodev = devnode->data;
+        struct LDisk *disk = iodev->data;
+        int status = Vfs_Mount(NULL, disk, "/");
         if (status < 0) {
             continue;
         }
@@ -248,9 +245,9 @@ void vfs_mount_root(void) {
     }
 }
 
-NODISCARD static int resolve_path(
+[[nodiscard]] static int resolve_path(
     char const *path,
-    void (*callback)(struct vfs_fscontext *fscontext, char const *path, void *data),
+    void (*callback)(struct Vfs_FsContext *fscontext, char const *path, void *data),
     void *data) {
     int ret = 0;
     char *newpath = NULL;
@@ -259,15 +256,15 @@ NODISCARD static int resolve_path(
     if (ret < 0) {
         goto fail;
     }
-    // There should be a rootfs at very least.
+    /* There should be a rootfs at very least. */
     assert(s_mounts.front != NULL);
-    struct vfs_fscontext *result = NULL;
+    struct Vfs_FsContext *result = NULL;
     size_t lastmatchlen = 0;
     LIST_FOREACH(&s_mounts, mountnode) {
-        struct vfs_fscontext *entry = mountnode->data;
-        size_t len = strlen(entry->mountpath);
+        struct Vfs_FsContext *entry = mountnode->data;
+        size_t len = strlen(entry->mount_path);
         if (lastmatchlen <= len) {
-            if (strncmp(entry->mountpath, path, len) == 0) {
+            if (strncmp(entry->mount_path, path, len) == 0) {
                 result = entry;
                 lastmatchlen = len;
             }
@@ -277,27 +274,27 @@ NODISCARD static int resolve_path(
     callback(result, &newpath[lastmatchlen], data);
     goto out;
 fail:
-    heap_free(newpath);
+    Heap_Free(newpath);
 out:
     return ret;
 }
 
 struct openfilecontext {
-    struct fd *fdresult;
+    struct File *fdresult;
     int flags;
     int ret;
 };
 
-static void resolve_path_callback_open_file(struct vfs_fscontext *fscontext, char const *path, void *data) {
+static void resolve_path_callback_open_file(struct Vfs_FsContext *fscontext, char const *path, void *data) {
     struct openfilecontext *context = data;
-    if (fscontext->fstype->ops->open == NULL) {
+    if (fscontext->fstype->ops->Open == NULL) {
         context->ret = -ENOENT;
     } else {
-        context->ret = fscontext->fstype->ops->open(&context->fdresult, fscontext, path, context->flags);
+        context->ret = fscontext->fstype->ops->Open(&context->fdresult, fscontext, path, context->flags);
     }
 }
 
-NODISCARD int vfs_open_file(struct fd **out, char const *path, int flags) {
+[[nodiscard]] int Vfs_OpenFile(struct File **out, char const *path, int flags) {
     struct openfilecontext context;
     context.flags = flags;
     int ret = resolve_path(path, resolve_path_callback_open_file, &context);
@@ -311,7 +308,7 @@ NODISCARD int vfs_open_file(struct fd **out, char const *path, int flags) {
     return 0;
 }
 
-void vfs_close_file(struct fd *fd) {
+void Vfs_CloseFile(struct File *fd) {
     fd->ops->close(fd);
 }
 
@@ -320,16 +317,16 @@ struct open_dir_context {
     int ret;
 };
 
-static void resolve_path_callback_open_directory(struct vfs_fscontext *fs_context, char const *path, void *data) {
+static void resolve_path_callback_open_directory(struct Vfs_FsContext *fs_context, char const *path, void *data) {
     struct open_dir_context *context = data;
-    if (fs_context->fstype->ops->opendir == NULL) {
+    if (fs_context->fstype->ops->OpenDir == NULL) {
         context->ret = -ENOENT;
     } else {
-        context->ret = fs_context->fstype->ops->opendir(&context->dirresult, fs_context, path);
+        context->ret = fs_context->fstype->ops->OpenDir(&context->dirresult, fs_context, path);
     }
 }
 
-int vfs_opendir(DIR **out, char const *path) {
+int Vfs_OpenDir(DIR **out, char const *path) {
     struct open_dir_context context;
     int ret = resolve_path(path, resolve_path_callback_open_directory, &context);
     if (ret < 0) {
@@ -342,34 +339,34 @@ int vfs_opendir(DIR **out, char const *path) {
     return 0;
 }
 
-NODISCARD int vfs_closedir(DIR *dir) {
+[[nodiscard]] int Vfs_CloseDir(DIR *dir) {
     if (dir == NULL) {
         return -EBADF;
     }
-    if (dir->fscontext->fstype->ops->closedir == NULL) {
+    if (dir->fscontext->fstype->ops->CloseDir == NULL) {
         return -EBADF;
     }
-    return dir->fscontext->fstype->ops->closedir(dir);
+    return dir->fscontext->fstype->ops->CloseDir(dir);
 }
 
-NODISCARD int vfs_readdir(struct dirent *out, DIR *dir) {
+[[nodiscard]] int Vfs_ReadDir(struct dirent *out, DIR *dir) {
     if (dir == NULL) {
         return -EBADF;
     }
-    if (dir->fscontext->fstype->ops->readdir == NULL) {
+    if (dir->fscontext->fstype->ops->ReadDir == NULL) {
         return -EBADF;
     }
-    return dir->fscontext->fstype->ops->readdir(out, dir);
+    return dir->fscontext->fstype->ops->ReadDir(out, dir);
 }
 
-NODISCARD ssize_t vfs_readfile(struct fd *fd, void *buf, size_t len) {
+[[nodiscard]] ssize_t Vfs_ReadFile(struct File *fd, void *buf, size_t len) {
     return fd->ops->read(fd, buf, len);
 }
 
-NODISCARD ssize_t vfs_writefile(struct fd *fd, void const *buf, size_t len) {
+[[nodiscard]] ssize_t Vfs_WriteFile(struct File *fd, void const *buf, size_t len) {
     return fd->ops->write(fd, buf, len);
 }
 
-NODISCARD int vfs_seekfile(struct fd *fd, off_t offset, int whence) {
+[[nodiscard]] int Vfs_SeekFile(struct File *fd, off_t offset, int whence) {
     return fd->ops->seek(fd, offset, whence);
 }

@@ -4,26 +4,26 @@
 #include <kernel/types.h>
 
 static bool do_randalloc(void) {
-    bool prev_interrupts = arch_interrupts_disable();
-    TEST_EXPECT(pmm_pagepool_test_random());
-    interrupts_restore(prev_interrupts);
+    bool prev_interrupts = Arch_Irq_Disable();
+    TEST_EXPECT(Pmm_PagePoolTestRandom());
+    Arch_Irq_Restore(prev_interrupts);
     return true;
 }
 
 static bool do_badalloc(void) {
-    bool prev_interrupts = arch_interrupts_disable();
+    bool prev_interrupts = Arch_Irq_Disable();
     size_t page_count = ~0U;
-    TEST_EXPECT(pmm_alloc(&page_count) == PHYSICALPTR_NULL);
-    interrupts_restore(prev_interrupts);
+    TEST_EXPECT(Pmm_Alloc(&page_count) == PHYSICALPTR_NULL);
+    Arch_Irq_Restore(prev_interrupts);
     return true;
 }
 
-static struct test const TESTS[] = {
+static struct Test const TESTS[] = {
     { .name = "random allocation test", .fn = do_randalloc },
     { .name = "bad allocation",         .fn = do_badalloc  },
 };
 
-const struct testgroup TESTGROUP_PMM = {
+const struct TestGroup TESTGROUP_PMM = {
     .name = "pmm",
     .tests = TESTS,
     .testslen = sizeof(TESTS)/sizeof(*TESTS),

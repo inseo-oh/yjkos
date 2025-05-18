@@ -50,13 +50,13 @@ static void check_subtree(struct bst_node *root, struct bst_node *parent, bool p
     if (root->parent != parent) {
         if (parent != NULL) {
             if (root->parent != NULL) {
-                co_printf("[%#lx] expected parent %#lx, got %#lx\n", root->key, parent->key, root->parent->key);
+                Co_Printf("[%#lx] expected parent %#lx, got %#lx\n", root->key, parent->key, root->parent->key);
             } else {
-                co_printf("[%#lx] expected parent %#lx, got no parent\n", root->key, parent->key);
+                Co_Printf("[%#lx] expected parent %#lx, got no parent\n", root->key, parent->key);
             }
         } else {
             if (parent != NULL) {
-                co_printf("[%#lx] expected no parent, got %#lx\n", root->key, root->parent->key);
+                Co_Printf("[%#lx] expected no parent, got %#lx\n", root->key, root->parent->key);
             } else {
                 assert(!"huh?");
             }
@@ -66,9 +66,9 @@ static void check_subtree(struct bst_node *root, struct bst_node *parent, bool p
     if (!(flags & CHECK_FLAG_NO_HEIGHT)) {
         int32_t expectedheight = height_of_subtree(root);
         if (root->height != expectedheight) {
-            co_printf("expectedheight %d\n", expectedheight);
-            co_printf("  root->height %d\n", root->height);
-            co_printf("[%#lx] expected height %d, got %d\n", root->key, expectedheight, root->height);
+            Co_Printf("expectedheight %d\n", expectedheight);
+            Co_Printf("  root->height %d\n", root->height);
+            Co_Printf("[%#lx] expected height %d, got %d\n", root->key, expectedheight, root->height);
             failed = true;
         }
     }
@@ -76,15 +76,15 @@ static void check_subtree(struct bst_node *root, struct bst_node *parent, bool p
     if (!(flags & CHECK_FLAG_NO_BF)) {
         int32_t expected_bf = balence_factor(root);
         if (root->bf != expected_bf) {
-            co_printf("[%#lx] expected BF %d, got %d\n", root->key, expected_bf, root->bf);
+            Co_Printf("[%#lx] expected BF %d, got %d\n", root->key, expected_bf, root->bf);
             failed = true;
         }
     }
     if (failed) {
         if (preaction) {
-            panic("tree pre-check failed");
+            Panic("tree pre-check failed");
         } else {
-            panic("tree post-check failed");
+            Panic("tree post-check failed");
         }
     }
 
@@ -124,7 +124,7 @@ void bst_insert_node_unbalenced(struct bst *self, struct bst_node *node, intmax_
         } else if (node->key > current->key) {
             childindex = BST_DIR_RIGHT;
         } else {
-            panic("bst: duplicate tree key found");
+            Panic("bst: duplicate tree key found");
         }
         current = current->children[childindex];
     }
@@ -296,7 +296,7 @@ struct bst_node *bst_max_of(struct bst_node *subtree_root) {
 BST_DIR bst_dir_in_parent(struct bst_node *node) {
     struct bst_node *parent = node->parent;
     if (parent == NULL) {
-        panic("bst: attempted to child index on a node without parent");
+        Panic("bst: attempted to child index on a node without parent");
     }
     if (parent->children[BST_DIR_LEFT] == node) {
         return BST_DIR_LEFT;
@@ -304,7 +304,7 @@ BST_DIR bst_dir_in_parent(struct bst_node *node) {
     if (parent->children[BST_DIR_RIGHT] == node) {
         return BST_DIR_RIGHT;
     }
-    panic("bst: attempted to child index, but parent doesn't have the node as child");
+    Panic("bst: attempted to child index, but parent doesn't have the node as child");
 }
 
 struct bst_node *bst_successor(struct bst_node *node) {
@@ -359,7 +359,7 @@ void bst_rotate(struct bst *self, struct bst_node *subtree_root, BST_DIR dir) {
     if (node_b == NULL) {
         // Node B needs to go to where Node A is currently at, but of course we
         // can't do anything if nothing is there.
-        panic("bst: the subtree cannot be rotated");
+        Panic("bst: the subtree cannot be rotated");
     }
     /*
      * Note that Node C and P doesn't need to exist, but if they do, we have to

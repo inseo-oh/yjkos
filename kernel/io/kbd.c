@@ -10,20 +10,22 @@
 #include <stdint.h>
 #include <string.h>
 
-//------------------------------- Configuration -------------------------------
+/******************************** Configuration *******************************/
 
-// Print key info when pressing or releasing keys?
+/*
+ * Print key info when pressing or releasing keys?
+ */
 static bool const CONFIG_PRINT_KEYS = false;
 
-//-----------------------------------------------------------------------------
+/******************************************************************************/
 
-// NOTE: Use eventqueue() instead, which initializes the queue if it wasn't.
-static struct queue s_eventqueue;
-// 500 should be more than enough
-static struct kbd_keyevent s_eventqueue_buf[500];
-static struct list s_keyboard_list;
+/* NOTE: Use event_queue() instead, which initializes the queue if it wasn't. */
+static struct Queue s_event_queue;
+/* 500 should be more than enough */
+static struct Kbd_KeyEvent s_event_queue_buf[500];
+static struct List s_keyboard_list;
 static uint16_t s_flags;
-// TODO: Use bitmap instead?
+/* TODO: Use bitmap instead? */
 static bool s_keysdown[KBD_KEY_COUNT];
 
 #define KEYMAP_FLAG_SHIFT (1U << 0)
@@ -36,7 +38,7 @@ struct keymapentry {
     uint8_t flags;
 };
 
-// KEY_CHAR_WITH_CAPSLOCK implies KEY_CHAR_WITH_SHIFT as well.
+/* KEY_CHAR_WITH_CAPSLOCK implies KEY_CHAR_WITH_SHIFT as well. */
 #define KEY_NOCHAR() \
     {.key_alt = 0, .chr = 0, .chralt = 0, .flags = 0}
 #define KEY_CHAR(_chr) \
@@ -170,59 +172,59 @@ static struct keymapentry const KEYMAP[] = {
 #undef KEY_CHAR_WITH_NUMLOCK
 
 static void update_leds(void) {
-    ASSERT_INTERRUPTS_DISABLED();
+    ASSERT_IRQ_DISABLED();
     bool scroll = s_flags & KBD_FLAG_LOCK_SCROLL;
     bool caps = s_flags & KBD_FLAG_LOCK_CAPS;
     bool num = s_flags & KBD_FLAG_LOCK_NUM;
     LIST_FOREACH(&s_keyboard_list, devnode) {
-        struct kbddev *device = devnode->data;
+        struct Kbd_Dev *device = devnode->data;
         assert(device);
         int ret = device->ops->updateleds(device, scroll, caps, num);
         if (ret < 0) {
-            iodev_printf(&device->iodev, "failed to set LED state (error %d)\n", ret);
+            Iodev_Printf(&device->iodev, "failed to set LED state (error %d)\n", ret);
         }
     }
 }
 
 static void release_all_keys_except(KBD_KEY except) {
-    ASSERT_INTERRUPTS_DISABLED();
+    ASSERT_IRQ_DISABLED();
     for (size_t key = 1; key < KBD_KEY_COUNT; key++) {
         if (key == except) {
             continue;
         }
         if (s_keysdown[key]) {
-            kbd_key_released(key);
+            Kbd_KeyReleased(key);
         }
     }
 }
 
-static struct queue *eventqueue(void) {
-    if (s_eventqueue.buf == NULL) {
-        QUEUE_INIT_FOR_ARRAY(&s_eventqueue, s_eventqueue_buf);
+static struct Queue *event_queue(void) {
+    if (s_event_queue.buf == NULL) {
+        QUEUE_INIT_FOR_ARRAY(&s_event_queue, s_event_queue_buf);
     }
-    return &s_eventqueue;
+    return &s_event_queue;
 }
 
-static void enqueue_event(struct kbd_keyevent const *event) {
-    bool prev_interrupts = arch_interrupts_disable();
-    int ret = QUEUE_ENQUEUE(eventqueue(), event);
-    interrupts_restore(prev_interrupts);
+static void enqueue_event(struct Kbd_KeyEvent const *event) {
+    bool prev_interrupts = Arch_Irq_Disable();
+    int ret = QUEUE_ENQUEUE(event_queue(), event);
+    Arch_Irq_Restore(prev_interrupts);
     if (ret < 0) {
-        co_printf("kbd: failed to enqueue key event (error %d)\n", ret);
+        Co_Printf("kbd: failed to enqueue key event (error %d)\n", ret);
     }
 }
 
-bool kbd_pull_event(struct kbd_keyevent *out) {
-    bool prev_interrupts = arch_interrupts_disable();
-    bool result = QUEUE_DEQUEUE(out, eventqueue());
-    interrupts_restore(prev_interrupts);
+bool Kbd_PullEvent(struct Kbd_KeyEvent *out) {
+    bool prev_interrupts = Arch_Irq_Disable();
+    bool result = QUEUE_DEQUEUE(out, event_queue());
+    Arch_Irq_Restore(prev_interrupts);
     return result;
 }
 
-void kbd_key_pressed(KBD_KEY key) {
+void Kbd_KeyPressed(KBD_KEY key) {
     struct keymapentry const *entry = &KEYMAP[key];
     switch (key) {
-    // Modifier key except for lock keys, like Shift and Alt.
+    /* Modifier key except for lock keys, like Shift and Alt. */
     case KBD_KEY_LSHIFT:
         s_flags |= KBD_FLAG_MOD_LSHIFT;
         break;
@@ -247,7 +249,7 @@ void kbd_key_pressed(KBD_KEY key) {
     case KBD_KEY_RSUPER:
         s_flags |= KBD_FLAG_MOD_RSUPER;
         break;
-    // Lock keys(Capslock, Numlock...)
+    /* Lock keys(Capslock, Numlock...) */
     case KBD_KEY_CAPS_LOCK:
         s_flags ^= KBD_FLAG_LOCK_CAPS;
         update_leds();
@@ -277,9 +279,9 @@ void kbd_key_pressed(KBD_KEY key) {
     s_keysdown[key] = true;
     if (key_to_report != KBD_KEY_INVALID) {
         if (CONFIG_PRINT_KEYS) {
-            co_printf("[KEY_DOWN] PKEY=%03d RKEY=%03d CHAR=[%c]\n", key, key_to_report, chr);
+            Co_Printf("[KEY_DOWN] PKEY=%03d RKEY=%03d CHAR=[%c]\n", key, key_to_report, chr);
         }
-        struct kbd_keyevent event;
+        struct Kbd_KeyEvent event;
         event.chr = chr;
         event.is_down = true;
         event.key = key_to_report;
@@ -287,10 +289,10 @@ void kbd_key_pressed(KBD_KEY key) {
     }
 }
 
-void kbd_key_released(KBD_KEY key) {
+void Kbd_KeyReleased(KBD_KEY key) {
     struct keymapentry const *entry = &KEYMAP[key];
     switch (key) {
-    // Modifier key except for lock keys, like Shift and Alt.
+    /* Modifier key except for lock keys, like Shift and Alt. */
     case KBD_KEY_LSHIFT:
         s_flags &= ~KBD_FLAG_MOD_LSHIFT;
         break;
@@ -334,9 +336,9 @@ void kbd_key_released(KBD_KEY key) {
     s_keysdown[key] = false;
     if (key_to_report != KBD_KEY_INVALID) {
         if (CONFIG_PRINT_KEYS) {
-            co_printf("[ KEY_UP ] PKEY=%03d RKEY=%03d CHAR=[%c]\n", key, key_to_report, chr);
+            Co_Printf("[ KEY_UP ] PKEY=%03d RKEY=%03d CHAR=[%c]\n", key, key_to_report, chr);
         }
-        struct kbd_keyevent event;
+        struct Kbd_KeyEvent event;
         event.chr = chr;
         event.is_down = false;
         event.key = key_to_report;
@@ -344,17 +346,17 @@ void kbd_key_released(KBD_KEY key) {
     }
 }
 
-NODISCARD int kbd_register(struct kbddev *dev_out, struct kbddev_ops const *ops, void *data) {
+[[nodiscard]] int Kbd_Register(struct Kbd_Dev *dev_out, struct Kbd_DevOps const *ops, void *data) {
     int result = 0;
-    bool prev_interrupts = arch_interrupts_disable();
+    bool prev_interrupts = Arch_Irq_Disable();
     memset(dev_out, 0, sizeof(*dev_out));
     dev_out->data = data;
     dev_out->ops = ops;
-    result = iodev_register(&dev_out->iodev, IODEV_TYPE_KEYBOARD, dev_out);
+    result = Iodev_Register(&dev_out->iodev, IODEV_TYPE_KEYBOARD, dev_out);
     if (result < 0) {
         goto out;
     }
 out:
-    interrupts_restore(prev_interrupts);
+    Arch_Irq_Restore(prev_interrupts);
     return result;
 }

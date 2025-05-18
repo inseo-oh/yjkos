@@ -1,3 +1,3 @@
 #pragma once
 
-void windowd_start(void);
+void Windowd_Start(void);

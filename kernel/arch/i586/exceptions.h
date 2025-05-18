@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
 
-struct trapframe {
+struct TrapFrame {
     uint32_t gs;
     uint32_t fs;
     uint32_t es;
@@ -9,8 +9,10 @@ struct trapframe {
     uint32_t edi;
     uint32_t esi;
     uint32_t ebp;
-    // This is only included as part of PUSHAD doing its thing, so it does not actually
-    // represent the original ESP value before servicing the interrupt/exception.
+    /*
+     * This is only included as part of PUSHAD doing its thing.
+     * It does not actually represent the original ESP value before servicing the interrupt/exception.
+     */
     uint32_t esp_useless;
     uint32_t ebx;
     uint32_t edx;
@@ -18,8 +20,8 @@ struct trapframe {
     uint32_t eax;
     uint32_t errcode;
     uint32_t eip, cs, eflags;
-    // Only valid if CS != 0.
+    /* Only valid if CS != 0. Do NOT access when CS == 0 */
     uint32_t esp_usermode, ss_usermode;
 };
 
-void archi586_exceptions_init(void);
+void ArchI586_Exceptions_Init(void);

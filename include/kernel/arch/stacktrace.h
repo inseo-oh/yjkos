@@ -1,4 +1,4 @@
 #pragma once
 
-void arch_stacktrace(void);
-void arch_stacktrace_for_trapframe(void *trapframe);
+void Arch_Stacktrace(void);
+void Arch_StacktraceForTrapframe(void *trapframe);

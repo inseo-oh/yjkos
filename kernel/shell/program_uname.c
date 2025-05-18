@@ -6,7 +6,7 @@
 #include <string.h>
 #include <unistd.h>
 
-// https://pubs.opengroup.org/onlinepubs/9799919799/utilities/ls.html
+/* https://pubs.opengroup.org/onlinepubs/9799919799/utilities/ls.html */
 
 struct opts {
     bool machine : 1;
@@ -16,7 +16,7 @@ struct opts {
     bool version : 1;
 };
 
-NODISCARD static bool getopts(struct opts *out, int argc, char *argv[]) {
+[[nodiscard]] static bool getopts(struct opts *out, int argc, char *argv[]) {
     bool ok = true;
     int c;
     memset(out, 0, sizeof(*out));
@@ -65,49 +65,49 @@ static int program_main(int argc, char *argv[]) {
         return 1;
     }
     if (argc == 1) {
-        // No options were given
+        /* No options were given */
         opts.sysname = true;
     } else if (optind < argc) {
-        co_printf("%s: Extra operand %s", argv[0], argv[optind]);
+        Co_Printf("%s: Extra operand %s", argv[0], argv[optind]);
         return 1;
     }
     if (opts.sysname) {
-        co_printf("YJKOS");
+        Co_Printf("YJKOS");
         if (opts.node || opts.release || opts.version || opts.machine) {
-            co_printf(" ");
+            Co_Printf(" ");
         }
     }
     if (opts.node) {
-        co_printf("localhost");
+        Co_Printf("localhost");
         if (opts.release || opts.version || opts.machine) {
-            co_printf(" ");
+            Co_Printf(" ");
         }
     }
     if (opts.release) {
-        co_printf(YJKOS_RELEASE);
+        Co_Printf(YJKOS_RELEASE);
         if (opts.version || opts.machine) {
-            co_printf(" ");
+            Co_Printf(" ");
         }
     }
     if (opts.version) {
-        co_printf(YJKOS_VERSION);
+        Co_Printf(YJKOS_VERSION);
         if (opts.machine) {
-            co_printf(" ");
+            Co_Printf(" ");
         }
     }
     if (opts.machine) {
 #if YJKERNEL_ARCH_I586
-        co_printf("i586");
+        Co_Printf("i586");
 #else
 #error Unknown arch
 #endif
     }
-    co_printf("\n");
+    Co_Printf("\n");
 
     return 0;
 }
 
-struct shell_program g_shell_program_uname = {
+struct Shell_Program g_shell_program_uname = {
     .name = "uname",
     .main = program_main,
 };

@@ -3,9 +3,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-// XXX: Move this to `gdt.c`?
+/* XXX: Move this to `gdt.c`? */
 
-struct archi586_gdt_segment_descriptor {
+struct ArchI586_Gdt_SegmentDescriptor {
     uint16_t limit_b15tob0;
     uint16_t base_b15tob0;
     uint8_t base_b23tob16;
@@ -13,20 +13,20 @@ struct archi586_gdt_segment_descriptor {
     uint8_t limit_b19tob16_and_flags;
     uint8_t base_b31tob24;
 };
-STATIC_ASSERT_SIZE(struct archi586_gdt_segment_descriptor, 8);
+STATIC_ASSERT_SIZE(struct ArchI586_Gdt_SegmentDescriptor, 8);
 
-struct archi586_gdt {
-    struct archi586_gdt_segment_descriptor nulldescriptor;
-    struct archi586_gdt_segment_descriptor kernelcode;
-    struct archi586_gdt_segment_descriptor kerneldata;
-    struct archi586_gdt_segment_descriptor tss;
+struct ArchI586_Gdt {
+    struct ArchI586_Gdt_SegmentDescriptor nulldescriptor;
+    struct ArchI586_Gdt_SegmentDescriptor kernelcode;
+    struct ArchI586_Gdt_SegmentDescriptor kerneldata;
+    struct ArchI586_Gdt_SegmentDescriptor tss;
 };
-STATIC_ASSERT_SIZE(struct archi586_gdt, sizeof(struct archi586_gdt_segment_descriptor) * 4);
+STATIC_ASSERT_SIZE(struct ArchI586_Gdt, sizeof(struct ArchI586_Gdt_SegmentDescriptor) * 4);
 
-#define ARCHI586_GDT_KERNEL_CS offsetof(struct archi586_gdt, kernelcode)
-#define ARCHI586_GDT_KERNEL_DS offsetof(struct archi586_gdt, kerneldata)
-#define ARCHI586_GDT_TSS offsetof(struct archi586_gdt, tss)
+#define ARCHI586_GDT_KERNEL_CS offsetof(struct ArchI586_Gdt, kernelcode)
+#define ARCHI586_GDT_KERNEL_DS offsetof(struct ArchI586_Gdt, kerneldata)
+#define ARCHI586_GDT_TSS offsetof(struct ArchI586_Gdt, tss)
 
-void archi586_gdt_init(void);
-void archi586_gdt_load(void);
-void archi586_gdt_reload_selectors(void);
+void ArchI586_Gdt_Init(void);
+void ArchI586_Gdt_Load(void);
+void ArchI586_Gdt_ReloadSelectors(void);

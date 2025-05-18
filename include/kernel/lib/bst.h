@@ -20,7 +20,7 @@ typedef enum {
     BST_DIR_RIGHT,
 } BST_DIR;
 
-// This is not necessary if it's static variable(which is initialized by zero).
+/* This is not necessary if it's static variable(which is initialized by zero). */
 void bst_init(struct bst *self);
 void bst_insert_node(struct bst *self, struct bst_node *node, intmax_t key, void *data);
 void bst_remove_node(struct bst *self, struct bst_node *node);
@@ -38,8 +38,10 @@ void bst_recalculate_bf_tree(struct bst *self);
 void bst_recalculate_bf(struct bst_node *subtreeroot);
 void bst_check_and_rebalence(struct bst *self, struct bst_node *startNode);
 
-// Unbalenced operations will break tree balence, but it *is* still valid BST.
-// It will be just slower to search than balenced tree.
-// (For balenced operations, use the ones without ~unbalenced suffix)
+/*
+ * Unbalenced operations will break tree balence, but it *is* still valid BST.
+ * It will be just slower to search than balenced tree.
+ * (For balenced operations, use the ones without ~unbalenced suffix)
+ */
 void bst_insert_node_unbalenced(struct bst *self, struct bst_node *node, intmax_t key, void *data);
 void bst_remove_node_unbalenced(struct bst *self, struct bst_node *node);

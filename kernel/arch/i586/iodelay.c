@@ -2,6 +2,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-void arch_iodelay(void) {
+void Arch_IoDelay(void) {
     __asm__ volatile("outb %al, $0x80");
 }

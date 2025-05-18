@@ -1,25 +1,25 @@
 #pragma once
 #include <kernel/lib/list.h>
-#include <stdbool.h>
 
-struct shell_program {
+struct Shell_Program {
     char const *name;
     int (*main)(int argc, char **argv);
-    struct list_node node;
+    struct List_Node node;
 };
 
-static const int SHELL_EXITCODE_OUTOFMEMORY    = -1;
-static const int SHELL_EXITCODE_OK             = 0;
+static const int SHELL_EXITCODE_OUTOFMEMORY = -1;
+static const int SHELL_EXITCODE_OK = 0;
 static const int SHELL_EXITCODE_BUILTINMUISUSE = 2;
-static const int SHELL_EXITCODE_NOTEXECUTABLE  = 126;
-static const int SHELL_EXITCODE_NOCOMMAND      = 127;
+static const int SHELL_EXITCODE_NOTEXECUTABLE = 126;
+static const int SHELL_EXITCODE_NOCOMMAND = 127;
 
-int shell_execcmd(char const *str);
-void shell_repl(void);
-void shell_init(void);
+int Shell_ExecCmd(char const *str);
+void Shell_Repl(void);
+void Shell_Init(void);
 
-// Programs
+/* Programs *******************************************************************/
 
+/* clang-format off */
 #define ENUMERATE_SHELLPROGRAMS(_x) \
     _x(g_shell_program_runtest)     \
     _x(g_shell_program_hello)       \
@@ -31,6 +31,8 @@ void shell_init(void);
     _x(g_shell_program_cat)         \
     _x(g_shell_program_uname)       \
 
-#define X(_x)   extern struct shell_program _x;
+#define X(_x)   extern struct Shell_Program _x;
 ENUMERATE_SHELLPROGRAMS(X)
 #undef X
+
+/* clang-format on */

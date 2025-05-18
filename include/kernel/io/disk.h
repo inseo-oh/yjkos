@@ -8,29 +8,29 @@
 
 typedef uint32_t DISK_BLOCK_ADDR;
 
-struct pdisk;
-struct pdisk_ops {
-    NODISCARD int (*write)(struct pdisk *self, void const *buf, DISK_BLOCK_ADDR block_addr, size_t block_count);
-    NODISCARD int (*read)(struct pdisk *self, void *buf, DISK_BLOCK_ADDR block_addr, size_t block_count);
+struct PDisk;
+struct PdiskOps {
+    int (*write)(struct PDisk *self, void const *buf, DISK_BLOCK_ADDR block_addr, size_t block_count);
+    int (*read)(struct PDisk *self, void *buf, DISK_BLOCK_ADDR block_addr, size_t block_count);
 };
 
-struct pdisk {
-    struct iodev iodev;
-    struct pdisk_ops const *ops;
-    size_t blocksize;
+struct PDisk {
+    struct IoDev iodev;
+    struct PdiskOps const *ops;
+    size_t block_size;
     void *data;
 };
 
-struct ldisk {
-    struct iodev iodev;
-    struct pdisk *physdisk;
+struct LDisk {
+    struct IoDev iodev;
+    struct PDisk *physdisk;
     DISK_BLOCK_ADDR startblockaddr;
     size_t block_count;
 };
 
-NODISCARD ssize_t ldisk_read(struct ldisk *self, void *buf, DISK_BLOCK_ADDR block_addr, size_t block_count);
-NODISCARD ssize_t ldisk_write(struct ldisk *self, void *buf, DISK_BLOCK_ADDR block_addr, size_t block_count);
-NODISCARD int ldisk_read_exact(struct ldisk *self, void *buf, DISK_BLOCK_ADDR block_addr, size_t block_count);
-NODISCARD int ldisk_write_exact(struct ldisk *self, void *buf, DISK_BLOCK_ADDR block_addr, size_t block_count);
-NODISCARD int pdisk_register(struct pdisk *disk_out, size_t blocksize, struct pdisk_ops const *ops, void *data);
-void ldisk_discover(void);
+[[nodiscard]] ssize_t Ldisk_Read(struct LDisk *self, void *buf, DISK_BLOCK_ADDR block_addr, size_t block_count);
+[[nodiscard]] ssize_t LDisk_Write(struct LDisk *self, void *buf, DISK_BLOCK_ADDR block_addr, size_t block_count);
+[[nodiscard]] int Ldisk_ReadExact(struct LDisk *self, void *buf, DISK_BLOCK_ADDR block_addr, size_t block_count);
+[[nodiscard]] int Ldisk_WriteExact(struct LDisk *self, void *buf, DISK_BLOCK_ADDR block_addr, size_t block_count);
+[[nodiscard]] int Pdisk_Register(struct PDisk *disk_out, size_t blocksize, struct PdiskOps const *ops, void *data);
+void Ldisk_Discover(void);

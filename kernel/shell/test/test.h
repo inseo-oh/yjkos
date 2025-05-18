@@ -1,26 +1,26 @@
 #pragma once
 #include <kernel/io/co.h>
-#include <stdbool.h>
+#include <stddef.h>
 
-struct test {
+struct Test {
     char const *name;
     bool (*fn)(void);
 };
 
-struct testgroup {
+struct TestGroup {
     char const *name;
-    struct test const *tests;
+    struct Test const *tests;
     size_t testslen;
 };
 
-bool __test_expect(bool b, char const *expr, char const *func, char const *file, int line);
+bool __TestExpect(bool b, char const *expr, char const *func, char const *file, int line);
 
-#define TEST_EXPECT(_x)                                          \
-    if (!__test_expect(_x, #_x, __func__, __FILE__, __LINE__)) { \
-        return false;                                            \
+#define TEST_EXPECT(_x)                                         \
+    if (!__TestExpect(_x, #_x, __func__, __FILE__, __LINE__)) { \
+        return false;                                           \
     }
 
-// clang-format off
+/* clang-format off */
 #define ENUMERATE_TESTGROUPS(_x)    \
     /* lib */                       \
     _x(TESTGROUP_BITMAP)            \
@@ -36,8 +36,8 @@ bool __test_expect(bool b, char const *expr, char const *func, char const *file,
     /* tasks */                     \
     _x(TESTGROUP_MUTEX)
 
-// clang-format on
+/* clang-format on */
 
-#define X(_x) extern const struct testgroup _x;
+#define X(_x) extern const struct TestGroup _x;
 ENUMERATE_TESTGROUPS(X)
 #undef X

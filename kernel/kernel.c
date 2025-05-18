@@ -6,39 +6,38 @@
 #include <kernel/fs/vfs.h>
 #include <kernel/io/co.h>
 #include <kernel/io/disk.h>
-#include <kernel/lib/noreturn.h>
 #include <kernel/mem/heap.h>
 #include <kernel/mem/pmm.h>
+#include <kernel/mem/vmm.h>
 #include <kernel/tasks/sched.h>
 #include <kernel/version.h>
 #include <stdalign.h>
-#include <stdbool.h>
 #include <stdint.h>
 
-NORETURN void kernel_init(void) {
-    co_printf("\nYJK Operating System " YJKOS_RELEASE "-" YJKOS_VERSION "\n");
-    co_printf("Copyright (c) 2025 YJK(Oh Inseo)\n\n");
-    co_printf("%zu mibytes allocatable memory\n", pmm_get_totalmem() / (1024 * 1024));
+[[noreturn]] void Kernel_Init(void) {
+    Co_Printf("\nYJK Operating System " YJKOS_RELEASE "-" YJKOS_VERSION "\n");
+    Co_Printf("Copyright (c) 2025 YJK(Oh Inseo)\n\n");
+    Co_Printf("%zu mibytes allocatable memory\n", Pmm_GetTotalMem() / (1024 * 1024));
 
-    heap_expand();
-    fsinit_init_all();
-    shell_init();
-    sched_init_boot_thread();
-    co_printf("\n:: system is now listing PCI devices...\n");
-    pci_printbus();
-    co_printf("\n:: system is now initializing PS/2 devices\n");
-    ps2_initdevices();
-    co_printf("\n\n\n:: HOLD DOWN 1 KEY RIGHT NOW TO SELECT VGA CONSOLE!!!!!!\n\n\n");
-    co_printf("\n:: system is now initializing logical disks\n");
-    ldisk_discover();
-    co_printf("\n:: system is now mounting the root filesystem\n");
-    vfs_mount_root();
+    Heap_Expand();
+    FsInit_InitAll();
+    Shell_Init();
+    Sched_InitBootThread();
+    Co_Printf("\n:: system is now listing PCI devices...\n");
+    Pci_PrintBus();
+    Co_Printf("\n:: system is now initializing PS/2 devices\n");
+    Ps2_InitDevices();
+    Co_Printf("\n\n\n:: HOLD DOWN 1 KEY RIGHT NOW TO SELECT VGA CONSOLE!!!!!!\n\n\n");
+    Co_Printf("\n:: system is now initializing logical disks\n");
+    Ldisk_Discover();
+    Co_Printf("\n:: system is now mounting the root filesystem\n");
+    Vfs_MountRoot();
 
-    windowd_start();
-    co_ask_primary_console();
+    Windowd_Start();
+    Co_AskPrimaryConsole();
 
-    co_printf("\n :: system is ready for use. Use keyboard to type commands.\n");
+    Co_Printf("\n :: system is ready for use. Use keyboard to type commands.\n");
     while (1) {
-        shell_repl();
+        Shell_Repl();
     }
 }

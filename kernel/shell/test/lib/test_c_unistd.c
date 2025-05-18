@@ -104,13 +104,13 @@ static bool do_getopt_nonflag(void) {
     return true;
 }
 
-static struct test const TESTS[] = {
+static struct Test const TESTS[] = {
     {.name = "getopt", .fn = do_getopt},
     {.name = "getopt(with stderr)", .fn = do_getopt_stderr},
     {.name = "getopt(non-flag options)", .fn = do_getopt_nonflag},
 };
 
-const struct testgroup TESTGROUP_C_UNISTD = {
+const struct TestGroup TESTGROUP_C_UNISTD = {
     .name = "c_unistd",
     .tests = TESTS,
     .testslen = sizeof(TESTS) / sizeof(*TESTS),

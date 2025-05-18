@@ -12,30 +12,30 @@ struct funcstackframe {
 };
 
 static void stacktrace_with_frame(struct funcstackframe *startingframe) {
-    co_printf("stack trace:\n");
+    Co_Printf("stack trace:\n");
     struct funcstackframe *frame = startingframe;
     while (frame != NULL) {
         PHYSPTR physaddr;
-        int ret = arch_mmu_virt_to_phys(&physaddr, frame);
+        int ret = Arch_Mmu_VirtToPhys(&physaddr, frame);
         if (ret < 0) {
-            co_printf("  stackframe at %p inaccessible(error %d) - STOP.\n", ret, frame);
+            Co_Printf("  stackframe at %p inaccessible(error %d) - STOP.\n", ret, frame);
             break;
         }
-        co_printf("  %#lx\n", frame->eip);
+        Co_Printf("  %#lx\n", frame->eip);
         frame = frame->next;
     }
 }
 
-void arch_stacktrace_for_trapframe(void *trapframe) {
+void Arch_StacktraceForTrapframe(void *trapframe) {
     if (trapframe == NULL) {
-        co_printf("stack trace:\n  <no trace info available>\n");
+        Co_Printf("stack trace:\n  <no trace info available>\n");
         return;
     }
-    co_printf("pc: %#lx\n", ((struct trapframe *)trapframe)->eip);
-    stacktrace_with_frame((void *)((struct trapframe *)trapframe)->ebp);
+    Co_Printf("pc: %#lx\n", ((struct TrapFrame *)trapframe)->eip);
+    stacktrace_with_frame((void *)((struct TrapFrame *)trapframe)->ebp);
 }
 
-void arch_stacktrace(void) {
+void Arch_Stacktrace(void) {
     struct funcstackframe *frame;
     __asm__("mov %%ebp, %0" : "=r"(frame));
     stacktrace_with_frame(frame);

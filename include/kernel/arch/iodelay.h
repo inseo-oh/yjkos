@@ -1,3 +1,3 @@
 #pragma once
 
-void arch_iodelay(void);
+void Arch_IoDelay(void);

@@ -42,52 +42,52 @@ typedef enum {
     CMDSTATE_FAILED,
 } CMDSTATE;
 
-struct cmdcontext {
+struct cmd_context {
     _Atomic(CMDSTATE) state;
-    struct list_node node;
+    struct List_Node node;
     bool noretry, async;
     uint8_t responsedata;
     uint8_t cmdbyte, resendcount, needdata;
 };
 
-// Print Screen key related flags
+/* Print Screen key related flags */
 #define FLAG_FAKELSHIFT_DOWN (1U << 0)
 #define FLAG_FAKENUMPADMUL_DOWN (1U << 1)
-// Pause key related flags
+/* Pause key related flags */
 #define FLAG_FAKELCTRL_DOWN (1U << 2)
 #define FLAG_FAKENUMLOCK_DOWN (1U << 3)
 
 struct kbdcontext {
-    struct kbddev device;
+    struct Kbd_Dev device;
     INPUTSTATE state;
-    struct ps2port *port;
-    struct list cmdqueue;
-    uint8_t flags, keybytes[8], nextkeybyteindex;
+    struct Ps2Port *port;
+    struct List cmd_queue;
+    uint8_t flags, keybytes[8], next_key_byte_index;
 };
 
-static void cmd_finished(struct ps2port *port, CMDSTATE finalstate) {
-    struct kbdcontext *ctx = port->devicedata;
+static void cmd_finished(struct Ps2Port *port, CMDSTATE finalstate) {
+    struct kbdcontext *ctx = port->device_data;
     assert(ctx);
-    struct list_node *cmdnode = list_removeback(&ctx->cmdqueue);
-    assert(cmdnode);
-    struct cmdcontext *cmd = cmdnode->data;
+    struct List_Node *cmd_node = List_RemoveBack(&ctx->cmd_queue);
+    assert(cmd_node);
+    struct cmd_context *cmd = cmd_node->data;
     cmd->state = finalstate;
     if (cmd->async) {
-        heap_free(cmd);
+        Heap_Free(cmd);
     }
-    // Send next command
-    cmdnode = ctx->cmdqueue.back;
-    if (!cmdnode) {
+    /* Send reset command *****************************************************/
+    cmd_node = ctx->cmd_queue.back;
+    if (!cmd_node) {
         return;
     }
-    cmd = cmdnode->data;
+    cmd = cmd_node->data;
     cmd->state = CMDSTATE_WAITINGRESPONSE;
     if (CONFIG_COMMDEBUG) {
-        iodev_printf(&ctx->device.iodev, "sending command %#x from queue\n", cmd->cmdbyte);
+        Iodev_Printf(&ctx->device.iodev, "sending command %#x from queue\n", cmd->cmdbyte);
     }
-    int ret = stream_putchar(&port->stream, cmd->cmdbyte);
+    int ret = Stream_PutChar(&port->stream, cmd->cmdbyte);
     if (ret < 0) {
-        iodev_printf(&ctx->device.iodev, "failed to send command %#x from queue\n", cmd->cmdbyte);
+        Iodev_Printf(&ctx->device.iodev, "failed to send command %#x from queue\n", cmd->cmdbyte);
         cmd->state = CMDSTATE_FAILED;
     }
 }
@@ -213,67 +213,66 @@ static KBD_KEY const KEYMAP_E0[256] = {
     [0x5a] = KBD_KEY_NUMPAD_ENTER,
 };
 
-// TODO:
-// - Multimedia keys
+/* TODO: Multimedia keys */
 
 #undef KEY_NORMAL
 #undef KEY_WITH_SHIFTED
 #undef KEY_WITH_NUMLOCK
 
-static void reportbadscancode(struct ps2port *port) {
+static void report_bad_scancode(struct Ps2Port *port) {
     static char const *MESSAGE_HEADER = "bad scancode sequence";
 
-    struct kbdcontext *ctx = port->devicedata;
+    struct kbdcontext *ctx = port->device_data;
     assert(ctx);
-    // TODO: Find better ways to print than below mess
-    switch (ctx->nextkeybyteindex) {
+    /* TODO: Find better ways to print than below mess */
+    switch (ctx->next_key_byte_index) {
     case 1:
-        iodev_printf(&ctx->device.iodev, "%s %#x\n", MESSAGE_HEADER, ctx->keybytes[0]);
+        Iodev_Printf(&ctx->device.iodev, "%s %#x\n", MESSAGE_HEADER, ctx->keybytes[0]);
         break;
     case 2:
-        iodev_printf(&ctx->device.iodev, "%s %#x %#x\n", MESSAGE_HEADER, ctx->keybytes[0], ctx->keybytes[1]);
+        Iodev_Printf(&ctx->device.iodev, "%s %#x %#x\n", MESSAGE_HEADER, ctx->keybytes[0], ctx->keybytes[1]);
         break;
     case 3:
-        iodev_printf(&ctx->device.iodev, "%s %#x %#x %#x\n", MESSAGE_HEADER, ctx->keybytes[0], ctx->keybytes[1], ctx->keybytes[2]);
+        Iodev_Printf(&ctx->device.iodev, "%s %#x %#x %#x\n", MESSAGE_HEADER, ctx->keybytes[0], ctx->keybytes[1], ctx->keybytes[2]);
         break;
     case 4:
-        iodev_printf(&ctx->device.iodev, "%s %#x %#x %#x %#x\n", MESSAGE_HEADER, ctx->keybytes[0], ctx->keybytes[1], ctx->keybytes[2], ctx->keybytes[3]);
+        Iodev_Printf(&ctx->device.iodev, "%s %#x %#x %#x %#x\n", MESSAGE_HEADER, ctx->keybytes[0], ctx->keybytes[1], ctx->keybytes[2], ctx->keybytes[3]);
         break;
     case 5:
-        iodev_printf(&ctx->device.iodev, "%s %#x %#x %#x %#x %#x\n", MESSAGE_HEADER, ctx->keybytes[0], ctx->keybytes[1], ctx->keybytes[2], ctx->keybytes[3], ctx->keybytes[4]);
+        Iodev_Printf(&ctx->device.iodev, "%s %#x %#x %#x %#x %#x\n", MESSAGE_HEADER, ctx->keybytes[0], ctx->keybytes[1], ctx->keybytes[2], ctx->keybytes[3], ctx->keybytes[4]);
         break;
     case 6:
-        iodev_printf(&ctx->device.iodev, "%s %#x %#x %#x %#x %#x %#x\n", MESSAGE_HEADER, ctx->keybytes[0], ctx->keybytes[1], ctx->keybytes[2], ctx->keybytes[3], ctx->keybytes[4], ctx->keybytes[5]);
+        Iodev_Printf(&ctx->device.iodev, "%s %#x %#x %#x %#x %#x %#x\n", MESSAGE_HEADER, ctx->keybytes[0], ctx->keybytes[1], ctx->keybytes[2], ctx->keybytes[3], ctx->keybytes[4], ctx->keybytes[5]);
         break;
     case 7:
-        iodev_printf(&ctx->device.iodev, "%s %#x %#x %#x %#x %#x %#x %#x\n", MESSAGE_HEADER, ctx->keybytes[0], ctx->keybytes[1], ctx->keybytes[2], ctx->keybytes[3], ctx->keybytes[4], ctx->keybytes[5], ctx->keybytes[6]);
+        Iodev_Printf(&ctx->device.iodev, "%s %#x %#x %#x %#x %#x %#x %#x\n", MESSAGE_HEADER, ctx->keybytes[0], ctx->keybytes[1], ctx->keybytes[2], ctx->keybytes[3], ctx->keybytes[4], ctx->keybytes[5], ctx->keybytes[6]);
         break;
     case 8:
-        iodev_printf(&ctx->device.iodev, "%s %#x %#x %#x %#x %#x %#x %#x %#x\n", MESSAGE_HEADER, ctx->keybytes[0], ctx->keybytes[1], ctx->keybytes[2], ctx->keybytes[3], ctx->keybytes[4], ctx->keybytes[5], ctx->keybytes[6], ctx->keybytes[7]);
+        Iodev_Printf(&ctx->device.iodev, "%s %#x %#x %#x %#x %#x %#x %#x %#x\n", MESSAGE_HEADER, ctx->keybytes[0], ctx->keybytes[1], ctx->keybytes[2], ctx->keybytes[3], ctx->keybytes[4], ctx->keybytes[5], ctx->keybytes[6], ctx->keybytes[7]);
         break;
     default:
         assert(false);
     }
 }
 
-static void key_pressed(struct ps2port *port, KBD_KEY key) {
+static void key_pressed(struct Ps2Port *port, KBD_KEY key) {
     if (key == KBD_KEY_INVALID) {
-        reportbadscancode(port);
+        report_bad_scancode(port);
         return;
     }
-    kbd_key_pressed(key);
+    Kbd_KeyPressed(key);
 }
 
-static void key_released(struct ps2port *port, KBD_KEY key) {
+static void key_released(struct Ps2Port *port, KBD_KEY key) {
     if (key == KBD_KEY_INVALID) {
-        reportbadscancode(port);
+        report_bad_scancode(port);
         return;
     }
-    kbd_key_released(key);
+    Kbd_KeyReleased(key);
 }
 
-static void check_printscreen_press(struct ps2port *port) {
-    struct kbdcontext *ctx = port->devicedata;
+static void check_printscreen_press(struct Ps2Port *port) {
+    struct kbdcontext *ctx = port->device_data;
     assert(ctx);
     uint8_t flagmask = FLAG_FAKELSHIFT_DOWN | FLAG_FAKENUMPADMUL_DOWN;
 
@@ -282,8 +281,8 @@ static void check_printscreen_press(struct ps2port *port) {
     }
 }
 
-static void check_printscreen_release(struct ps2port *port) {
-    struct kbdcontext *ctx = port->devicedata;
+static void check_printscreen_release(struct Ps2Port *port) {
+    struct kbdcontext *ctx = port->device_data;
     assert(ctx);
     uint8_t flagmask = FLAG_FAKELSHIFT_DOWN | FLAG_FAKENUMPADMUL_DOWN;
 
@@ -292,8 +291,8 @@ static void check_printscreen_release(struct ps2port *port) {
     }
 }
 
-static void check_pause_press(struct ps2port *port) {
-    struct kbdcontext *ctx = port->devicedata;
+static void check_pause_press(struct Ps2Port *port) {
+    struct kbdcontext *ctx = port->device_data;
     assert(ctx);
     uint8_t flagmask = FLAG_FAKELCTRL_DOWN | FLAG_FAKENUMLOCK_DOWN;
 
@@ -302,8 +301,8 @@ static void check_pause_press(struct ps2port *port) {
     }
 }
 
-static void check_pause_release(struct ps2port *port) {
-    struct kbdcontext *ctx = port->devicedata;
+static void check_pause_release(struct Ps2Port *port) {
+    struct kbdcontext *ctx = port->device_data;
     assert(ctx);
     uint8_t flagmask = FLAG_FAKELCTRL_DOWN | FLAG_FAKENUMLOCK_DOWN;
 
@@ -312,90 +311,90 @@ static void check_pause_release(struct ps2port *port) {
     }
 }
 
-static void ack_received(struct ps2port *port) {
-    struct kbdcontext *ctx = port->devicedata;
-    struct list_node *cmdnode = ctx->cmdqueue.back;
-    if (cmdnode == NULL) {
-        iodev_printf(&ctx->device.iodev, "received ACK, but there are no commands\n");
+static void ack_received(struct Ps2Port *port) {
+    struct kbdcontext *ctx = port->device_data;
+    struct List_Node *cmd_node = ctx->cmd_queue.back;
+    if (cmd_node == NULL) {
+        Iodev_Printf(&ctx->device.iodev, "received ACK, but there are no commands\n");
         return;
     }
-    struct cmdcontext *cmd = cmdnode->data;
+    struct cmd_context *cmd = cmd_node->data;
     if (cmd->state != CMDSTATE_WAITINGRESPONSE) {
-        iodev_printf(&ctx->device.iodev, "received ACK on command %#x with incorrect state(expected %d, got %d)\n", CMDSTATE_WAITINGRESPONSE, cmd->state);
+        Iodev_Printf(&ctx->device.iodev, "received ACK on command %#x with incorrect state(expected %d, got %d)\n", CMDSTATE_WAITINGRESPONSE, cmd->state);
     } else {
         if (cmd->needdata) {
             if (CONFIG_COMMDEBUG) {
-                iodev_printf(&ctx->device.iodev, "command %#x ACKed. waiting for more data...\n", cmd->cmdbyte);
+                Iodev_Printf(&ctx->device.iodev, "command %#x ACKed. waiting for more data...\n", cmd->cmdbyte);
             }
             ctx->state = INPUTSTATE_WAITING_RESPONSEDATA;
         } else {
             if (CONFIG_COMMDEBUG) {
-                iodev_printf(&ctx->device.iodev, "command %#x finished\n", cmd->cmdbyte);
+                Iodev_Printf(&ctx->device.iodev, "command %#x finished\n", cmd->cmdbyte);
             }
             cmd_finished(port, CMDSTATE_SUCCESS);
         }
     }
 }
 
-static void resend_received(struct ps2port *port) {
-    struct kbdcontext *ctx = port->devicedata;
-    struct list_node *cmdnode = ctx->cmdqueue.back;
-    if (cmdnode == NULL) {
-        iodev_printf(&ctx->device.iodev, "received RESEND, but there are no commands\n");
+static void resend_received(struct Ps2Port *port) {
+    struct kbdcontext *ctx = port->device_data;
+    struct List_Node *cmd_node = ctx->cmd_queue.back;
+    if (cmd_node == NULL) {
+        Iodev_Printf(&ctx->device.iodev, "received RESEND, but there are no commands\n");
         return;
     }
-    struct cmdcontext *cmd = cmdnode->data;
+    struct cmd_context *cmd = cmd_node->data;
     if (cmd->state != CMDSTATE_WAITINGRESPONSE) {
-        iodev_printf(&ctx->device.iodev, "received RESEND on command %#x with incorrect state(expected %d, got %d)\n", cmd->cmdbyte, CMDSTATE_WAITINGRESPONSE, cmd->state);
+        Iodev_Printf(&ctx->device.iodev, "received RESEND on command %#x with incorrect state(expected %d, got %d)\n", cmd->cmdbyte, CMDSTATE_WAITINGRESPONSE, cmd->state);
     } else {
         if ((0 < cmd->resendcount) && !cmd->noretry) {
-            iodev_printf(&ctx->device.iodev, "received RESEND for command %#x (remaining retries: %d)\n", cmd->cmdbyte, cmd->resendcount);
+            Iodev_Printf(&ctx->device.iodev, "received RESEND for command %#x (remaining retries: %d)\n", cmd->cmdbyte, cmd->resendcount);
             cmd->resendcount--;
-            int ret = stream_putchar(&port->stream, cmd->cmdbyte);
+            int ret = Stream_PutChar(&port->stream, cmd->cmdbyte);
             if (ret < 0) {
-                iodev_printf(&ctx->device.iodev, "failed to resend command %#x\n", cmd->cmdbyte);
+                Iodev_Printf(&ctx->device.iodev, "failed to resend command %#x\n", cmd->cmdbyte);
                 cmd->state = CMDSTATE_FAILED;
             }
         } else {
-            iodev_printf(&ctx->device.iodev, "command %#x failed\n", cmd->cmdbyte);
+            Iodev_Printf(&ctx->device.iodev, "command %#x failed\n", cmd->cmdbyte);
             cmd_finished(port, CMDSTATE_FAILED);
         }
     }
 }
 
-static void echo_received(struct ps2port *port) {
-    struct kbdcontext *ctx = port->devicedata;
-    struct list_node *cmdnode = ctx->cmdqueue.back;
-    if (cmdnode == NULL) {
-        iodev_printf(&ctx->device.iodev, "received ECHO, but there are no commands\n");
+static void echo_received(struct Ps2Port *port) {
+    struct kbdcontext *ctx = port->device_data;
+    struct List_Node *cmd_node = ctx->cmd_queue.back;
+    if (cmd_node == NULL) {
+        Iodev_Printf(&ctx->device.iodev, "received ECHO, but there are no commands\n");
         return;
     }
-    struct cmdcontext *cmd = cmdnode->data;
+    struct cmd_context *cmd = cmd_node->data;
     if (cmd->state != CMDSTATE_WAITINGRESPONSE) {
-        iodev_printf(&ctx->device.iodev, "received ECHO on command %#x with incorrect state(expected %d, got %d)\n", cmd->cmdbyte, CMDSTATE_WAITINGRESPONSE, cmd->state);
+        Iodev_Printf(&ctx->device.iodev, "received ECHO on command %#x with incorrect state(expected %d, got %d)\n", cmd->cmdbyte, CMDSTATE_WAITINGRESPONSE, cmd->state);
     } else if (cmd->cmdbyte != CMD_ECHO) {
-        iodev_printf(&ctx->device.iodev, "received ECHO on command %#x which isn't ECHO\n", cmd->cmdbyte);
+        Iodev_Printf(&ctx->device.iodev, "received ECHO on command %#x which isn't ECHO\n", cmd->cmdbyte);
     } else {
         if (CONFIG_COMMDEBUG) {
-            iodev_printf(&ctx->device.iodev, "command %#x finished\n", cmd->cmdbyte);
+            Iodev_Printf(&ctx->device.iodev, "command %#x finished\n", cmd->cmdbyte);
         }
         cmd_finished(port, CMDSTATE_SUCCESS);
     }
 }
 
-static void response_byte_received(struct ps2port *port, uint8_t byte) {
-    struct kbdcontext *ctx = port->devicedata;
-    struct list_node *cmdnode = ctx->cmdqueue.back;
-    if (!cmdnode) {
-        iodev_printf(&ctx->device.iodev, "received response data, but there are no commands\n");
+static void response_byte_received(struct Ps2Port *port, uint8_t byte) {
+    struct kbdcontext *ctx = port->device_data;
+    struct List_Node *cmd_node = ctx->cmd_queue.back;
+    if (!cmd_node) {
+        Iodev_Printf(&ctx->device.iodev, "received response data, but there are no commands\n");
         return;
     }
-    struct cmdcontext *cmd = cmdnode->data;
+    struct cmd_context *cmd = cmd_node->data;
     if (cmd->state != CMDSTATE_WAITINGRESPONSE) {
-        iodev_printf(&ctx->device.iodev, "received response data on command %#x with incorrect state(expected %d, got %d)\n", cmd->cmdbyte, CMDSTATE_WAITINGRESPONSE, cmd->state);
+        Iodev_Printf(&ctx->device.iodev, "received response data on command %#x with incorrect state(expected %d, got %d)\n", cmd->cmdbyte, CMDSTATE_WAITINGRESPONSE, cmd->state);
     } else {
         if (CONFIG_COMMDEBUG) {
-            iodev_printf(&ctx->device.iodev, "command %#x finished\n", cmd->cmdbyte);
+            Iodev_Printf(&ctx->device.iodev, "command %#x finished\n", cmd->cmdbyte);
         }
         cmd->responsedata = byte;
         cmd_finished(port, CMDSTATE_SUCCESS);
@@ -403,8 +402,8 @@ static void response_byte_received(struct ps2port *port, uint8_t byte) {
     ctx->state = INPUTSTATE_DEFAULT;
 }
 
-static void e0_ext_received(struct ps2port *port, uint8_t byte) {
-    struct kbdcontext *ctx = port->devicedata;
+static void e0_ext_received(struct Ps2Port *port, uint8_t byte) {
+    struct kbdcontext *ctx = port->device_data;
     ctx->state = INPUTSTATE_DEFAULT;
     switch (byte) {
     case 0xf0:
@@ -424,8 +423,8 @@ static void e0_ext_received(struct ps2port *port, uint8_t byte) {
     }
 }
 
-static void e0_release_received(struct ps2port *port, uint8_t byte) {
-    struct kbdcontext *ctx = port->devicedata;
+static void e0_release_received(struct Ps2Port *port, uint8_t byte) {
+    struct kbdcontext *ctx = port->device_data;
     ctx->state = INPUTSTATE_DEFAULT;
     switch (byte) {
     case 0x12:
@@ -442,8 +441,8 @@ static void e0_release_received(struct ps2port *port, uint8_t byte) {
     }
 }
 
-static void e1_ext1_received(struct ps2port *port, uint8_t byte) {
-    struct kbdcontext *ctx = port->devicedata;
+static void e1_ext1_received(struct Ps2Port *port, uint8_t byte) {
+    struct kbdcontext *ctx = port->device_data;
     ctx->state = INPUTSTATE_WAITING_E1EXT2;
     switch (byte) {
     case 0xf0:
@@ -456,13 +455,13 @@ static void e1_ext1_received(struct ps2port *port, uint8_t byte) {
         ctx->flags |= FLAG_FAKENUMLOCK_DOWN;
         break;
     default:
-        // Unknown key
+        /* Unknown key */
         break;
     }
 }
 
-static void e1_release1_received(struct ps2port *port, uint8_t byte) {
-    struct kbdcontext *ctx = port->devicedata;
+static void e1_release1_received(struct Ps2Port *port, uint8_t byte) {
+    struct kbdcontext *ctx = port->device_data;
     ctx->state = INPUTSTATE_WAITING_E1EXT2;
     switch (byte) {
     case 0x14:
@@ -472,13 +471,13 @@ static void e1_release1_received(struct ps2port *port, uint8_t byte) {
         ctx->flags &= ~FLAG_FAKENUMLOCK_DOWN;
         break;
     default:
-        // Unknown key
+        /* Unknown key */
         break;
     }
 }
 
-static void e1_ext2_received(struct ps2port *port, uint8_t byte) {
-    struct kbdcontext *ctx = port->devicedata;
+static void e1_ext2_received(struct Ps2Port *port, uint8_t byte) {
+    struct kbdcontext *ctx = port->device_data;
     ctx->state = INPUTSTATE_DEFAULT;
     switch (byte) {
     case 0xf0:
@@ -493,13 +492,13 @@ static void e1_ext2_received(struct ps2port *port, uint8_t byte) {
         check_pause_press(port);
         break;
     default:
-        reportbadscancode(port);
+        report_bad_scancode(port);
         break;
     }
 }
 
-static void e1_release2_received(struct ps2port *port, uint8_t byte) {
-    struct kbdcontext *ctx = port->devicedata;
+static void e1_release2_received(struct Ps2Port *port, uint8_t byte) {
+    struct kbdcontext *ctx = port->device_data;
     ctx->state = INPUTSTATE_DEFAULT;
     switch (byte) {
     case 0x14:
@@ -511,19 +510,19 @@ static void e1_release2_received(struct ps2port *port, uint8_t byte) {
         check_pause_release(port);
         break;
     default:
-        reportbadscancode(port);
+        report_bad_scancode(port);
         break;
     }
 }
 
-static void normal_release_received(struct ps2port *port, uint8_t byte) {
-    struct kbdcontext *ctx = port->devicedata;
+static void normal_release_received(struct Ps2Port *port, uint8_t byte) {
+    struct kbdcontext *ctx = port->device_data;
     ctx->state = INPUTSTATE_DEFAULT;
     key_released(port, KEYMAP_DEFAULT[byte]);
 }
 
-static void scancode_first_byte_received(struct ps2port *port, uint8_t byte) {
-    struct kbdcontext *ctx = port->devicedata;
+static void scancode_first_byte_received(struct Ps2Port *port, uint8_t byte) {
+    struct kbdcontext *ctx = port->device_data;
     switch (byte) {
     case 0xe0:
         ctx->state = INPUTSTATE_WAITING_E0EXT;
@@ -540,14 +539,14 @@ static void scancode_first_byte_received(struct ps2port *port, uint8_t byte) {
     }
 }
 
-NODISCARD static int ps2_op_bytereceived(struct ps2port *port, uint8_t byte) {
-    struct kbdcontext *ctx = port->devicedata;
+[[nodiscard]] static int ps2_op_bytereceived(struct Ps2Port *port, uint8_t byte) {
+    struct kbdcontext *ctx = port->device_data;
     assert(ctx);
     if (ctx->state == INPUTSTATE_DEFAULT) {
-        ctx->nextkeybyteindex = 0;
+        ctx->next_key_byte_index = 0;
     }
-    ctx->keybytes[ctx->nextkeybyteindex] = byte;
-    ctx->nextkeybyteindex++;
+    ctx->keybytes[ctx->next_key_byte_index] = byte;
+    ctx->next_key_byte_index++;
 
     switch (byte) {
     case PS2_RESPONSE_ACK: {
@@ -602,14 +601,13 @@ out:
  * If the command sends back additional result bytes, set `result_out` non-NULL
  * value where the result will be stored.
  */
-NODISCARD static int request_cmd(uint8_t *result_out, struct ps2port *port, uint8_t cmdbyte, bool noretry,
-                                 bool async) {
+[[nodiscard]] static int request_cmd(uint8_t *result_out, struct Ps2Port *port, uint8_t cmdbyte, bool noretry, bool async) {
     int ret = 0;
-    struct kbdcontext *ctx = port->devicedata;
+    struct kbdcontext *ctx = port->device_data;
     assert(ctx);
-    // async mode cannot be used to receive values
+    /* async mode cannot be used to receive values */
     assert(!async || (async && !result_out));
-    struct cmdcontext *cmd = heap_alloc(sizeof(*cmd), HEAP_FLAG_ZEROMEMORY);
+    struct cmd_context *cmd = Heap_Alloc(sizeof(*cmd), HEAP_FLAG_ZEROMEMORY);
     if (cmd == NULL) {
         ret = -ENOMEM;
         goto fail;
@@ -618,7 +616,7 @@ NODISCARD static int request_cmd(uint8_t *result_out, struct ps2port *port, uint
     cmd->resendcount = MAX_RESEND_COUNT;
     cmd->noretry = noretry;
     cmd->async = async;
-    bool isqueueempty = ctx->cmdqueue.front == NULL;
+    bool isqueueempty = ctx->cmd_queue.front == NULL;
     cmd->state = CMDSTATE_QUEUED;
     if (result_out) {
         cmd->needdata = true;
@@ -627,20 +625,20 @@ NODISCARD static int request_cmd(uint8_t *result_out, struct ps2port *port, uint
     if (isqueueempty) {
         cmd->state = CMDSTATE_WAITINGRESPONSE;
         if (CONFIG_COMMDEBUG) {
-            iodev_printf(&ctx->device.iodev, "executing command %#x\n", cmd->cmdbyte);
+            Iodev_Printf(&ctx->device.iodev, "executing command %#x\n", cmd->cmdbyte);
         }
     } else {
         if (CONFIG_COMMDEBUG) {
-            iodev_printf(&ctx->device.iodev, "adding command %#x to Queue\n", cmd->cmdbyte);
+            Iodev_Printf(&ctx->device.iodev, "adding command %#x to Queue\n", cmd->cmdbyte);
         }
     }
-    ////////////////////////////////////////////////////////////////////////////
-    bool prev_interrupts = arch_interrupts_disable();
-    list_insertfront(&ctx->cmdqueue, &cmd->node, cmd);
-    interrupts_restore(prev_interrupts);
-    ////////////////////////////////////////////////////////////////////////////
+    /**************************************************************************/
+    bool prev_interrupts = Arch_Irq_Disable();
+    List_InsertFront(&ctx->cmd_queue, &cmd->node, cmd);
+    Arch_Irq_Restore(prev_interrupts);
+    /**************************************************************************/
     if (isqueueempty) {
-        ret = stream_putchar(&port->stream, cmdbyte);
+        ret = Stream_PutChar(&port->stream, cmdbyte);
         if (ret < 0) {
             return ret;
         }
@@ -656,16 +654,16 @@ NODISCARD static int request_cmd(uint8_t *result_out, struct ps2port *port, uint
             assert(result_out != NULL);
             *result_out = cmd->responsedata;
         }
-        heap_free(cmd);
+        Heap_Free(cmd);
     }
     goto out;
 fail:
-    heap_free(cmd);
+    Heap_Free(cmd);
 out:
     return ret;
 }
 
-NODISCARD static int echo(struct ps2port *port, bool async) {
+[[nodiscard]] static int echo(struct Ps2Port *port, bool async) {
     return request_cmd(NULL, port, CMD_ECHO, false, async);
 }
 
@@ -673,7 +671,7 @@ static uint8_t const LED_SCROLL = 1 << 0;
 static uint8_t const LED_NUM = 1 << 1;
 static uint8_t const LED_CAPS = 1 << 2;
 
-NODISCARD static int setledstate(struct ps2port *port, uint8_t leds, bool async) {
+[[nodiscard]] static int setledstate(struct Ps2Port *port, uint8_t leds, bool async) {
     int ret = 0;
     ret = request_cmd(NULL, port, CMD_SETLEDS, false, async);
     if (ret < 0) {
@@ -689,7 +687,7 @@ out:
     return ret;
 }
 
-NODISCARD static int get_scancode_set(uint8_t *result_out, struct ps2port *port) {
+[[nodiscard]] static int get_scancode_set(uint8_t *result_out, struct Ps2Port *port) {
     assert(result_out != NULL);
     int ret = 0;
     ret = request_cmd(NULL, port, CMD_SCANCODESET, false, false);
@@ -706,7 +704,7 @@ out:
     return ret;
 }
 
-NODISCARD static int set_scancode_set(struct ps2port *port, uint8_t set, bool async) {
+[[nodiscard]] static int set_scancode_set(struct Ps2Port *port, uint8_t set, bool async) {
     assert(set != 0);
     int ret = 0;
     ret = request_cmd(NULL, port, CMD_SCANCODESET, false, async);
@@ -723,7 +721,7 @@ out:
     return ret;
 }
 
-NODISCARD static int kbd_op_updateleds(struct kbddev *kbd, bool scroll, bool caps, bool num) {
+[[nodiscard]] static int kbd_op_updateleds(struct Kbd_Dev *kbd, bool scroll, bool caps, bool num) {
     struct kbdcontext *ctx = kbd->data;
     uint8_t led_state = 0;
     if (scroll) {
@@ -738,35 +736,35 @@ NODISCARD static int kbd_op_updateleds(struct kbddev *kbd, bool scroll, bool cap
     return setledstate(ctx->port, led_state, true);
 }
 
-static struct kbddev_ops const KEYBOARD_OPS = {
+static struct Kbd_DevOps const KEYBOARD_OPS = {
     .updateleds = kbd_op_updateleds,
 };
 
-static struct ps2port_ops const PS2_OPS = {
-    .bytereceived = ps2_op_bytereceived,
+static struct Ps2PortOps const PS2_OPS = {
+    .byte_received = ps2_op_bytereceived,
 };
 
-NODISCARD int ps2kbd_init(struct ps2port *port) {
+[[nodiscard]] int Ps2kbd_Init(struct Ps2Port *port) {
     int ret = 0;
-    struct kbdcontext *ctx = heap_alloc(sizeof(*ctx), HEAP_FLAG_ZEROMEMORY);
+    struct kbdcontext *ctx = Heap_Alloc(sizeof(*ctx), HEAP_FLAG_ZEROMEMORY);
     if (ctx == NULL) {
         ret = -ENOMEM;
         goto fail;
     }
     memset(ctx, 0, sizeof(*ctx));
-    // Setup fake iodev for logging
+    /* Setup fake iodev for logging ********************************************/
     ctx->state = INPUTSTATE_DEFAULT;
     ctx->port = port;
-    list_init(&ctx->cmdqueue);
-    port->devicedata = ctx;
+    List_Init(&ctx->cmd_queue);
+    port->device_data = ctx;
     port->ops = &PS2_OPS;
 
-    iodev_printf(&port->device, "ps2kbd: testing echo\n");
+    Iodev_Printf(&port->device, "ps2kbd: testing echo\n");
     ret = echo(port, false);
     if (ret < 0) {
         goto fail;
     }
-    iodev_printf(&port->device, "ps2kbd: resetting leds\n");
+    Iodev_Printf(&port->device, "ps2kbd: resetting leds\n");
     ret = setledstate(port, 0, false);
     if (ret < 0) {
         goto fail;
@@ -777,42 +775,39 @@ NODISCARD int ps2kbd_init(struct ps2port *port) {
         scancodes_supported[set - 1] = false;
         int ret = set_scancode_set(port, set, false);
         if (ret < 0) {
-            iodev_printf(&port->device, "ps2kbd: scancode set %u test failed: set command error\n", set);
+            Iodev_Printf(&port->device, "ps2kbd: scancode set %u test failed: set command error\n", set);
             continue;
         }
         uint8_t current_set;
         ret = get_scancode_set(&current_set, port);
         if (ret < 0) {
-            iodev_printf(&port->device, "ps2kbd: scancode set %u test failed: get command error\n", set);
+            Iodev_Printf(&port->device, "ps2kbd: scancode set %u test failed: get command error\n", set);
             continue;
         }
         if (current_set != set) {
-            iodev_printf(&port->device, "ps2kbd: scancode set %u test failed: got scancode set %u\n", set, current_set);
+            Iodev_Printf(&port->device, "ps2kbd: scancode set %u test failed: got scancode set %u\n", set, current_set);
         } else {
             scancodes_supported[set - 1] = true;
         }
     }
     if (!scancodes_supported[1]) {
-        iodev_printf(&port->device, "ps2kbd: WARNING: scancode set 2 does not seem to be supported.\n");
+        Iodev_Printf(&port->device, "ps2kbd: WARNING: scancode set 2 does not seem to be supported.\n");
     }
-    iodev_printf(&port->device, "ps2kbd: configuring scancode set\n");
+    Iodev_Printf(&port->device, "ps2kbd: configuring scancode set\n");
     {
         int ret = set_scancode_set(port, 2, false);
         if (ret < 0) {
-            iodev_printf(&port->device, "ps2kbd: WARNING: couldn't set scancode set to 2.\n");
+            Iodev_Printf(&port->device, "ps2kbd: WARNING: couldn't set scancode set to 2.\n");
         }
     }
-    ret = kbd_register(&ctx->device, &KEYBOARD_OPS, ctx);
+    ret = Kbd_Register(&ctx->device, &KEYBOARD_OPS, ctx);
     if (ret < 0) {
         goto fail;
     }
-    /*
-     * We can't undo kbd_register as of writing this code, so no further errors
-     * are allowed.
-     */
+    /* We can't undo kbd_register as of writing this code, so no further errors are allowed. */
     goto out;
 fail:
-    heap_free(ctx);
+    Heap_Free(ctx);
 out:
     return ret;
 }

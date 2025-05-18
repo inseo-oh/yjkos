@@ -7,61 +7,61 @@
 #include <stddef.h>
 
 static bool do_basic(void) {
-    struct mutex mtx;
-    mutex_init(&mtx);
+    struct Mutex mtx;
+    Mutex_Init(&mtx);
     TEST_EXPECT(MUTEX_TRYLOCK(&mtx) == true);
     TEST_EXPECT(mtx.locked);
     TEST_EXPECT(MUTEX_TRYLOCK(&mtx) == false);
-    mutex_unlock(&mtx);
+    Mutex_Unlock(&mtx);
     TEST_EXPECT(MUTEX_TRYLOCK(&mtx) == true);
-    mutex_unlock(&mtx);
+    Mutex_Unlock(&mtx);
     return true;
 }
 
 struct sharedcontext {
     int cnt;
-    struct mutex mtx;
+    struct Mutex mtx;
 };
 
 #define TEST_COUNTTARGET 100
 #define TEST_THREADCOUNT 5
 
 static void testthread(void *arg) {
-    arch_interrupts_enable();
+    Arch_Irq_Enable();
     struct sharedcontext *ctx = arg;
     for (int i = 0; i < TEST_COUNTTARGET; i++) {
         MUTEX_LOCK(&ctx->mtx);
         int oldcnt = ctx->cnt;
-        sched_schedule();
+        Sched_Schedule();
         if (ctx->cnt != oldcnt) {
-            co_printf("shared var suddenly changed! expected: %d, got: %d\n", oldcnt, ctx->cnt);
+            Co_Printf("shared var suddenly changed! expected: %d, got: %d\n", oldcnt, ctx->cnt);
         }
         ctx->cnt = oldcnt + 1;
-        mutex_unlock(&ctx->mtx);
-        sched_schedule();
+        Mutex_Unlock(&ctx->mtx);
+        Sched_Schedule();
     }
 }
 
 static bool do_threadsync(void) {
     bool result = false;
     struct sharedcontext ctx;
-    mutex_init(&ctx.mtx);
-    struct thread *threads[TEST_THREADCOUNT];
+    Mutex_Init(&ctx.mtx);
+    struct Thread *threads[TEST_THREADCOUNT];
     ctx.cnt = 0;
     for (int i = 0; i < TEST_THREADCOUNT; i++) {
-        threads[i] = thread_create(THREAD_STACK_SIZE, testthread, &ctx);
-        co_printf("created thread %p\n", threads[i]);
+        threads[i] = Thread_Create(THREAD_STACK_SIZE, testthread, &ctx);
+        Co_Printf("created thread %p\n", threads[i]);
     }
     bool failed = false;
     for (int i = 0; i < TEST_THREADCOUNT; i++) {
         if (threads[i] == NULL) {
-            co_printf("not enough memory to spawn threads\n");
+            Co_Printf("not enough memory to spawn threads\n");
             goto out;
         }
-        int ret = sched_queue(threads[i]);
+        int ret = Sched_Queue(threads[i]);
         if (ret < 0) {
-            co_printf("failed to queue thread (error %d)\n", ret);
-            thread_delete(threads[i]);
+            Co_Printf("failed to queue thread (error %d)\n", ret);
+            Thread_Delete(threads[i]);
             threads[i] = NULL;
             failed = true;
         }
@@ -72,17 +72,17 @@ static bool do_threadsync(void) {
     while (1) {
         MUTEX_LOCK(&ctx.mtx);
         bool done = (TEST_COUNTTARGET * TEST_THREADCOUNT) <= ctx.cnt;
-        co_printf("\r%d", ctx.cnt);
-        mutex_unlock(&ctx.mtx);
-        sched_schedule();
+        Co_Printf("\r%d", ctx.cnt);
+        Mutex_Unlock(&ctx.mtx);
+        Sched_Schedule();
         if (done) {
             break;
         }
     }
-    co_printf("\n", ctx.cnt);
+    Co_Printf("\n", ctx.cnt);
     result = true;
 out:
-    co_printf("shutting down...\n");
+    Co_Printf("shutting down...\n");
     for (int i = 0; i < TEST_THREADCOUNT; i++) {
         if (threads[i] != NULL) {
             threads[i]->shutdown = true;
@@ -91,12 +91,12 @@ out:
     return result;
 }
 
-static struct test const TESTS[] = {
+static struct Test const TESTS[] = {
     {.name = "basic lock & unlock test", .fn = do_basic},
     {.name = "thread synchronization", .fn = do_threadsync},
 };
 
-const struct testgroup TESTGROUP_MUTEX = {
+const struct TestGroup TESTGROUP_MUTEX = {
     .name = "mutex",
     .tests = TESTS,
     .testslen = sizeof(TESTS) / sizeof(*TESTS),

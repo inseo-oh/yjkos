@@ -11,7 +11,7 @@
 #include <string.h>
 #include <sys/types.h>
 
-static void to_abs_block_range(size_t *firstaddr_out, struct ldisk *self, DISK_BLOCK_ADDR block_addr, size_t *blockcount_inout) {
+static void to_abs_block_range(size_t *firstaddr_out, struct LDisk *self, DISK_BLOCK_ADDR block_addr, size_t *blockcount_inout) {
     size_t disk_first_blockaddr = self->startblockaddr;
     size_t disk_last_blockaddr = self->startblockaddr + (self->block_count - 1);
     size_t first_abs_addr = 0;
@@ -28,7 +28,7 @@ static void to_abs_block_range(size_t *firstaddr_out, struct ldisk *self, DISK_B
     *blockcount_inout = final_block_count;
 }
 
-NODISCARD ssize_t ldisk_read(struct ldisk *self, void *buf, DISK_BLOCK_ADDR block_addr, size_t block_count) {
+[[nodiscard]] ssize_t Ldisk_Read(struct LDisk *self, void *buf, DISK_BLOCK_ADDR block_addr, size_t block_count) {
     size_t final_blockcount = block_count;
     size_t first_abs_addr = 0;
     to_abs_block_range(&first_abs_addr, self, block_addr, &final_blockcount);
@@ -41,7 +41,7 @@ NODISCARD ssize_t ldisk_read(struct ldisk *self, void *buf, DISK_BLOCK_ADDR bloc
     return (ssize_t)final_blockcount;
 }
 
-NODISCARD ssize_t ldisk_write(struct ldisk *self, void *buf, DISK_BLOCK_ADDR block_addr, size_t block_count) {
+[[nodiscard]] ssize_t LDisk_Write(struct LDisk *self, void *buf, DISK_BLOCK_ADDR block_addr, size_t block_count) {
     size_t firstabsaddr = 0;
     size_t final_block_count = block_count;
     to_abs_block_range(&firstabsaddr, self, block_addr, &final_block_count);
@@ -54,8 +54,8 @@ NODISCARD ssize_t ldisk_write(struct ldisk *self, void *buf, DISK_BLOCK_ADDR blo
     return (ssize_t)final_block_count;
 }
 
-NODISCARD int ldisk_read_exact(struct ldisk *self, void *buf, DISK_BLOCK_ADDR block_addr, size_t block_count) {
-    ssize_t ret = ldisk_read(self, buf, block_addr, block_count);
+[[nodiscard]] int Ldisk_ReadExact(struct LDisk *self, void *buf, DISK_BLOCK_ADDR block_addr, size_t block_count) {
+    ssize_t ret = Ldisk_Read(self, buf, block_addr, block_count);
     if (ret < 0) {
         return ret;
     }
@@ -65,17 +65,17 @@ NODISCARD int ldisk_read_exact(struct ldisk *self, void *buf, DISK_BLOCK_ADDR bl
     return 0;
 }
 
-NODISCARD int ldisk_write_exact(struct ldisk *self, void *buf, DISK_BLOCK_ADDR block_addr, size_t block_count) {
-    ssize_t ret = ldisk_write(self, buf, block_addr, block_count);
+[[nodiscard]] int Ldisk_WriteExact(struct LDisk *self, void *buf, DISK_BLOCK_ADDR block_addr, size_t block_count) {
+    ssize_t ret = LDisk_Write(self, buf, block_addr, block_count);
     if ((size_t)ret != block_count) {
         return -EINVAL;
     }
     return 0;
 }
 
-static int register_ldisk(struct pdisk *pdisk, DISK_BLOCK_ADDR startblockaddr, size_t block_count) {
+static int register_ldisk(struct PDisk *pdisk, DISK_BLOCK_ADDR startblockaddr, size_t block_count) {
     int result;
-    struct ldisk *disk = heap_alloc(sizeof(*disk), HEAP_FLAG_ZEROMEMORY);
+    struct LDisk *disk = Heap_Alloc(sizeof(*disk), HEAP_FLAG_ZEROMEMORY);
     if (disk == NULL) {
         result = -ENOMEM;
         goto fail;
@@ -83,113 +83,110 @@ static int register_ldisk(struct pdisk *pdisk, DISK_BLOCK_ADDR startblockaddr, s
     disk->physdisk = pdisk;
     disk->startblockaddr = startblockaddr;
     disk->block_count = block_count;
-    result = iodev_register(&disk->iodev, IODEV_TYPE_LOGICAL_DISK, disk);
+    result = Iodev_Register(&disk->iodev, IODEV_TYPE_LOGICAL_DISK, disk);
     if (result < 0) {
         goto fail;
     }
-    /*
-     * We can't undo iodev_register as of writing this code, so no further
-     * errors are allowed.
-     */
+    /* We can't undo iodev_register as of writing this code, so no further errors are allowed. */
     goto out;
 fail:
-    heap_free(disk);
+    Heap_Free(disk);
 out:
     return result;
 }
 
-struct mbrentry {
+struct mbr_entry {
     uint32_t startlba;
     uint32_t sectorcount;
     uint8_t partitiontype;
     uint8_t flags;
 };
 
-static void mbr_entry_at(struct mbrentry *out, uint8_t const *ptr) {
+static void mbr_entry_at(struct mbr_entry *out, uint8_t const *ptr) {
     out->flags = ptr[0x0];
     out->partitiontype = ptr[0x4];
-    out->startlba = uint32_le_at(&ptr[0x8]);
-    out->sectorcount = uint32_le_at(&ptr[0xc]);
+    out->startlba = Uint32LeAt(&ptr[0x8]);
+    out->sectorcount = Uint32LeAt(&ptr[0xc]);
 }
 
-static bool parse_mbr(struct pdisk *disk, uint8_t const *first_block, size_t blocksize) {
+static bool parse_mbr(struct PDisk *disk, uint8_t const *first_block, size_t block_size) {
     enum {
         MBR_BLOCK_SIZE = 512
     };
-    // TODO: support block sizes other than 512.
-    assert(MBR_BLOCK_SIZE == blocksize);
+    /* TODO: support block sizes other than 512. */
+    assert(MBR_BLOCK_SIZE == block_size);
     if ((first_block[510] != 0x55) || (first_block[511] != 0xaa)) {
-        // No valid MBR
+        /* No valid MBR */
         return false;
     }
-    struct mbrentry mbrentries[4];
+    struct mbr_entry mbrentries[4];
     mbr_entry_at(&mbrentries[0], &first_block[0x1be]);
     mbr_entry_at(&mbrentries[1], &first_block[0x1ce]);
     mbr_entry_at(&mbrentries[2], &first_block[0x1de]);
     mbr_entry_at(&mbrentries[3], &first_block[0x1ee]);
-    iodev_printf(&disk->iodev, "---------- master boot record ----------\n");
-    iodev_printf(&disk->iodev, "    flags  type  start     approx. size\n");
+    Iodev_Printf(&disk->iodev, "---------- master boot record ----------\n");
+    Iodev_Printf(&disk->iodev, "    flags  type  start     approx. size\n");
     for (size_t i = 0; i < sizeof(mbrentries) / sizeof(*mbrentries); i++) {
         if (mbrentries[i].partitiontype == 0x00) {
             continue;
         }
-        iodev_printf(&disk->iodev, "[%u] %02x     %02x    %08x  %u MiB\n", i, mbrentries[i].flags, mbrentries[i].partitiontype, mbrentries[i].startlba, size_to_blocks(mbrentries[i].sectorcount, (1024 * 1024 / MBR_BLOCK_SIZE)));
+        Iodev_Printf(&disk->iodev, "[%u] %02x     %02x    %08x  %u MiB\n", i, mbrentries[i].flags, mbrentries[i].partitiontype, mbrentries[i].startlba, SizeToBlocks(mbrentries[i].sectorcount, (1024 * 1024 / MBR_BLOCK_SIZE)));
     }
-    iodev_printf(&disk->iodev, "----------------------------------------\n");
+    Iodev_Printf(&disk->iodev, "----------------------------------------\n");
     for (size_t i = 0; i < sizeof(mbrentries) / sizeof(*mbrentries); i++) {
         if (mbrentries[i].partitiontype == 0x00) {
             continue;
         }
         int ret = register_ldisk(disk, mbrentries[i].startlba, mbrentries[i].sectorcount);
         if (ret < 0) {
-            iodev_printf(&disk->iodev, "failed to register partition at index %u (error %d)\n", i, ret);
+            Iodev_Printf(&disk->iodev, "failed to register partition at index %u (error %d)\n", i, ret);
         }
     }
 
     return true;
 }
 
-NODISCARD int pdisk_register(struct pdisk *disk_out, size_t blocksize, struct pdisk_ops const *ops, void *data) {
+[[nodiscard]] int Pdisk_Register(struct PDisk *disk_out, size_t blocksize, struct PdiskOps const *ops, void *data) {
     memset(disk_out, 0, sizeof(*disk_out));
     disk_out->ops = ops;
     disk_out->data = data;
-    disk_out->blocksize = blocksize;
-    return iodev_register(&disk_out->iodev, IODEV_TYPE_PHYSICAL_DISK, disk_out);
+    disk_out->block_size = blocksize;
+    return Iodev_Register(&disk_out->iodev, IODEV_TYPE_PHYSICAL_DISK, disk_out);
 }
 
-void ldisk_discover(void) {
-    struct list *devlist = iodev_getlist(IODEV_TYPE_PHYSICAL_DISK);
+void Ldisk_Discover(void) {
+    struct List *devlist = Iodev_GetList(IODEV_TYPE_PHYSICAL_DISK);
     if (devlist == NULL || devlist->front == NULL) {
-        co_printf("ldisk: no physical disks - aborting\n");
+        Co_Printf("ldisk: no physical disks - aborting\n");
         return;
     }
     LIST_FOREACH(devlist, devnode) {
-        struct iodev *device = devnode->data;
-        struct pdisk *disk = device->data;
-        uint8_t *firstblock = NULL;
+        struct IoDev *device = devnode->data;
+        struct PDisk *disk = device->data;
+        uint8_t *first_block = NULL;
         do {
-            firstblock = heap_alloc(disk->blocksize, 0);
-            if (firstblock == NULL) {
-                iodev_printf(&disk->iodev, "not enough memory to read first block\n");
+            first_block = Heap_Alloc(disk->block_size, 0);
+            if (first_block == NULL) {
+                Iodev_Printf(&disk->iodev, "not enough memory to read first block\n");
                 goto partition_table_fail;
             }
-            int ret = disk->ops->read(disk, firstblock, 0, 1);
+            int ret = disk->ops->read(disk, first_block, 0, 1);
             if (ret < 0) {
-                iodev_printf(&disk->iodev, "failed to read first block (error %d)\n", ret);
+                Iodev_Printf(&disk->iodev, "failed to read first block (error %d)\n", ret);
                 goto partition_table_fail;
             }
             break;
         partition_table_fail:
-            heap_free(firstblock);
-            firstblock = NULL;
+            Heap_Free(first_block);
+            first_block = NULL;
         } while (0);
 
-        // Try to read MBR from it
-        if ((firstblock != NULL) && parse_mbr(disk, firstblock, disk->blocksize)) {
-            iodev_printf(&disk->iodev, "MBR loaded\n");
+        /* Try to read MBR from it ********************************************/
+        if ((first_block != NULL) && parse_mbr(disk, first_block, disk->block_size)) {
+            Iodev_Printf(&disk->iodev, "MBR loaded\n");
         } else {
-            iodev_printf(&disk->iodev, "no known partition table found.\n");
+            Iodev_Printf(&disk->iodev, "no known partition table found.\n");
         }
-        heap_free(firstblock);
+        Heap_Free(first_block);
     }
 }

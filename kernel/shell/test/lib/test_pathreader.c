@@ -6,64 +6,64 @@
 
 static bool do_simple(void) {
     char const *str = NULL;
-    struct pathreader reader;
+    struct PathReader reader;
 
-    pathreader_init(&reader, "hello/world");
-    TEST_EXPECT(pathreader_next(&str, &reader) == 0);
+    PathReader_Init(&reader, "hello/world");
+    TEST_EXPECT(PathReader_Next(&str, &reader) == 0);
     TEST_EXPECT(strcmp(str, "hello") == 0);
-    TEST_EXPECT(pathreader_next(&str, &reader) == 0);
+    TEST_EXPECT(PathReader_Next(&str, &reader) == 0);
     TEST_EXPECT(strcmp(str, "world") == 0);
-    TEST_EXPECT(pathreader_next(&str, &reader) == -ENOENT);
+    TEST_EXPECT(PathReader_Next(&str, &reader) == -ENOENT);
 
     return true;
 }
 
 static bool do_empty(void) {
     char const *str = NULL;
-    struct pathreader reader;
+    struct PathReader reader;
 
-    pathreader_init(&reader, "");
-    TEST_EXPECT(pathreader_next(&str, &reader) == -ENOENT);
+    PathReader_Init(&reader, "");
+    TEST_EXPECT(PathReader_Next(&str, &reader) == -ENOENT);
 
     return true;
 }
 
 static bool do_empty_segments(void) {
     char const *str = NULL;
-    struct pathreader reader;
+    struct PathReader reader;
 
-    pathreader_init(&reader, "hello//world");
-    TEST_EXPECT(pathreader_next(&str, &reader) == 0);
+    PathReader_Init(&reader, "hello//world");
+    TEST_EXPECT(PathReader_Next(&str, &reader) == 0);
     TEST_EXPECT(strcmp(str, "hello") == 0);
-    TEST_EXPECT(pathreader_next(&str, &reader) == 0);
+    TEST_EXPECT(PathReader_Next(&str, &reader) == 0);
     TEST_EXPECT(strcmp(str, "world") == 0);
-    TEST_EXPECT(pathreader_next(&str, &reader) == -ENOENT);
+    TEST_EXPECT(PathReader_Next(&str, &reader) == -ENOENT);
 
     return true;
 }
 
 static bool do_trailing_slash(void) {
     char const *str = NULL;
-    struct pathreader reader;
+    struct PathReader reader;
 
-    pathreader_init(&reader, "hello/world/");
-    TEST_EXPECT(pathreader_next(&str, &reader) == 0);
+    PathReader_Init(&reader, "hello/world/");
+    TEST_EXPECT(PathReader_Next(&str, &reader) == 0);
     TEST_EXPECT(strcmp(str, "hello") == 0);
-    TEST_EXPECT(pathreader_next(&str, &reader) == 0);
+    TEST_EXPECT(PathReader_Next(&str, &reader) == 0);
     TEST_EXPECT(strcmp(str, "world") == 0);
-    TEST_EXPECT(pathreader_next(&str, &reader) == -ENOENT);
+    TEST_EXPECT(PathReader_Next(&str, &reader) == -ENOENT);
 
     return true;
 }
 
-static struct test const TESTS[] = {
+static struct Test const TESTS[] = {
     { .name = "simple",              .fn = do_simple         },
     { .name = "empty",               .fn = do_empty          },
     { .name = "with empty segments", .fn = do_empty_segments },
     { .name = "with trailing slash", .fn = do_trailing_slash },
 };
 
-const struct testgroup TESTGROUP_PATHREADER = {
+const struct TestGroup TESTGROUP_PATHREADER = {
     .name = "pathreader",
     .tests = TESTS,
     .testslen = sizeof(TESTS)/sizeof(*TESTS),

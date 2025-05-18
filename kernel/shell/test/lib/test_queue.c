@@ -17,7 +17,7 @@ static uint32_t const TEST_INTS[] = {
 };
 
 static bool do_test(void) {
-    struct queue queue;
+    struct Queue queue;
     uint32_t buf[5];
     QUEUE_INIT_FOR_ARRAY(&queue, buf);
     TEST_EXPECT(QUEUE_ENQUEUE(&queue, &TEST_INTS[0]) == 0);
@@ -51,11 +51,11 @@ static bool do_test(void) {
     return true;
 }
 
-static struct test const TESTS[] = {
+static struct Test const TESTS[] = {
     {.name = "queue", .fn = do_test},
 };
 
-const struct testgroup TESTGROUP_QUEUE = {
+const struct TestGroup TESTGROUP_QUEUE = {
     .name = "queue",
     .tests = TESTS,
     .testslen = sizeof(TESTS) / sizeof(*TESTS),

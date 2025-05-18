@@ -1,4 +1,4 @@
 #pragma once
 #include <stdint.h>
 
-uint64_t arch_readtsc(void);
+uint64_t Arch_ReadTsc(void);
