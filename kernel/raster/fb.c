@@ -186,7 +186,7 @@ static uint32_t make_native_color_indexed(FB_COLOR rgb) {
 
 static void update_null(void) {}
 
-void (*fb_update)(void) = update_null;
+void (*Fb_Update)(void) = update_null;
 
 static void update32(void) {
     if ((s_backbuffer == NULL) || (s_damage_first_y < 0)) {
@@ -449,14 +449,14 @@ void Fb_InitRgb(
     }
     switch (bpp) {
     case 32:
-        fb_update = update32;
+        Fb_Update = update32;
         break;
     case 24:
-        fb_update = update24;
+        Fb_Update = update24;
         break;
     case 16:
     case 15:
-        fb_update = update16;
+        Fb_Update = update16;
         break;
     default:
         Co_Printf("fb: unsupported rgb bpp %dbpp\n", bpp);
@@ -464,7 +464,7 @@ void Fb_InitRgb(
     }
     s_fbbase = Vmm_EzMap(framebuffer_base, pitch * height);
     Co_Printf("fb: rgb %dx%d %dbpp video\n", width, height, bpp);
-    fb_update();
+    Fb_Update();
     psf_init();
     fbtty_init();
     return;
@@ -485,11 +485,11 @@ void Fb_initIndexed(uint8_t *palette, int colorcount, PHYSPTR framebufferbase, i
     }
     switch (bpp) {
     case 8:
-        fb_update = update8;
+        Fb_Update = update8;
         break;
     case 1:
         assert((width % 8) == 0);
-        fb_update = update1;
+        Fb_Update = update1;
         break;
     default:
         Co_Printf("fb: unsupported indexed bpp %dbpp\n", bpp);
@@ -502,7 +502,7 @@ void Fb_initIndexed(uint8_t *palette, int colorcount, PHYSPTR framebufferbase, i
     assert(s_fbpitch % 4 == 0);
     assert((s_width * sizeof(*s_backbuffer)) % 4 == 0);
 
-    fb_update();
+    Fb_Update();
     psf_init();
     fbtty_init();
     return;

@@ -2,7 +2,6 @@
 #include <kernel/io/co.h>
 
 #ifdef YJKERNEL_ENABLE_KDOOM
-#include "thirdparty/PureDOOM.h"
 #include <assert.h>
 #include <kernel/arch/hcf.h>
 #include <kernel/fs/vfs.h>
@@ -16,27 +15,10 @@
 #include <string.h>
 #include <sys/types.h>
 
-/* It's 90s code time - I mean, time for many diagnostic overrides! ***********/
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wall"
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wenum-compare"
-#pragma GCC diagnostic ignored "-Wenum-conversion"
-#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
-#pragma GCC diagnostic ignored "-Wint-to-pointer-cast"
-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-#pragma GCC diagnostic ignored "-Wparentheses"
-#pragma GCC diagnostic ignored "-Wpedantic"
-#pragma GCC diagnostic ignored "-Wpointer-to-int-cast"
-#pragma GCC diagnostic ignored "-Wsign-compare"
-#pragma GCC diagnostic ignored "-Wunknown-pragmas"
-#pragma GCC diagnostic ignored "-Wunused-but-set-parameter"
-#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-#define DOOM_IMPLEMENTATION
+/* A hack to make it work with C23 boolean */
+#define true true
+#define false false
 #include "thirdparty/PureDOOM.h"
-/* Leave the 90s world ********************************************************/
-#pragma GCC diagnostic pop
 
 void __floatsidf(void) {
     /* STUB */
@@ -102,8 +84,8 @@ static void *dopen(const char *filename, const char *mode) {
     if (mode[0] == 'w') {
         return NULL;
     }
-    struct fd *fd;
-    int ret = vfs_openfile(&fd, filename, 0);
+    struct File *fd;
+    int ret = Vfs_OpenFile(&fd, filename, 0);
     if (ret < 0) {
         Co_Printf("[kdoom] failed to open file %s (error %d)\n", filename, ret);
         return NULL;
@@ -117,7 +99,7 @@ static void dclose(void *handle) {
     if (handle == NULL) {
         return;
     }
-    vfs_closefile(handle);
+    Vfs_CloseFile(handle);
 }
 
 static int dread(void *handle, void *buf, int count) {
@@ -152,7 +134,7 @@ static int dseek(void *handle, int offset, doom_seek_t origin) {
         whence = SEEK_SET;
         break;
     default:
-        panic("kdoom: unknown origin value");
+        Panic("kdoom: unknown origin value");
     }
     int ret = Vfs_SeekFile(handle, offset, whence);
     if (ret < 0) {
@@ -176,7 +158,7 @@ static int deof(void *handle) {
 }
 
 static void dgettime(int *sec, int *usec) {
-    ticktime currenttime = g_ticktime;
+    TICKTIME currenttime = g_ticktime;
     *sec = currenttime / 1000;
     *usec = (currenttime % 1000) * 1000;
 }
@@ -191,8 +173,8 @@ static int program_main(int argc, char *argv[]) {
     doom_set_gettime(dgettime);
     doom_set_file_io(dopen, dclose, dread, dwrite, dseek, dtell, deof);
     doom_init(argc, argv, 0);
-    ticktime starttime = g_ticktime;
-    ticktime lastframetime = g_ticktime;
+    TICKTIME starttime = g_ticktime;
+    TICKTIME lastframetime = g_ticktime;
     uint32_t framecount = 0;
     uint32_t fps = 0;
     while (1) {
@@ -227,7 +209,7 @@ static int program_main(int argc, char *argv[]) {
         }
         doom_update();
         uint8_t const *framebuffer = doom_get_framebuffer(4 /* RGBA */);
-        static fb_color newfb[SCREENWIDTH * SCREENHEIGHT];
+        static FB_COLOR newfb[SCREENWIDTH * SCREENHEIGHT];
         for (size_t y = 0; y < SCREENHEIGHT; y++) {
             for (size_t x = 0; x < SCREENWIDTH; x++) {
                 uint8_t r = framebuffer[y * (SCREENWIDTH * 4) + (x * 4) + 0];
@@ -236,12 +218,12 @@ static int program_main(int argc, char *argv[]) {
                 newfb[y * SCREENWIDTH + x] = MakeColor(r, g, b);
             }
         }
-        fb_drawimage(newfb, SCREENWIDTH, SCREENHEIGHT, SCREENWIDTH, 0, 0);
-        fb_drawrect(188, 16, 0, 0, MakeColor(255, 255, 255));
+        Fb_DrawImage(newfb, SCREENWIDTH, SCREENHEIGHT, SCREENWIDTH, 0, 0);
+        Fb_DrawRect(188, 16, 0, 0, MakeColor(255, 255, 255));
         char textbuf[16];
         snprintf(textbuf, sizeof(textbuf), "FPS: %d", fps);
-        fb_drawtext(textbuf, 0, 0, MakeColor(0, 0, 0));
-        fb_update();
+        Fb_DrawText(textbuf, 0, 0, MakeColor(0, 0, 0));
+        Fb_Update();
         framecount++;
     }
     return 0;

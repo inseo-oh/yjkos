@@ -32,7 +32,7 @@ static int program_main(int argc, char *argv[]) {
             break;
         }
         Fb_DrawImage(s_framebuffer, 640, 480, 640, 0, 0);
-        fb_update();
+        Fb_Update();
     }
     return 0;
 }

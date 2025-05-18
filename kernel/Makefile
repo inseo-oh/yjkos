@@ -31,7 +31,7 @@ OBJS      = $(addprefix $(OBJDIR)/, $(OBJ_NAMES))
 DEPS      = $(patsubst %.o, %.d, $(OBJS))
 OBJDIRS   = $(sort $(dir $(OBJS)))
 
-CFLAGS  = -std=c23
+CFLAGS  = -std=c2x
 CFLAGS += -Wall -Wextra -Werror -pedantic
 CFLAGS += -I$(PROJECTDIR)/include
 CFLAGS += -I$(PROJECTDIR)/include/kernel/lib/libc
@@ -42,7 +42,10 @@ CFLAGS += -DYJKERNEL_SOURCE
 CFLAGS += -O3 -fno-omit-frame-pointer
 
 ifeq ($(KDOOM),1)
-CFLAGS += -DYJKERNEL_ENABLE_KDOOM
+CFLAGS       += -DYJKERNEL_ENABLE_KDOOM
+CFLAGS_KDOOM  = -DYJKERNEL_ENABLE_KDOOM -std=c11
+else
+CFLAGS_KDOOM = 
 endif
 
 CFLAGS += $(ARCH_CFLAGS)
@@ -65,9 +68,9 @@ prepare:
 # We need to override many diagnostic flags for DOOM, because it's using C code from late 90s.
 # Most of them are declared inside KDOOM itself to only apply those to PureDOOM header file, but we still need few command-line flags.
 # In addition to disabling warnings, it also disables UBSanitizer.
-$(OBJDIR)/shell/kdoom/program_kdoom.o: shell/kdoom/program_kdoom.c
+$(OBJDIR)/shell/kdoom/doom.o: shell/kdoom/doom.c
 	$(info [Target C(DOOM)] $@)
-	@$(CC) -o $@ -c -MMD $< $(CFLAGS) -fno-sanitize=all -Wno-pedantic
+	@$(CC) -o $@ -c -MMD $< $(CFLAGS_KDOOM)
 
 $(OBJDIR)/$(FONTOBJ): $(FONTDIR)/$(FONTNAME)
 	$(info [Target Font O]  $@)

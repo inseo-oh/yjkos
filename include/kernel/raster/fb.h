@@ -12,7 +12,7 @@ void Fb_DrawPixel(int x, int y, FB_COLOR color);
 void Fb_DrawImage(FB_COLOR *image, int width, int height, int pixelsperline, int destx, int desty);
 void Fb_DrawRect(int width, int height, int destx, int desty, FB_COLOR color);
 void Fb_DrawText(char *text, int destx, int desty, FB_COLOR color);
-extern void (*fb_update)(void);
+extern void (*Fb_Update)(void);
 void Fb_Scroll(int scrolllen);
 
 int Fb_GetWidth(void);

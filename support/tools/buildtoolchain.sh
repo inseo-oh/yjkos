@@ -28,12 +28,12 @@ ARCH=$1
 PREFIX=$PWD/toolchain
 
 case $ARCH in
-  "i586")
-    TARGET=i586-elf;
-    ;;
-  *)
-    echo "Unknown arch $ARCH";
-    exit 1;
+    "i586")
+        TARGET=i586-elf;
+        ;;
+    *)
+        echo "Unknown arch $ARCH";
+        exit 1;
     ;;
 esac
 SUPPORT_DIR=$PWD/support
@@ -52,8 +52,7 @@ mkdir -p $SRC_DIR
 mkdir -p $BUILD_DIR
 mkdir -p $MARKERS
 
-MAKEJOBS=$(echo $MAKEFLAGS |
-    gawk '{ match($0, "-j([0-9]+)", arr); print arr[1] }')
+MAKEJOBS=$(echo $MAKEFLAGS | gawk '{ match($0, "-j([0-9]+)", arr); print arr[1] }')
 if [ -z $MAKEJOBS ]; then
     MAKEJOBS=1
 fi
@@ -66,7 +65,7 @@ BINUTILS_SRC_DIR=$SRC_DIR/binutils-$BINUTILS_VERSION
 BINUTILS_BUILD_DIR=$BUILD_DIR/binutils
 mkdir -p $BINUTILS_BUILD_DIR
 
-GCC_VERSION=15.1.0
+GCC_VERSION=13.3.0
 GCC_DIRNAME=gcc-$GCC_VERSION
 GCC_TARFILE=gcc-$GCC_VERSION.tar.gz
 GCC_LOCAL_TARPATH=$DOWNLOAD_DIR/$GCC_TARFILE
@@ -97,32 +96,28 @@ mkdir -p $GRUB_BUILD_DIR
 if [ ! -f $MARKERS/binutils.download ]; then
     rm -f $MARKERS/binutils.extract
     echo "[buildtoolchain] Download binutils"
-    curl https://ftp.gnu.org/gnu/binutils/$BINUTILS_TARFILE \
-        -o $BINUTILS_LOCAL_TARPATH
+    curl https://ftp.gnu.org/gnu/binutils/$BINUTILS_TARFILE -o $BINUTILS_LOCAL_TARPATH
     touch $MARKERS/binutils.download
 fi
 
 if [ ! -f $MARKERS/gcc.download ]; then
     rm -f $MARKERS/gcc.extract
     echo "[buildtoolchain] Download gcc"
-    curl http://ftp.gnu.org/gnu/gcc/$GCC_DIRNAME/$GCC_TARFILE \
-        -o $GCC_LOCAL_TARPATH
+    curl http://ftp.gnu.org/gnu/gcc/$GCC_DIRNAME/$GCC_TARFILE -o $GCC_LOCAL_TARPATH
     touch $MARKERS/gcc.download
 fi
 
 if [ ! -f $MARKERS/gdb.download ]; then
     rm -f $MARKERS/gdb.extract
     echo "[buildtoolchain] Download gdb"
-    curl https://ftp.gnu.org/gnu/gdb/$GDB_TARFILE \
-        -o $GDB_LOCAL_TARPATH
+    curl https://ftp.gnu.org/gnu/gdb/$GDB_TARFILE -o $GDB_LOCAL_TARPATH
     touch $MARKERS/gdb.download
 fi
 
 if [ ! -f $MARKERS/grub.download ]; then
     rm -f $MARKERS/grub.extract
     echo "[buildtoolchain] Download grub"
-    curl https://ftp.gnu.org/gnu/grub/$GRUB_TARFILE \
-        -o $GRUB_LOCAL_TARPATH
+    curl https://ftp.gnu.org/gnu/grub/$GRUB_TARFILE -o $GRUB_LOCAL_TARPATH
     touch $MARKERS/grub.download
 fi
 
@@ -178,20 +173,19 @@ mkdir -p $GDB_BUILD_DIR
 cd $GDB_BUILD_DIR
 if [ ! -f $MARKERS/gdb.configure ]; then
     rm -f $MARKERS/gdb.compile
-    $GDB_SRC_DIR/configure --target=$TARGET --prefix="$PREFIX" \
-        --with-sysroot --disable-nls --disable-werror --with-expat \
-        | awk '{ print "[gdb.configure] "$0 }'
+    echo ":: gdb.configure ----------------------------------------------------"
+    $GDB_SRC_DIR/configure --target=$TARGET --prefix="$PREFIX" --with-sysroot --disable-nls --disable-werror --with-expat
     touch $MARKERS/gdb.configure
 fi
 if [ ! -f $MARKERS/gdb.compile ]; then
     rm -f $MARKERS/gdb.install
-    gmake -j $MAKEJOBS all-gdb MAKEINFO=true \
-        | awk '{ print "[gdb.compile] "$0 }'
+    echo ":: gdb.compile ------------------------------------------------------"
+    gmake -j $MAKEJOBS all-gdb MAKEINFO=true
     touch $MARKERS/gdb.compile
 fi
 if [ ! -f $MARKERS/gdb.install ]; then
-    gmake install-gdb MAKEINFO=true \
-        | awk '{ print "[gdb.install] "$0 }'
+    echo ":: gdb.install ------------------------------------------------------"
+    gmake install-gdb MAKEINFO=true
     touch $MARKERS/gdb.install
 fi
 
@@ -199,42 +193,39 @@ mkdir -p $BINUTILS_BUILD_DIR
 cd $BINUTILS_BUILD_DIR
 if [ ! -f $MARKERS/binutils.configure ]; then
     rm -f $MARKERS/binutils.compile
-    echo "[buildtoolchain] Configure binutils"
-    $BINUTILS_SRC_DIR/configure --target=$TARGET --prefix="$PREFIX" \
-        --with-sysroot --disable-nls --disable-werror \
-        | awk '{ print "[binutils.configure] "$0 }'
+    echo ":: binutils.configure -----------------------------------------------"
+    $BINUTILS_SRC_DIR/configure --target=$TARGET --prefix="$PREFIX" --with-sysroot --disable-nls --disable-werror
     touch $MARKERS/binutils.configure
 fi
 if [ ! -f $MARKERS/binutils.compile ]; then
     rm -f $MARKERS/binutils.install
-    gmake -j $MAKEJOBS MAKEINFO=true \
-        | awk '{ print "[binutils.compile] "$0 }'
+    echo ":: binutils.compile -------------------------------------------------"
+    gmake -j $MAKEJOBS MAKEINFO=true
     touch $MARKERS/binutils.compile
 fi
 if [ ! -f $MARKERS/binutils.install ]; then
-    gmake install MAKEINFO=true \
-        | awk '{ print "[binutils.install] "$0 }'
+    echo ":: binutils.install -------------------------------------------------"
+    gmake install MAKEINFO=true 
     touch $MARKERS/binutils.install
 fi
 
 mkdir -p $GCC_BUILD_DIR
 cd $GCC_BUILD_DIR
 if [ ! -f $MARKERS/gcc.configure ]; then
+    echo ":: gcc.configure ----------------------------------------------------"
     rm -f $MARKERS/gcc.compile
-    $GCC_SRC_DIR/configure --target=$TARGET --prefix="$PREFIX" \
-        --without-headers --disable-nls --enable-languages=c,c++ \
-        | awk '{ print "[gcc.configure] "$0 }'
+    $GCC_SRC_DIR/configure --target=$TARGET --prefix="$PREFIX" --without-headers --disable-nls --enable-languages=c,c++
     touch $MARKERS/gcc.configure
 fi
 if [ ! -f $MARKERS/gcc.compile ]; then
     rm -f $MARKERS/gcc.install
-    gmake all-gcc all-target-libgcc -j $MAKEJOBS \
-        | awk '{ print "[gcc.compile] "$0 }'
+    echo ":: gcc.compile ------------------------------------------------------"
+    gmake all-gcc all-target-libgcc -j $MAKEJOBS
     touch $MARKERS/gcc.compile
 fi
 if [ ! -f $MARKERS/gcc.install ]; then
-    gmake install-gcc install-target-libgcc \
-        | awk '{ print "[gcc.install] "$0 }'
+    echo ":: gcc.install ------------------------------------------------------"
+    gmake install-gcc install-target-libgcc
     touch $MARKERS/gcc.install
 fi
 
@@ -242,20 +233,20 @@ mkdir -p $GRUB_BUILD_DIR
 cd $GRUB_BUILD_DIR
 if [ ! -f $MARKERS/grub.configure ]; then
     rm -f $MARKERS/grub.compile
-    $GRUB_SRC_DIR/configure --disable-werror --target=$TARGET \
-        --prefix="$PREFIX" \
-        | awk '{ print "[grub.configure] "$0 }'
+    echo ":: grub.configure ---------------------------------------------------"
+    $GRUB_SRC_DIR/configure --disable-werror --target=$TARGET --prefix="$PREFIX"
     touch $MARKERS/grub.configure
 fi
+
 if [ ! -f $MARKERS/grub.compile ]; then
     rm -f $MARKERS/grub.install
-    gmake all -j $MAKEJOBS \
-        | awk '{ print "[grub.compile] "$0 }'
+    echo ":: grub.compile -----------------------------------------------------"
+    gmake all -j $MAKEJOBS
     touch $MARKERS/grub.compile
 fi
 if [ ! -f $MARKERS/grub.install ]; then
-    gmake install \
-        | awk '{ print "[grub.install] "$0 }'
+    echo ":: grub.install -----------------------------------------------------"
+    gmake install
     touch $MARKERS/grub.install
 fi
 

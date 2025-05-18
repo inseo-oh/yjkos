@@ -36,7 +36,7 @@ static void vt100tty_op_updatescreen(struct Vt100Tty *self) {
             }
         }
     }
-    fb_update();
+    Fb_Update();
 }
 
 static void vt100tty_op_scroll(struct Vt100Tty *self, int lines) {
