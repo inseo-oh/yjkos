@@ -80,7 +80,6 @@ static void init_serial1(void) {
     if (CONFIG_SERIAL_DEBUG) {
         init_serial0();
     }
-    Co_Printf("TO USE VGA CONSOLE SMASH 1 RIGHT NOW\n");
 
     ArchI586_Mmu_Init();
     ArchI586_Mmu_WriteProtectKernelText();
