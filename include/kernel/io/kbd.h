@@ -142,24 +142,24 @@ typedef enum {
     KBD_KEY_COUNT
 } KBD_KEY;
 
-struct Kbd_KeyEvent {
+struct kbd_key_event {
     KBD_KEY key;
     char chr;
     bool is_down : 1;
 };
 
-struct Kbd_Dev;
-struct Kbd_DevOps {
-    int (*updateleds)(struct Kbd_Dev *self, bool scroll, bool caps, bool num);
+struct kbd_dev;
+struct kbd_dev_ops {
+    int (*updateleds)(struct kbd_dev *self, bool scroll, bool caps, bool num);
 };
-struct Kbd_Dev {
-    struct List_Node node;
-    struct IoDev iodev;
+struct kbd_dev {
+    struct list_node node;
+    struct iodev iodev;
     void *data;
-    struct Kbd_DevOps const *ops;
+    struct kbd_dev_ops const *ops;
 };
 
-bool Kbd_PullEvent(struct Kbd_KeyEvent *out);
-void Kbd_KeyPressed(KBD_KEY key);
-void Kbd_KeyReleased(KBD_KEY key);
-[[nodiscard]] int Kbd_Register(struct Kbd_Dev *dev_out, struct Kbd_DevOps const *ops, void *data);
+bool kbd_pull_event(struct kbd_key_event *out);
+void kbd_key_pressed(KBD_KEY key);
+void kbd_key_released(KBD_KEY key);
+[[nodiscard]] int kbd_register(struct kbd_dev *dev_out, struct kbd_dev_ops const *ops, void *data);

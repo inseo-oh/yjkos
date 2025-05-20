@@ -4,24 +4,24 @@
 #include <stdint.h>
 #include <string.h>
 
-void Queue_Init(struct Queue *queue, void *buf, size_t itemsize, size_t cap) {
+void queue_init(struct queue *queue, void *buf, size_t itemsize, size_t cap) {
     memset(queue, 0, sizeof(*queue));
     queue->item_size = itemsize;
     queue->cap = cap;
     queue->buf = buf;
 }
 
-bool Queue_IsFull(struct Queue const *self) {
+bool queue_is_full(struct queue const *self) {
     return ((self->enqueue_index == self->dequeue_index) && (self->last_was_enqueue));
 }
 
-bool Queue_IsEmpty(struct Queue const *self) {
+bool queue_is_empty(struct queue const *self) {
     return ((self->enqueue_index == self->dequeue_index) && (!self->last_was_enqueue));
 }
 
-[[nodiscard]] int __Queue_Enqueue(struct Queue *self, void const *data, size_t itemsize) {
+[[nodiscard]] int __queue_enqueue(struct queue *self, void const *data, size_t itemsize) {
     assert(itemsize == self->item_size);
-    if (Queue_IsFull(self)) {
+    if (queue_is_full(self)) {
         return -ENOMEM;
     }
     size_t enqueueindex = (self->enqueue_index + 1) % self->cap;
@@ -31,9 +31,9 @@ bool Queue_IsEmpty(struct Queue const *self) {
     return 0;
 }
 
-[[nodiscard]] bool __Queue_Dequeue(void *out_buf, struct Queue *self, size_t itemsize) {
+[[nodiscard]] bool __queue_dequeue(void *out_buf, struct queue *self, size_t itemsize) {
     assert(itemsize == self->item_size);
-    if (Queue_IsEmpty(self)) {
+    if (queue_is_empty(self)) {
         return false;
     }
     size_t dequeueindex = (self->dequeue_index + 1) % self->cap;
@@ -43,9 +43,9 @@ bool Queue_IsEmpty(struct Queue const *self) {
     return true;
 }
 
-[[nodiscard]] void *Queue_Peek(struct Queue const *self, size_t itemsize) {
+[[nodiscard]] void *queue_peek(struct queue const *self, size_t itemsize) {
     assert(itemsize == self->item_size);
-    if (Queue_IsEmpty(self)) {
+    if (queue_is_empty(self)) {
         return NULL;
     }
     return ((char *)self->buf) + (self->dequeue_index * itemsize);

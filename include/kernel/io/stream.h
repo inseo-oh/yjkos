@@ -9,40 +9,40 @@
 #define STREAM_MAX_TRANSFER_SIZE 0x7fffffff
 #define STREAM_EOF 0x100
 
-struct Stream;
-struct StreamOps {
+struct stream;
+struct stream_ops {
     /*
      * Returns written length, or IOERROR_~ values on failure.
      */
-    ssize_t (*Write)(struct Stream *self, void *buf, size_t size);
+    ssize_t (*write)(struct stream *self, void *buf, size_t size);
     /*
      * Returns written length, or IOERROR_~ values on failure.
      */
-    ssize_t (*Read)(struct Stream *self, void *buf, size_t size);
+    ssize_t (*read)(struct stream *self, void *buf, size_t size);
 
     /* This is optional operation */
-    void (*Flush)(struct Stream *self);
+    void (*flush)(struct stream *self);
 };
 
-struct Stream {
-    struct List_Node node;
-    struct StreamOps const *ops;
+struct stream {
+    struct list_node node;
+    struct stream_ops const *ops;
     void *data;
 };
 
-[[nodiscard]] int Stream_PutChar(struct Stream *self, int c);
-[[nodiscard]] ssize_t Stream_PutStr(struct Stream *self, char const *s);
-[[nodiscard]] ssize_t Stream_VPrintf(struct Stream *self, char const *fmt, va_list ap);
-[[nodiscard]] ssize_t Stream_Printf(struct Stream *self, char const *fmt, ...);
+[[nodiscard]] int stream_put_char(struct stream *self, int c);
+[[nodiscard]] ssize_t stream_put_string(struct stream *self, char const *s);
+[[nodiscard]] ssize_t stream_vprintf(struct stream *self, char const *fmt, va_list ap);
+[[nodiscard]] ssize_t stream_printf(struct stream *self, char const *fmt, ...);
 /*
  * Set timeout to 0 for no timeout(wait infinitely).
  *
  * Returns STREAM_EOF on timeout.
  */
-int Stream_WaitChar(struct Stream *self, TICKTIME timeout);
+int stream_wait_char(struct stream *self, TICKTIME timeout);
 /*
  * Returns STREAM_EOF on EOF.
  */
-int Stream_GetChar(struct Stream *self);
+int stream_get_char(struct stream *self);
 
-void Stream_Flush(struct Stream *self);
+void stream_flush(struct stream *self);

@@ -5,13 +5,13 @@
 #include <kernel/panic.h>
 #include <stddef.h>
 
-[[noreturn]] void Panic(char const *msg) {
-    Arch_Irq_Disable();
-    Co_PutString("\nFATAL SOFTWARE FAILURE -- SYSTEM NEEDS TO RESTART.\n");
+[[noreturn]] void panic(char const *msg) {
+    arch_irq_disable();
+    co_put_string("\nFATAL SOFTWARE FAILURE -- SYSTEM NEEDS TO RESTART.\n");
     if (msg != NULL) {
-        Co_PutString(msg);
-        Co_PutChar('\n');
+        co_put_string(msg);
+        co_put_char('\n');
     }
-    Arch_Stacktrace();
-    Arch_Hcf();
+    arch_stacktrace();
+    arch_hcf();
 }

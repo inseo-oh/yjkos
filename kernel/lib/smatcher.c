@@ -3,23 +3,23 @@
 #include <kernel/lib/smatcher.h>
 #include <string.h>
 
-void Smatcher_Init(struct SMatcher *out, char const *str) {
-    Smatcher_InitWithLen(out, str, strlen(str));
+void smatcher_init(struct smatcher *out, char const *str) {
+    smatcher_init_with_len(out, str, strlen(str));
 }
 
-void Smatcher_InitWithLen(struct SMatcher *out, char const *str, size_t len) {
+void smatcher_init_with_len(struct smatcher *out, char const *str, size_t len) {
     memset(out, 0, sizeof(*out));
     out->str = str;
     out->len = len;
 }
 
-void Smatcher_Slice(struct SMatcher *out, struct SMatcher const *self, size_t firstchar, size_t lastchar) {
+void smatcher_slice(struct smatcher *out, struct smatcher const *self, size_t firstchar, size_t lastchar) {
     assert(firstchar <= lastchar);
     size_t len = lastchar - firstchar + 1;
-    Smatcher_InitWithLen(out, &self->str[firstchar], len);
+    smatcher_init_with_len(out, &self->str[firstchar], len);
 }
 
-bool Smatcher_ConsumeStrIfMatch(struct SMatcher *self, char const *str) {
+bool smatcher_consume_str_if_match(struct smatcher *self, char const *str) {
     size_t len = strlen(str);
     if ((self->len - self->currentindex) < len) {
         return false;
@@ -31,7 +31,7 @@ bool Smatcher_ConsumeStrIfMatch(struct SMatcher *self, char const *str) {
     return true;
 }
 
-bool Smatcher_ConsumeWordIfMatch(struct SMatcher *self, char const *str) {
+bool smatcher_consume_word_if_match(struct smatcher *self, char const *str) {
     size_t len = strlen(str);
     if ((self->len - self->currentindex) < len) {
         return false;
@@ -47,13 +47,13 @@ bool Smatcher_ConsumeWordIfMatch(struct SMatcher *self, char const *str) {
     return true;
 }
 
-void Smatcher_SkipWhitespaces(struct SMatcher *self) {
+void smatcher_skip_whitespaces(struct smatcher *self) {
     while (isspace(self->str[self->currentindex])) {
         self->currentindex++;
     }
 }
 
-bool Smatcher_ConsumeWord(char const **str_out, size_t *len_out, struct SMatcher *self) {
+bool smatcher_consume_word(char const **str_out, size_t *len_out, struct smatcher *self) {
     if ((self->currentindex == self->len) || isspace(self->str[self->currentindex])) {
         return false;
     }

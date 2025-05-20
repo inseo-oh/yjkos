@@ -15,7 +15,7 @@ struct chr {
 };
 STATIC_ASSERT_SIZE(struct chr, 2);
 
-static struct Stream s_stream;
+static struct stream s_stream;
 static struct chr *s_chars;
 
 static size_t s_totalcolumns, s_totalrows;
@@ -62,7 +62,7 @@ static void write_char(char chr) {
     s_currentcolumn++;
 }
 
-[[nodiscard]] static ssize_t stream_op_write(struct Stream *self, void *data, size_t size) {
+[[nodiscard]] static ssize_t stream_op_write(struct stream *self, void *data, size_t size) {
     (void)self;
     assert(size <= STREAM_MAX_TRANSFER_SIZE);
 
@@ -73,14 +73,14 @@ static void write_char(char chr) {
     return (ssize_t)size;
 }
 
-[[nodiscard]] static ssize_t stream_op_read(struct Stream *self, void *buf, size_t size) {
+[[nodiscard]] static ssize_t stream_op_read(struct stream *self, void *buf, size_t size) {
     (void)self;
     assert(size <= STREAM_MAX_TRANSFER_SIZE);
 
     size_t read_len = 0;
     for (size_t idx = 0; idx < size; idx++) {
-        struct Kbd_KeyEvent event;
-        if (!Kbd_PullEvent(&event)) {
+        struct kbd_key_event event;
+        if (!kbd_pull_event(&event)) {
             break;
         }
         if (!event.is_down) {
@@ -96,34 +96,34 @@ static void write_char(char chr) {
     return (ssize_t)read_len;
 }
 
-static struct StreamOps const OPS = {
-    .Write = stream_op_write,
-    .Read = stream_op_read,
+static struct stream_ops const OPS = {
+    .write = stream_op_write,
+    .read = stream_op_read,
 };
 
-void ArchI586_VgaTty_InitEarlyDebug(void) {
+void archi586_vgatty_init_early_debug(void) {
     s_stream.data = NULL;
     s_stream.ops = &OPS;
     s_totalcolumns = 80;
     s_totalrows = 25;
 
     s_chars = (void *)0xb8000;
-    Co_SetDebugConsole(&s_stream);
+    co_set_debug_console(&s_stream);
 }
 
-void ArchI586_VgaTty_Init(PHYSPTR baseaddr, size_t columns, size_t rows, size_t bytes_per_row) {
+void archi586_vgatty_init(PHYSPTR baseaddr, size_t columns, size_t rows, size_t bytes_per_row) {
     s_stream.data = NULL;
     s_stream.ops = &OPS;
     s_totalcolumns = columns;
     s_totalrows = rows;
     assert(columns * 2 == bytes_per_row);
 
-    s_chars = Vmm_EzMap(baseaddr, s_totalcolumns * s_totalrows * 2);
+    s_chars = vmm_ezmap(baseaddr, s_totalcolumns * s_totalrows * 2);
     for (size_t r = 0; r < s_totalrows; r++) {
         for (size_t c = 0; c < s_totalcolumns; c++) {
             write_char_at(r, c, ' ');
             write_attr_at(r, c, 0x07);
         }
     }
-    Co_SetPrimaryConsole(&s_stream);
+    co_set_primary_console(&s_stream);
 }

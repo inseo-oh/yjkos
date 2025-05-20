@@ -1,10 +1,10 @@
 #pragma once
 #include <kernel/lib/list.h>
 
-struct Shell_Program {
+struct shell_program {
     char const *name;
     int (*main)(int argc, char **argv);
-    struct List_Node node;
+    struct list_node node;
 };
 
 static const int SHELL_EXITCODE_OUTOFMEMORY = -1;
@@ -13,9 +13,9 @@ static const int SHELL_EXITCODE_BUILTINMUISUSE = 2;
 static const int SHELL_EXITCODE_NOTEXECUTABLE = 126;
 static const int SHELL_EXITCODE_NOCOMMAND = 127;
 
-int Shell_ExecCmd(char const *str);
-void Shell_Repl(void);
-void Shell_Init(void);
+int shell_exec_cmd(char const *str);
+void shell_repl(void);
+void shell_init(void);
 
 /* Programs *******************************************************************/
 
@@ -31,7 +31,7 @@ void Shell_Init(void);
     _x(g_shell_program_cat)         \
     _x(g_shell_program_uname)       \
 
-#define X(_x)   extern struct Shell_Program _x;
+#define X(_x)   extern struct shell_program _x;
 ENUMERATE_SHELLPROGRAMS(X)
 #undef X
 

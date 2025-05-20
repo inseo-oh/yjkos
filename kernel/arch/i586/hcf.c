@@ -1,6 +1,6 @@
 #include <kernel/arch/hcf.h>
 
-[[noreturn]] void Arch_Hcf(void) {
+[[noreturn]] void arch_hcf(void) {
     __asm__ volatile(
         "cli\n"
         "0:\n"

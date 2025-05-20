@@ -103,7 +103,7 @@ char *strdup(char const *s) {
     if (size == 0) {
         goto oom;
     }
-    mem = (char *)Heap_Alloc(size, 0);
+    mem = (char *)heap_alloc(size, 0);
     if (mem == NULL) {
         goto oom;
     }

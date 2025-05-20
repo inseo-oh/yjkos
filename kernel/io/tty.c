@@ -4,11 +4,11 @@
 #include <kernel/io/tty.h>
 #include <kernel/lib/diagnostics.h>
 
-[[nodiscard]] int Tty_Register(struct Tty *out, void *data) {
+[[nodiscard]] int tty_register(struct tty *out, void *data) {
     out->data = data;
-    return Iodev_Register(&out->iodev, IODEV_TYPE_TTY, out);
+    return iodev_register(&out->iodev, IODEV_TYPE_TTY, out);
 }
 
-struct Stream *Tty_GetStream(struct Tty *self) {
+struct stream *tty_get_stream(struct tty *self) {
     return &self->stream;
 }

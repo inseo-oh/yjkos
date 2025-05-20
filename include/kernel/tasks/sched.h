@@ -5,14 +5,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
-struct Thread;
+struct thread;
 
-struct Sched_Queue {
-    struct List_Node node;
+struct sched_queue {
+    struct list_node node;
     /* Lower value -> Higher priority (Works similiarly to UNIX niceness value) */
     int8_t priority;
     size_t opportunities;
-    struct List threads;
+    struct list threads;
 };
 
 /*
@@ -24,8 +24,8 @@ struct Sched_Queue {
  * Returns NULL if sched needs to create a new queue and there's not enough
  * memory.
  */
-void Sched_PrintQueues(void);
-void Sched_WaitMutex(struct Mutex *mutex, struct SourceLocation const *locksource);
-[[nodiscard]] int Sched_Queue(struct Thread *thread);
-void Sched_Schedule(void);
-void Sched_InitBootThread(void);
+void sched_print_queues(void);
+void sched_wait_mutex(struct mutex *mutex, struct source_location const *locksource);
+[[nodiscard]] int sched_queue(struct thread *thread);
+void sched_schedule(void);
+void sched_init_boot_thread(void);

@@ -95,10 +95,10 @@ struct fscontext {
     /***************************************************************************
      * Other fields needed for FS management
      **************************************************************************/
-    struct LDisk *disk;
+    struct ldisk *disk;
     size_t blk_group_count;
     size_t blk_group_descriptor_blk;
-    struct Vfs_FsContext vfs_fscontext;
+    struct vfs_fscontext vfs_fscontext;
 };
 
 struct block_group_descriptor {
@@ -161,7 +161,7 @@ struct ino_context {
     assert((self->blocksize % self->disk->physdisk->block_size) == 0);
     DISK_BLOCK_ADDR diskblockaddr = block_addr * (self->blocksize / self->disk->physdisk->block_size);
     blkcnt_t diskblkcount = blkcount * (self->blocksize / self->disk->physdisk->block_size);
-    ret = (Ldisk_ReadExact(self->disk, buf, diskblockaddr, diskblkcount));
+    ret = (ldisk_read_exact(self->disk, buf, diskblockaddr, diskblkcount));
     if (ret < 0) {
         goto out;
     }
@@ -172,7 +172,7 @@ out:
 
 /* Returns NULL when there's not enough memory. */
 [[nodiscard]] static uint8_t *alloc_block_buf(struct fscontext *self, blkcnt_t count, uint8_t flags) {
-    uint8_t *buf = Heap_Calloc(count, self->blocksize, flags);
+    uint8_t *buf = heap_calloc(count, self->blocksize, flags);
     if (buf == NULL) {
         return NULL;
     }
@@ -193,7 +193,7 @@ out:
     *out = buf;
     goto out;
 fail:
-    Heap_Free(buf);
+    heap_free(buf);
 out:
     return ret;
 }
@@ -216,16 +216,16 @@ out:
         goto fail;
     }
     uint8_t *data = &buf[byteoffsetinblk];
-    out->blkusagebitmap = Uint32LeAt(&data[0x00]);
-    out->inodeusagebitmap = Uint32LeAt(&data[0x04]);
-    out->inodetable = Uint32LeAt(&data[0x08]);
-    out->unallocatedblocks = Uint16LeAt(&data[0x0c]);
-    out->unallocatedinodes = Uint16LeAt(&data[0x0e]);
-    out->directories = Uint16LeAt(&data[0x10]);
+    out->blkusagebitmap = u32le_at(&data[0x00]);
+    out->inodeusagebitmap = u32le_at(&data[0x04]);
+    out->inodetable = u32le_at(&data[0x08]);
+    out->unallocatedblocks = u16le_at(&data[0x0c]);
+    out->unallocatedinodes = u16le_at(&data[0x0e]);
+    out->directories = u16le_at(&data[0x10]);
     goto out;
 fail:
 out:
-    Heap_Free(buf);
+    heap_free(buf);
     return ret;
 }
 
@@ -270,12 +270,12 @@ out:
         /* We are using triply indirect table for the first time */
         tableaddr = self->triplyindirecttable;
     } else {
-        Iodev_Printf(&self->fs->disk->iodev, "File is too large\n");
+        iodev_printf(&self->fs->disk->iodev, "File is too large\n");
         ret = -ENOENT;
         goto out;
     }
     if (tableaddr == 0) {
-        Heap_Free(self->triply_indirect_buf.buf);
+        heap_free(self->triply_indirect_buf.buf);
         self->triply_indirect_buf.buf = NULL;
         self->triply_indirect_buf.offset_in_buf = 0;
         ret = -ENOENT;
@@ -286,7 +286,7 @@ out:
     if (ret < 0) {
         goto out;
     }
-    Heap_Free(self->triply_indirect_buf.buf);
+    heap_free(self->triply_indirect_buf.buf);
     self->triply_indirect_buf.buf = newtable;
     self->triply_indirect_buf.offset_in_buf = 0;
     ret = 0;
@@ -305,7 +305,7 @@ out:
         }
     }
     self->triply_indirect_used = true;
-    tableaddr = Uint32LeAt(&self->triply_indirect_buf.buf[self->triply_indirect_buf.offset_in_buf]);
+    tableaddr = u32le_at(&self->triply_indirect_buf.buf[self->triply_indirect_buf.offset_in_buf]);
     self->triply_indirect_buf.offset_in_buf += sizeof(uint32_t);
     *addr_out = tableaddr;
     ret = 0;
@@ -328,7 +328,7 @@ out:
         ret = next_triply_block_ptr(&tableaddr, self);
     }
     if (ret < 0) {
-        Heap_Free(self->doubly_indirect_buf.buf);
+        heap_free(self->doubly_indirect_buf.buf);
         self->doubly_indirect_buf.buf = NULL;
         self->doubly_indirect_buf.offset_in_buf = 0;
         goto out;
@@ -338,7 +338,7 @@ out:
     if (ret < 0) {
         goto out;
     }
-    Heap_Free(self->doubly_indirect_buf.buf);
+    heap_free(self->doubly_indirect_buf.buf);
     self->doubly_indirect_buf.buf = newtable;
     self->doubly_indirect_buf.offset_in_buf = 0;
     ret = 0;
@@ -355,7 +355,7 @@ out:
             goto out;
         }
     }
-    result_addr = Uint32LeAt(&self->doubly_indirect_buf.buf[self->doubly_indirect_buf.offset_in_buf]);
+    result_addr = u32le_at(&self->doubly_indirect_buf.buf[self->doubly_indirect_buf.offset_in_buf]);
     self->doubly_indirect_buf.offset_in_buf += sizeof(uint32_t);
     if (result_addr == 0) {
         ret = -ENOENT;
@@ -380,7 +380,7 @@ out:
         ret = next_doubly_block_ptr(&tableaddr, self);
     }
     if (ret < 0) {
-        Heap_Free(self->singly_indirect_buf.buf);
+        heap_free(self->singly_indirect_buf.buf);
         self->singly_indirect_buf.buf = NULL;
         self->singly_indirect_buf.offset_in_buf = 0;
         ret = -ENOENT;
@@ -391,7 +391,7 @@ out:
     if (ret < 0) {
         goto out;
     }
-    Heap_Free(self->singly_indirect_buf.buf);
+    heap_free(self->singly_indirect_buf.buf);
     self->singly_indirect_buf.buf = newtable;
     self->singly_indirect_buf.offset_in_buf = 0;
     self->singly_indirect_used = true;
@@ -412,7 +412,7 @@ out:
             goto out;
         }
     }
-    result_addr = Uint32LeAt(&self->singly_indirect_buf.buf[self->singly_indirect_buf.offset_in_buf]);
+    result_addr = u32le_at(&self->singly_indirect_buf.buf[self->singly_indirect_buf.offset_in_buf]);
     if (result_addr == 0) {
         goto out;
     }
@@ -448,10 +448,10 @@ out:
 }
 
 static void rewindinode(struct ino_context *self) {
-    Heap_Free(self->blockbuf.buf);
-    Heap_Free(self->singly_indirect_buf.buf);
-    Heap_Free(self->doubly_indirect_buf.buf);
-    Heap_Free(self->triply_indirect_buf.buf);
+    heap_free(self->blockbuf.buf);
+    heap_free(self->singly_indirect_buf.buf);
+    heap_free(self->doubly_indirect_buf.buf);
+    heap_free(self->triply_indirect_buf.buf);
     memset(&self->blockbuf, 0, sizeof(self->blockbuf));
     memset(&self->singly_indirect_buf, 0, sizeof(self->singly_indirect_buf));
     memset(&self->doubly_indirect_buf, 0, sizeof(self->doubly_indirect_buf));
@@ -474,7 +474,7 @@ static void rewindinode(struct ino_context *self) {
         return ret;
     }
     /* Invalidate old buffer */
-    Heap_Free(self->blockbuf.buf);
+    heap_free(self->blockbuf.buf);
     self->blockbuf.buf = NULL;
     self->blockbuf.offset_in_buf = 0;
     return 0;
@@ -510,7 +510,7 @@ static void rewindinode(struct ino_context *self) {
             }
             size_t skip_len = self->fs->blocksize * count;
             remaining_len -= skip_len;
-            Heap_Free(self->blockbuf.buf);
+            heap_free(self->blockbuf.buf);
             self->blockbuf.buf = NULL;
         }
         if (remaining_len == 0) {
@@ -603,7 +603,7 @@ out:
     size_t readsize = self->fs->blocksize * contiguous_len;
     dest += readsize;
     remaining_len -= readsize;
-    Heap_Free(self->blockbuf.buf);
+    heap_free(self->blockbuf.buf);
     self->blockbuf.buf = NULL;
     ret = next_inode_block(self);
     if ((ret < 0) && ((ret != -ENOENT) || (remaining_len != 0))) {
@@ -690,27 +690,27 @@ out:
     uint32_t sizel = 0;
     uint32_t sizeh = 0;
     out->fs = self;
-    out->typeandpermissions = Uint16LeAt(&inodedata[0x00]);
-    out->uid = Uint16LeAt(&inodedata[0x02]);
-    sizel = Uint32LeAt(&inodedata[0x04]);
-    out->lastaccesstime = Uint32LeAt(&inodedata[0x08]);
-    out->creationtime = Uint32LeAt(&inodedata[0x0c]);
-    out->lastmodifiedtime = Uint32LeAt(&inodedata[0x10]);
-    out->deletiontime = Uint32LeAt(&inodedata[0x14]);
-    out->gid = Uint16LeAt(&inodedata[0x18]);
-    out->hardlinks = Uint16LeAt(&inodedata[0x1a]);
-    out->disksectors = Uint32LeAt(&inodedata[0x1c]);
-    out->flags = Uint32LeAt(&inodedata[0x20]);
+    out->typeandpermissions = u16le_at(&inodedata[0x00]);
+    out->uid = u16le_at(&inodedata[0x02]);
+    sizel = u32le_at(&inodedata[0x04]);
+    out->lastaccesstime = u32le_at(&inodedata[0x08]);
+    out->creationtime = u32le_at(&inodedata[0x0c]);
+    out->lastmodifiedtime = u32le_at(&inodedata[0x10]);
+    out->deletiontime = u32le_at(&inodedata[0x14]);
+    out->gid = u16le_at(&inodedata[0x18]);
+    out->hardlinks = u16le_at(&inodedata[0x1a]);
+    out->disksectors = u32le_at(&inodedata[0x1c]);
+    out->flags = u32le_at(&inodedata[0x20]);
     for (int i = 0; i < 12; i++) {
-        out->direct_block_ptrs[i] = Uint32LeAt(&inodedata[0x28 + sizeof(*out->direct_block_ptrs) * i]);
+        out->direct_block_ptrs[i] = u32le_at(&inodedata[0x28 + sizeof(*out->direct_block_ptrs) * i]);
     }
-    out->singly_indirect_table = Uint32LeAt(&inodedata[0x58]);
-    out->doublyindirecttable = Uint32LeAt(&inodedata[0x5c]);
-    out->triplyindirecttable = Uint32LeAt(&inodedata[0x60]);
-    out->generationnumber = Uint32LeAt(&inodedata[0x64]);
+    out->singly_indirect_table = u32le_at(&inodedata[0x58]);
+    out->doublyindirecttable = u32le_at(&inodedata[0x5c]);
+    out->triplyindirecttable = u32le_at(&inodedata[0x60]);
+    out->generationnumber = u32le_at(&inodedata[0x64]);
     if (1 <= self->major_ver) {
         if (self->required_features_rw & RWMOUNT_FEATUREFLAG_64BIT_FILE_SIZE) {
-            sizeh = Uint32LeAt(&inodedata[0x6c]);
+            sizeh = u32le_at(&inodedata[0x6c]);
         }
     }
     if ((sizeh >> 31U) != 0) {
@@ -725,7 +725,7 @@ out:
     goto out;
 fail:
 out:
-    Heap_Free(blkdata);
+    heap_free(blkdata);
     return ret;
 }
 
@@ -733,10 +733,10 @@ static void closeinode(struct ino_context *self) {
     if (self == NULL) {
         return;
     }
-    Heap_Free(self->blockbuf.buf);
-    Heap_Free(self->singly_indirect_buf.buf);
-    Heap_Free(self->doubly_indirect_buf.buf);
-    Heap_Free(self->triply_indirect_buf.buf);
+    heap_free(self->blockbuf.buf);
+    heap_free(self->singly_indirect_buf.buf);
+    heap_free(self->doubly_indirect_buf.buf);
+    heap_free(self->triply_indirect_buf.buf);
 }
 
 struct directory {
@@ -757,8 +757,8 @@ struct directory {
         if (ret < 0) {
             goto fail;
         }
-        out->d_ino = Uint32LeAt(&header[0x0]);
-        size_t entrysize = Uint16LeAt(&header[0x4]);
+        out->d_ino = u32le_at(&header[0x0]);
+        size_t entrysize = u16le_at(&header[0x4]);
         size_t namelen = header[0x6];
         if (!(dir->inocontext.fs->required_features & REQUIRED_FEATUREFLAG_DIRENTRY_CONTAINS_TYPE_FIELD)) {
             /* YJK/OS does not support names longer than 255 characters. */
@@ -790,7 +790,7 @@ out:
 [[nodiscard]] static int open_directory(DIR **dir_out, struct fscontext *self, ino_t inode) {
     int ret = 0;
     *dir_out = NULL;
-    struct directory *dir = Heap_Alloc(sizeof(*dir), HEAP_FLAG_ZEROMEMORY);
+    struct directory *dir = heap_alloc(sizeof(*dir), HEAP_FLAG_ZEROMEMORY);
     if (dir == NULL) {
         ret = -ENOMEM;
         goto fail;
@@ -810,7 +810,7 @@ out:
 fail_after_open:
     closeinode(&dir->inocontext);
 fail_after_alloc:
-    Heap_Free(dir);
+    heap_free(dir);
 fail:
 out:
     return ret;
@@ -822,7 +822,7 @@ static void close_directory(DIR *self) {
     }
     struct directory *dir = self->data;
     closeinode(&dir->inocontext);
-    Heap_Free(dir);
+    heap_free(dir);
 }
 
 [[nodiscard]] static int openfile(struct ino_context *out, struct fscontext *self, ino_t inode) {
@@ -855,11 +855,11 @@ static void closefile(struct ino_context *self) {
     int ret = 0;
     DIR *dir;
     ino_t current_ino = parent;
-    struct PathReader reader;
-    PathReader_Init(&reader, path);
+    struct path_reader reader;
+    pathreader_init(&reader, path);
     while (1) {
         char const *name;
-        ret = PathReader_Next(&name, &reader);
+        ret = pathreader_next(&name, &reader);
         if (ret == -ENOENT) {
             ret = 0;
             break;
@@ -900,11 +900,11 @@ out:
 
 struct openfdcontext {
     struct ino_context inocontext;
-    struct File fd;
+    struct file fd;
     off_t cursorpos;
 };
 
-[[nodiscard]] static ssize_t fd_op_read(struct File *self, void *buf, size_t len) {
+[[nodiscard]] static ssize_t fd_op_read(struct file *self, void *buf, size_t len) {
     assert(len <= STREAM_MAX_TRANSFER_SIZE);
     struct openfdcontext *context = self->data;
     off_t maxlen = context->inocontext.size - context->cursorpos;
@@ -925,91 +925,91 @@ out:
     return (ssize_t)readlen;
 }
 
-[[nodiscard]] static ssize_t fd_op_write(struct File *self, void const *buf, size_t len) {
+[[nodiscard]] static ssize_t fd_op_write(struct file *self, void const *buf, size_t len) {
     assert(len <= STREAM_MAX_TRANSFER_SIZE);
     (void)self;
     (void)buf;
     return -EIO;
 }
 
-[[nodiscard]] static int fd_op_seek(struct File *self, off_t offset, int whence) {
+[[nodiscard]] static int fd_op_seek(struct file *self, off_t offset, int whence) {
     struct openfdcontext *context = self->data;
     int ret = seek_inode(&context->inocontext, offset, whence);
     assert(ret != -ENOENT);
     return ret;
 }
 
-static void fd_op_close(struct File *self) {
+static void fd_op_close(struct file *self) {
     struct openfdcontext *context = self->data;
-    Vfs_UnregisterFile(self);
+    vfs_unregister_file(self);
     closefile(&context->inocontext);
-    Heap_Free(context);
+    heap_free(context);
 }
 
-static struct FileOps const FD_OPS = {
+static struct file_ops const FD_OPS = {
     .read = fd_op_read,
     .write = fd_op_write,
     .seek = fd_op_seek,
     .close = fd_op_close,
 };
 
-[[nodiscard]] static int vfs_op_mount(struct Vfs_FsContext **out, struct LDisk *disk) {
+[[nodiscard]] static int vfs_op_mount(struct vfs_fscontext **out, struct ldisk *disk) {
     int ret = 0;
     uint8_t superblk[1024];
-    struct fscontext *context = Heap_Alloc(sizeof(*context), HEAP_FLAG_ZEROMEMORY);
+    struct fscontext *context = heap_alloc(sizeof(*context), HEAP_FLAG_ZEROMEMORY);
     /* Read superblock ********************************************************/
     {
         assert(1024 % disk->physdisk->block_size == 0);
         off_t blockoffset = 1024 / disk->physdisk->block_size;
         blkcnt_t blkcount = 1024 / disk->physdisk->block_size;
-        ret = Ldisk_ReadExact(disk, superblk, blockoffset, blkcount);
+        ret = ldisk_read_exact(disk, superblk, blockoffset, blkcount);
         if (ret < 0) {
             goto fail;
         }
     }
-    context->signature = Uint16LeAt(&superblk[0x038]);
+    context->signature = u16le_at(&superblk[0x038]);
     if (context->signature != EXT2_SIGNATURE) {
-        Iodev_Printf(&disk->iodev, "ext2: invalid superblk signature\n");
+        iodev_printf(&disk->iodev, "ext2: invalid superblk signature\n");
         ret = -EINVAL;
         goto fail;
     }
     context->disk = disk;
-    context->total_inodes = Uint32LeAt(&superblk[0x000]);
-    context->total_blocks = Uint32LeAt(&superblk[0x004]);
-    context->reserved_blocks_for_su = Uint32LeAt(&superblk[0x008]);
-    context->total_unallocated_blocks = Uint32LeAt(&superblk[0x00c]);
-    context->total_unallocated_inodes = Uint32LeAt(&superblk[0x010]);
-    context->superblock_block_num = Uint32LeAt(&superblk[0x014]);
-    uint32_t blocksize_raw = Uint32LeAt(&superblk[0x018]);
+    context->total_inodes = u32le_at(&superblk[0x000]);
+    context->total_blocks = u32le_at(&superblk[0x004]);
+    context->reserved_blocks_for_su = u32le_at(&superblk[0x008]);
+    context->total_unallocated_blocks = u32le_at(&superblk[0x00c]);
+    context->total_unallocated_inodes = u32le_at(&superblk[0x010]);
+    context->superblock_block_num = u32le_at(&superblk[0x014]);
+    uint32_t blocksize_raw = u32le_at(&superblk[0x018]);
     if (21 < blocksize_raw) {
-        Iodev_Printf(&disk->iodev, "ext2: block size value is too large\n");
+        iodev_printf(&disk->iodev, "ext2: block size value is too large\n");
         ret = -EINVAL;
         goto fail;
     }
     context->blocksize = (blksize_t)(1024UL << blocksize_raw);
-    context->blocks_in_block_group = Uint32LeAt(&superblk[0x020]);
-    context->inodes_in_block_group = Uint32LeAt(&superblk[0x028]);
-    context->last_mount_time = Uint32LeAt(&superblk[0x02c]);
-    context->last_written_time = Uint32LeAt(&superblk[0x030]);
-    context->mounts_since_last_fsck = Uint16LeAt(&superblk[0x034]);
-    context->mounts_before_fsck_required = Uint16LeAt(&superblk[0x036]);
-    context->fs_state = Uint16LeAt(&superblk[0x03a]);
-    context->err_action = Uint16LeAt(&superblk[0x03c]);
-    context->minor_ver = Uint16LeAt(&superblk[0x03e]);
-    context->last_fsck_time = Uint32LeAt(&superblk[0x040]);
-    context->fsck_interval = Uint32LeAt(&superblk[0x044]);
-    context->creator_os_id = Uint32LeAt(&superblk[0x048]);
-    context->major_ver = Uint32LeAt(&superblk[0x04c]);
-    context->reserved_block_uid = Uint16LeAt(&superblk[0x050]);
-    context->reserved_block_gid = Uint16LeAt(&superblk[0x052]);
+    context->blocks_in_block_group = u32le_at(&superblk[0x020]);
+    context->inodes_in_block_group = u32le_at(&superblk[0x028]);
+    context->last_mount_time = u32le_at(&superblk[0x02c]);
+    context->last_written_time = u32le_at(&superblk[0x030]);
+    context->mounts_since_last_fsck = u16le_at(&superblk[0x034]);
+    context->mounts_before_fsck_required = u16le_at(&superblk[0x036]);
+    context->fs_state = u16le_at(&superblk[0x03a]);
+    context->err_action = u16le_at(&superblk[0x03c]);
+    context->minor_ver = u16le_at(&superblk[0x03e]);
+    context->last_fsck_time = u32le_at(&superblk[0x040]);
+    context->fsck_interval = u32le_at(&superblk[0x044]);
+    context->creator_os_id = u32le_at(&superblk[0x048]);
+    context->major_ver = u32le_at(&superblk[0x04c]);
+    context->reserved_block_uid = u16le_at(&superblk[0x050]);
+    context->reserved_block_gid = u16le_at(&superblk[0x052]);
 
     if (1 <= context->major_ver) {
-        context->first_non_reserved_inode = Uint16LeAt(&superblk[0x054]);
-        context->inode_size = Uint16LeAt(&superblk[0x058]);
-        context->block_group = Uint16LeAt(&superblk[0x05a]);
-        context->optional_features = Uint32LeAt(&superblk[0x05c]);
-        context->required_features = Uint32LeAt(&superblk[0x060]);
-        context->required_features_rw = Uint32LeAt(&superblk[0x064]);
+        context->first_non_reserved_inode = u16le_at(&superblk[0x054]);
+        context->inode_size = u16le_at(&superblk[0x058]);
+        context->block_group = u16le_at(&superblk[0x05a]);
+        context->optional_features = u32le_at(&superblk[0x05c]);
+        context->required_features = u32le_at(&superblk[0x060]);
+        context->required_features_rw = u32le_at(&superblk[0x064]);
         memcpy(context->filesystem_id, &superblk[0x068], sizeof(context->filesystem_id));
         memcpy(context->volumename, &superblk[0x078], sizeof(context->volumename));
         memcpy(context->last_mount_path, &superblk[0x088], sizeof(context->last_mount_path));
@@ -1023,31 +1023,31 @@ static struct FileOps const FD_OPS = {
             not_terminated = true;
         }
         if (not_terminated) {
-            Iodev_Printf(&disk->iodev, "ext2: some strings in superblock were not terminated - terminating at the last character\n");
+            iodev_printf(&disk->iodev, "ext2: some strings in superblock were not terminated - terminating at the last character\n");
         }
-        context->compressionalgorithms = Uint32LeAt(&superblk[0x0c8]);
+        context->compressionalgorithms = u32le_at(&superblk[0x0c8]);
         context->preallocatefileblks = superblk[0x0cc];
         context->preallocatedirblks = superblk[0x0cd];
         memcpy(context->journalid, &superblk[0x0d0], sizeof(context->journalid));
-        context->journalinode = Uint32LeAt(&superblk[0x0e0]);
-        context->journaldevice = Uint32LeAt(&superblk[0x0e4]);
-        context->orphaninodelisthead = Uint32LeAt(&superblk[0x0e8]);
+        context->journalinode = u32le_at(&superblk[0x0e0]);
+        context->journaldevice = u32le_at(&superblk[0x0e4]);
+        context->orphaninodelisthead = u32le_at(&superblk[0x0e8]);
     } else {
         context->first_non_reserved_inode = 11;
         context->inode_size = 128;
     }
     uint8_t const *id = context->filesystem_id;
-    Iodev_Printf(
+    iodev_printf(
         &disk->iodev,
         "ext2 V%u-%02u, ID: %02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x\n",
         context->major_ver, context->minor_ver,
         id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7], id[8], id[9],
         id[10], id[11], id[12], id[13], id[14], id[15]);
 
-    size_t blk_group_count = SizeToBlocks(context->total_blocks, context->blocks_in_block_group);
-    size_t blk_group_count2 = SizeToBlocks(context->total_inodes, context->inodes_in_block_group);
+    size_t blk_group_count = size_to_blocks(context->total_blocks, context->blocks_in_block_group);
+    size_t blk_group_count2 = size_to_blocks(context->total_inodes, context->inodes_in_block_group);
     if (blk_group_count != blk_group_count2) {
-        Iodev_Printf(&disk->iodev, "Two calculated blk group count does not match: %zu != %zu\n", blk_group_count, blk_group_count2);
+        iodev_printf(&disk->iodev, "Two calculated blk group count does not match: %zu != %zu\n", blk_group_count, blk_group_count2);
     }
     context->blk_group_count = blk_group_count;
     if (context->blocksize == 1024) {
@@ -1076,12 +1076,12 @@ static struct FileOps const FD_OPS = {
 
     /* Check feature flags ****************************************************/
     if (context->required_features & ~SUPPORTED_REQUIRED_FLAGS) {
-        Iodev_Printf(&disk->iodev, "ext2: found unsupported required features(flag %x)\n", context->required_features & ~SUPPORTED_REQUIRED_FLAGS);
+        iodev_printf(&disk->iodev, "ext2: found unsupported required features(flag %x)\n", context->required_features & ~SUPPORTED_REQUIRED_FLAGS);
         ret = -EINVAL;
         goto fail;
     }
     if (context->required_features_rw & ~SUPPORTED_RWMOUNT_FLAGS) {
-        Iodev_Printf(&disk->iodev, "ext2: found unsupported required features for R/W mount(flag %x)\n", context->required_features_rw & ~SUPPORTED_RWMOUNT_FLAGS);
+        iodev_printf(&disk->iodev, "ext2: found unsupported required features for R/W mount(flag %x)\n", context->required_features_rw & ~SUPPORTED_RWMOUNT_FLAGS);
         ret = -EINVAL;
         goto fail;
     }
@@ -1089,22 +1089,22 @@ static struct FileOps const FD_OPS = {
     *out = &context->vfs_fscontext;
     goto out;
 fail:
-    Heap_Free(context);
+    heap_free(context);
 out:
     return ret;
 }
 
-[[nodiscard]] static int vfs_op_umount(struct Vfs_FsContext *self) {
-    Heap_Free(self->data);
+[[nodiscard]] static int vfs_op_umount(struct vfs_fscontext *self) {
+    heap_free(self->data);
     return 0;
 }
 
-[[nodiscard]] static int vfs_op_open(struct File **out, struct Vfs_FsContext *self, char const *path, int flags) {
+[[nodiscard]] static int vfs_op_open(struct file **out, struct vfs_fscontext *self, char const *path, int flags) {
     int ret;
     ino_t inode;
     struct fscontext *fscontext = self->data;
     (void)flags;
-    struct openfdcontext *fdcontext = Heap_Alloc(sizeof(*fdcontext), HEAP_FLAG_ZEROMEMORY);
+    struct openfdcontext *fdcontext = heap_alloc(sizeof(*fdcontext), HEAP_FLAG_ZEROMEMORY);
     ret = resolve_path(&inode, fscontext, INODE_ROOTDIRECTORY, path);
     if (ret < 0) {
         goto fail_after_alloc;
@@ -1113,7 +1113,7 @@ out:
     if (ret < 0) {
         goto fail_after_alloc;
     }
-    ret = Vfs_RegisterFile(&fdcontext->fd, &FD_OPS, self, fdcontext);
+    ret = vfs_register_file(&fdcontext->fd, &FD_OPS, self, fdcontext);
     if (ret < 0) {
         goto fail_after_open;
     }
@@ -1122,12 +1122,12 @@ out:
 fail_after_open:
     closefile(&fdcontext->inocontext);
 fail_after_alloc:
-    Heap_Free(fdcontext);
+    heap_free(fdcontext);
 out:
     return ret;
 }
 
-[[nodiscard]] static int vfs_op_opendir(DIR **out, struct Vfs_FsContext *self, char const *path) {
+[[nodiscard]] static int vfs_op_opendir(DIR **out, struct vfs_fscontext *self, char const *path) {
     int ret;
     ino_t inode;
     struct fscontext *fscontext = self->data;
@@ -1154,17 +1154,17 @@ out:
     return read_directory(out, self);
 }
 
-static struct Vfs_FsTypeOps const FSTYPE_OPS = {
-    .Mount = vfs_op_mount,
-    .Umount = vfs_op_umount,
-    .Open = vfs_op_open,
-    .OpenDir = vfs_op_opendir,
-    .CloseDir = vfs_op_closedir,
-    .ReadDir = vfs_op_readdir,
+static struct vfs_fstype_ops const FSTYPE_OPS = {
+    .mount = vfs_op_mount,
+    .umount = vfs_op_umount,
+    .open = vfs_op_open,
+    .open_directory = vfs_op_opendir,
+    .close_directory = vfs_op_closedir,
+    .read_directory = vfs_op_readdir,
 };
 
-static struct Vfs_FsType s_fstype;
+static struct vfs_fstype s_fstype;
 
-void FsInit_InitExt2(void) {
-    Vfs_RegisterFsType(&s_fstype, "ext2", &FSTYPE_OPS);
+void fsinit_init_ext2(void) {
+    vfs_register_fstype(&s_fstype, "ext2", &FSTYPE_OPS);
 }

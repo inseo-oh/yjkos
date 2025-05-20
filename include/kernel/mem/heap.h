@@ -5,13 +5,13 @@
 
 static uint8_t const HEAP_FLAG_ZEROMEMORY = 1 << 0;
 
-void __Heap_CheckOverflow(struct SourceLocation srcloc);
-#define HEAP_CHECKOVERFLOW() __Heap_CheckOverflow(SOURCELOCATION_CURRENT())
-void *Heap_Alloc(size_t size, uint8_t flags);
-void Heap_Free(void *ptr);
-void Heap_Expand(void);
-void *Heap_Realloc(void *ptr, size_t newsize, uint8_t flags);
-void *Heap_Calloc(size_t size, size_t elements, uint8_t flags);
-void *Heap_ReallocArray(void *ptr, size_t newsize, size_t newelements, uint8_t flags);
+void __heap_check_overflow(struct source_location srcloc);
+#define HEAP_CHECKOVERFLOW() __heap_check_overflow(SOURCELOCATION_CURRENT())
+void *heap_alloc(size_t size, uint8_t flags);
+void heap_free(void *ptr);
+void heap_expand(void);
+void *heap_realloc(void *ptr, size_t newsize, uint8_t flags);
+void *heap_calloc(size_t size, size_t elements, uint8_t flags);
+void *heap_realloc_array(void *ptr, size_t newsize, size_t newelements, uint8_t flags);
 
-bool Heap_RunRandomTest(void);
+bool heap_run_random_test(void);

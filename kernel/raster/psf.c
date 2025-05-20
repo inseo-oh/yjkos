@@ -84,7 +84,7 @@ static void read_psf1_utf16_entries(bool *had_multi_chars_out, uint32_t bytes_pe
     bool had_multi_chars = false;
     bool gotchar = false;
     while ((nextchr < _binary_kernelfont_psf_end) && (glyph < num_glyph)) {
-        uint16_t unicode = Uint16LeAt(nextchr);
+        uint16_t unicode = u16le_at(nextchr);
         if (unicode == 0xffff) {
             /* EOL */
             nextchr += 2;
@@ -120,16 +120,16 @@ static void init_psf1(void) {
     if ((mode & 0x01U)) {
         num_glyph = 512;
     }
-    Co_Printf("psf: v1 font %ux%u mode %u, num_glyph %u\n", width, height, mode, num_glyph);
+    co_printf("psf: v1 font %ux%u mode %u, num_glyph %u\n", width, height, mode, num_glyph);
     uint32_t bytes_per_glyph = height;
     if (!(mode & (0x02U | 0x04U))) {
         goto unicodetabledone;
     }
     if ((SIZE_MAX / bytes_per_glyph) < num_glyph) {
-        Co_Printf("psf: glyph table is too large - cannot locate unicode translation table\n");
+        co_printf("psf: glyph table is too large - cannot locate unicode translation table\n");
         goto unicodetabledone;
     }
-    s_unicodetable = Heap_Calloc(sizeof(*s_unicodetable), UINT16_MAX, HEAP_FLAG_ZEROMEMORY);
+    s_unicodetable = heap_calloc(sizeof(*s_unicodetable), UINT16_MAX, HEAP_FLAG_ZEROMEMORY);
     s_glyphs = data + headersize;
     assert(width < 32767);
     assert(height < 32767);
@@ -138,14 +138,14 @@ static void init_psf1(void) {
     s_bytesperglyph = bytes_per_glyph;
     s_glyphcount = num_glyph;
     if (s_unicodetable == NULL) {
-        Co_Printf("psf: not enough memory to have unicode translation table\n");
+        co_printf("psf: not enough memory to have unicode translation table\n");
         goto unicodetabledone;
     }
     /* Read each UTF-16 entry **************************************************/
     bool had_multi_chars;
     read_psf1_utf16_entries(&had_multi_chars, bytes_per_glyph, num_glyph);
     if (had_multi_chars) {
-        Co_Printf("psf: mapping to unicode character sequences is not supported\n");
+        co_printf("psf: mapping to unicode character sequences is not supported\n");
     }
 unicodetabledone:
     return;
@@ -198,7 +198,7 @@ static void read_psf2_utf8_entries(bool *had_multi_chars_out, uint32_t bytes_per
         next_chr += bytes_len;
         goto unicodedone;
     badcode:
-        Co_Printf("psf: unicode table entry #%zu - illegal utf-8 sequence\n", glyph);
+        co_printf("psf: unicode table entry #%zu - illegal utf-8 sequence\n", glyph);
         unicode = byt;
         next_chr++;
     unicodedone:
@@ -216,17 +216,17 @@ static void read_psf2_utf8_entries(bool *had_multi_chars_out, uint32_t bytes_per
 
 static void init_psf2(void) {
     uint8_t *data = _binary_kernelfont_psf_start;
-    uint32_t version = Uint32LeAt(data + 4);
+    uint32_t version = u32le_at(data + 4);
     if (version != 0) {
-        Co_Printf("psf: font version is not 0(got %u) - Not guranteed to work!\n", version);
+        co_printf("psf: font version is not 0(got %u) - Not guranteed to work!\n", version);
     }
-    uint32_t headersize = Uint32LeAt(data + 8);
-    uint32_t flags = Uint32LeAt(data + 12);
-    uint32_t num_glyph = Uint32LeAt(data + 16);
-    uint32_t bytes_per_glyph = Uint32LeAt(data + 20);
-    uint32_t height = Uint32LeAt(data + 24);
-    uint32_t width = Uint32LeAt(data + 28);
-    Co_Printf("psf: v2 font %ux%u headersize %u, flags %u, num_glyph %u\n", width, height, headersize, flags, num_glyph);
+    uint32_t headersize = u32le_at(data + 8);
+    uint32_t flags = u32le_at(data + 12);
+    uint32_t num_glyph = u32le_at(data + 16);
+    uint32_t bytes_per_glyph = u32le_at(data + 20);
+    uint32_t height = u32le_at(data + 24);
+    uint32_t width = u32le_at(data + 28);
+    co_printf("psf: v2 font %ux%u headersize %u, flags %u, num_glyph %u\n", width, height, headersize, flags, num_glyph);
     s_glyphs = data + headersize;
     assert(width < 32767);
     assert(height < 32767);
@@ -239,19 +239,19 @@ static void init_psf2(void) {
     }
     /* Read unicode translation table *****************************************/
     if ((SIZE_MAX / bytes_per_glyph) < num_glyph) {
-        Co_Printf("psf: glyph table is too large - cannot locate unicode translation table\n");
+        co_printf("psf: glyph table is too large - cannot locate unicode translation table\n");
         goto unicode_table_done;
     }
-    s_unicodetable = Heap_Calloc(sizeof(*s_unicodetable), UINT16_MAX, HEAP_FLAG_ZEROMEMORY);
+    s_unicodetable = heap_calloc(sizeof(*s_unicodetable), UINT16_MAX, HEAP_FLAG_ZEROMEMORY);
     if (s_unicodetable == NULL) {
-        Co_Printf("psf: not enough memory to have unicode translation table\n");
+        co_printf("psf: not enough memory to have unicode translation table\n");
         goto unicode_table_done;
     }
     /* Read each UTF-8 entry **************************************************/
     bool had_multi_chars = false;
     read_psf2_utf8_entries(&had_multi_chars, bytes_per_glyph, num_glyph);
     if (had_multi_chars) {
-        Co_Printf("psf: mapping to unicode character sequences is not supported\n");
+        co_printf("psf: mapping to unicode character sequences is not supported\n");
     }
 unicode_table_done:
     return;
@@ -259,17 +259,17 @@ unicode_table_done:
 
 void psf_init(void) {
     uint8_t *data = _binary_kernelfont_psf_start;
-    uint16_t magic16 = Uint16LeAt(data);
+    uint16_t magic16 = u16le_at(data);
     if (magic16 == PSF1_MAGIC) {
         init_psf1();
         return;
     }
-    uint32_t magic32 = Uint32LeAt(data);
+    uint32_t magic32 = u32le_at(data);
     if (magic32 == PSF2_MAGIC) {
         init_psf2();
         return;
     }
-    Panic("Invalid PSF magic");
+    panic("Invalid PSF magic");
 }
 
 int psf_getwidth(void) {

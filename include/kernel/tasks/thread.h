@@ -8,16 +8,16 @@
 
 #define THREAD_STACK_SIZE (1024 * 16)
 
-struct Thread {
+struct thread {
     /*
      * NOTE: The parent list depends on the context.
      * (e.g. Queued -> Queue's list, Waiting for mutex unlock -> Mutex wait
      * list)
      */
-    struct List_Node sched_listnode;
-    struct Arch_Thread *arch_thread;
-    struct Mutex *waitingmutex;
-    struct SourceLocation desired_locksource;
+    struct list_node sched_listnode;
+    struct arch_thread *arch_thread;
+    struct mutex *waitingmutex;
+    struct source_location desired_locksource;
     int8_t priority;
     bool shutdown : 1;
 };
@@ -28,6 +28,6 @@ struct Thread {
  *
  * Returns NULL if there's not enough memory.
  */
-[[nodiscard]] struct Thread *Thread_Create(size_t init_stacksize, void (*init_mainfunc)(void *), void *init_data);
-void Thread_Delete(struct Thread *thread);
-void Thread_Switch(struct Thread *from, struct Thread *to);
+[[nodiscard]] struct thread *thread_create(size_t init_stacksize, void (*init_mainfunc)(void *), void *init_data);
+void thread_delete(struct thread *thread);
+void thread_switch(struct thread *from, struct thread *to);

@@ -2,21 +2,21 @@
 #include <kernel/io/co.h>
 #include <stddef.h>
 
-struct Test {
+struct test {
     char const *name;
     bool (*fn)(void);
 };
 
-struct TestGroup {
+struct test_group {
     char const *name;
-    struct Test const *tests;
+    struct test const *tests;
     size_t testslen;
 };
 
-bool __TestExpect(bool b, char const *expr, char const *func, char const *file, int line);
+bool __test_expect(bool b, char const *expr, char const *func, char const *file, int line);
 
 #define TEST_EXPECT(_x)                                         \
-    if (!__TestExpect(_x, #_x, __func__, __FILE__, __LINE__)) { \
+    if (!__test_expect(_x, #_x, __func__, __FILE__, __LINE__)) { \
         return false;                                           \
     }
 
@@ -38,6 +38,6 @@ bool __TestExpect(bool b, char const *expr, char const *func, char const *file, 
 
 /* clang-format on */
 
-#define X(_x) extern const struct TestGroup _x;
+#define X(_x) extern const struct test_group _x;
 ENUMERATE_TESTGROUPS(X)
 #undef X

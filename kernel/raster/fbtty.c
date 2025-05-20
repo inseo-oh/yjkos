@@ -8,14 +8,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
-static struct Vt100Tty s_tty;
+static struct vt100tty s_tty;
 static char *s_linetempbuf;
 
-static void vt100tty_op_updatescreen(struct Vt100Tty *self) {
+static void vt100tty_op_updatescreen(struct vt100tty *self) {
     assert(s_linetempbuf);
     int writepos = 0;
     int writelen = 0;
-    struct Vt100Tty_Char *src = self->chars;
+    struct vt100tty_char *src = self->chars;
     for (int32_t row = 0; row < self->rows; row++) {
         for (int32_t col = 0; col < self->columns; col++, src++) {
             if (src->need_supdate) {
@@ -30,41 +30,41 @@ static void vt100tty_op_updatescreen(struct Vt100Tty *self) {
                 s_linetempbuf[writelen] = '\0';
                 int destx = writepos * psf_getwidth();
                 int desty = row * psf_getheight();
-                Fb_DrawRect(writelen * psf_getwidth(), psf_getheight(), destx, desty, Black());
-                Fb_DrawText(s_linetempbuf, destx, desty, White());
+                fb_draw_rect(writelen * psf_getwidth(), psf_getheight(), destx, desty, black());
+                fb_draw_text(s_linetempbuf, destx, desty, white());
                 writelen = 0;
             }
         }
     }
-    Fb_Update();
+    fb_update();
 }
 
-static void vt100tty_op_scroll(struct Vt100Tty *self, int lines) {
+static void vt100tty_op_scroll(struct vt100tty *self, int lines) {
     (void)self;
-    Fb_Scroll(lines * psf_getheight());
+    fb_scroll(lines * psf_getheight());
 }
 
-static const struct Vt100TtyOps OPS = {
-    .UpdateScreen = vt100tty_op_updatescreen,
-    .Scroll = vt100tty_op_scroll,
+static const struct vt100tty_ops OPS = {
+    .update_screen = vt100tty_op_updatescreen,
+    .scroll = vt100tty_op_scroll,
 };
 
 void fbtty_init(void) {
-    Fb_DrawRect(Fb_GetWidth(), Fb_GetHeight(), 0, 0, Black());
+    fb_draw_rect(fb_get_width(), fb_get_height(), 0, 0, black());
 
-    int32_t columns = Fb_GetWidth() / psf_getwidth();
-    int32_t rows = Fb_GetHeight() / psf_getheight();
-    struct Vt100Tty_LineInfo *lineinfos = Heap_Calloc(sizeof(*lineinfos), rows, HEAP_FLAG_ZEROMEMORY);
-    struct Vt100Tty_Char *chars = Heap_Calloc(sizeof(*chars), columns * rows, HEAP_FLAG_ZEROMEMORY);
-    s_linetempbuf = Heap_Calloc(sizeof(*s_linetempbuf), columns + 1, HEAP_FLAG_ZEROMEMORY);
+    int32_t columns = fb_get_width() / psf_getwidth();
+    int32_t rows = fb_get_height() / psf_getheight();
+    struct vt100tty_line_info *lineinfos = heap_calloc(sizeof(*lineinfos), rows, HEAP_FLAG_ZEROMEMORY);
+    struct vt100tty_char *chars = heap_calloc(sizeof(*chars), columns * rows, HEAP_FLAG_ZEROMEMORY);
+    s_linetempbuf = heap_calloc(sizeof(*s_linetempbuf), columns + 1, HEAP_FLAG_ZEROMEMORY);
     if ((lineinfos == NULL) || (chars == NULL) || (s_linetempbuf == NULL)) {
         goto oom;
     }
-    Vt100tty_Init(&s_tty, lineinfos, chars, &OPS, columns, rows);
+    vt100tty_init(&s_tty, lineinfos, chars, &OPS, columns, rows);
     return;
 oom:
-    Co_Printf("fbtty: not enough memory to initialize\n");
-    Heap_Free(lineinfos);
-    Heap_Free(chars);
-    Heap_Free(s_linetempbuf);
+    co_printf("fbtty: not enough memory to initialize\n");
+    heap_free(lineinfos);
+    heap_free(chars);
+    heap_free(s_linetempbuf);
 }

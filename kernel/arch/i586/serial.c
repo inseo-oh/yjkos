@@ -83,7 +83,7 @@
 #define MCR_FLAG_OUT2 (1U << 3)
 #define MCR_FLAG_LOOPBACK (1U << 4)
 
-[[nodiscard]] static int get_divisor(struct ArchI586_Serial *self, int32_t baudrate) {
+[[nodiscard]] static int get_divisor(struct archi586_serial *self, int32_t baudrate) {
     for (int32_t divisor = 1; divisor <= 0xffff; ++divisor) {
         if ((self->masterclock / divisor) == baudrate) {
             return divisor;
@@ -92,49 +92,49 @@
     return -EINVAL;
 }
 
-static void write_reg(struct ArchI586_Serial *self, uint8_t regidx, uint8_t val) {
-    ArchI586_Out8(self->baseaddr + regidx, val);
+static void write_reg(struct archi586_serial *self, uint8_t regidx, uint8_t val) {
+    archi586_out8(self->baseaddr + regidx, val);
 }
 
-static uint8_t read_reg(struct ArchI586_Serial *self, uint8_t regidx) {
-    return ArchI586_In8(self->baseaddr + regidx);
+static uint8_t read_reg(struct archi586_serial *self, uint8_t regidx) {
+    return archi586_in8(self->baseaddr + regidx);
 }
 
-static void setdlab(struct ArchI586_Serial *self) {
-    uint8_t val = ArchI586_In8(REG_LCR);
+static void setdlab(struct archi586_serial *self) {
+    uint8_t val = archi586_in8(REG_LCR);
     val |= LCR_FLAG_DLAB;
     write_reg(self, REG_LCR, val);
 }
 
-static void clear_dlab(struct ArchI586_Serial *self) {
-    uint8_t val = ArchI586_In8(REG_LCR);
+static void clear_dlab(struct archi586_serial *self) {
+    uint8_t val = archi586_in8(REG_LCR);
     val &= ~LCR_FLAG_DLAB;
     write_reg(self, REG_LCR, val);
 }
 
-static void write_ier(struct ArchI586_Serial *self, uint8_t val) {
+static void write_ier(struct archi586_serial *self, uint8_t val) {
     clear_dlab(self);
     write_reg(self, REG_IER, val);
 }
 
-static void write_dl(struct ArchI586_Serial *self, uint16_t dl) {
+static void write_dl(struct archi586_serial *self, uint16_t dl) {
     setdlab(self);
     write_reg(self, REG_DLL, dl);
     write_reg(self, REG_DLH, dl >> 8);
 }
 
-static void write_data(struct ArchI586_Serial *self, uint8_t val) {
+static void write_data(struct archi586_serial *self, uint8_t val) {
     clear_dlab(self);
     write_reg(self, REG_DATA, val);
 }
 
-uint8_t readdata(struct ArchI586_Serial *self) {
+uint8_t readdata(struct archi586_serial *self) {
     clear_dlab(self);
     return read_reg(self, REG_DATA);
 }
 
-static void wait_ready_to_send(struct ArchI586_Serial *self) {
-    if (!self->useirq || !Arch_Irq_AreEnabled()) {
+static void wait_ready_to_send(struct archi586_serial *self) {
+    if (!self->useirq || !arch_irq_are_enabled()) {
         while (!(read_reg(self, REG_LSR) & LSR_FLAG_TX_HOLDING_REG_EMPTY)) {
         }
     } else {
@@ -144,8 +144,8 @@ static void wait_ready_to_send(struct ArchI586_Serial *self) {
     }
 }
 
-static void wait_ready_to_recv(struct ArchI586_Serial *self) {
-    if (!self->useirq || !Arch_Irq_AreEnabled()) {
+static void wait_ready_to_recv(struct archi586_serial *self) {
+    if (!self->useirq || !arch_irq_are_enabled()) {
         while (!(read_reg(self, REG_LSR) & LSR_FLAG_DATA_READY)) {
         }
     } else {
@@ -155,12 +155,12 @@ static void wait_ready_to_recv(struct ArchI586_Serial *self) {
     }
 }
 
-static int run_loopback_test(struct ArchI586_Serial *self) {
+static int run_loopback_test(struct archi586_serial *self) {
     uint8_t oldmcr = read_reg(self, REG_MCR);
     write_reg(self, REG_MCR, oldmcr | MCR_FLAG_LOOPBACK);
     uint8_t new_mcr = read_reg(self, REG_MCR);
     if (!(new_mcr & MCR_FLAG_LOOPBACK)) {
-        Co_Printf("serial: failed to write to MCR\n");
+        co_printf("serial: failed to write to MCR\n");
         return -EIO;
     }
     uint8_t expected = 0x69;
@@ -168,25 +168,25 @@ static int run_loopback_test(struct ArchI586_Serial *self) {
     uint32_t waited_counter = 0;
     while (!(read_reg(self, REG_LSR) & LSR_FLAG_DATA_READY)) {
         if (1000000 < waited_counter) {
-            Co_Printf("serial: loopback response timeout\n");
+            co_printf("serial: loopback response timeout\n");
             return -EIO;
         }
-        Arch_IoDelay();
+        arch_iodelay();
         waited_counter += 2;
     }
     uint8_t got = readdata(self);
     bool test_ok = got == expected;
     if (!test_ok) {
-        Co_Printf("serial: loopback test failed: expected %#x, got %#x\n", expected, got);
+        co_printf("serial: loopback test failed: expected %#x, got %#x\n", expected, got);
         write_reg(self, REG_MCR, oldmcr);
         return -EIO;
     }
     return 0;
 }
 
-[[nodiscard]] static ssize_t stream_op_write(struct Stream *self, void *data, size_t size) {
+[[nodiscard]] static ssize_t stream_op_write(struct stream *self, void *data, size_t size) {
     assert(size <= STREAM_MAX_TRANSFER_SIZE);
-    struct ArchI586_Serial *cport = (struct ArchI586_Serial *)self->data;
+    struct archi586_serial *cport = (struct archi586_serial *)self->data;
 
     for (size_t idx = 0; idx < size; idx++) {
         uint8_t c = ((uint8_t *)data)[idx];
@@ -208,7 +208,7 @@ static int run_loopback_test(struct ArchI586_Serial *self) {
     return (ssize_t)size;
 }
 
-[[nodiscard]] static ssize_t stream_op_read(struct Stream *self, void *buf, size_t size) {
+[[nodiscard]] static ssize_t stream_op_read(struct stream *self, void *buf, size_t size) {
     assert(size <= STREAM_MAX_TRANSFER_SIZE);
     for (size_t idx = 0; idx < size; idx++) {
         wait_ready_to_recv(self->data);
@@ -217,13 +217,13 @@ static int run_loopback_test(struct ArchI586_Serial *self) {
     return (ssize_t)size;
 }
 
-static struct StreamOps const OPS = {
-    .Read = stream_op_read,
-    .Write = stream_op_write,
+static struct stream_ops const OPS = {
+    .read = stream_op_read,
+    .write = stream_op_write,
 };
 
 static void irq_handler(int irqnum, void *data) {
-    struct ArchI586_Serial *self = data;
+    struct archi586_serial *self = data;
     uint8_t ier = read_reg(self, REG_IER);
     uint8_t iir = read_reg(self, REG_IIR);
     uint8_t lsr = read_reg(self, REG_LSR);
@@ -239,10 +239,10 @@ static void irq_handler(int irqnum, void *data) {
     default:
         break;
     }
-    ArchI586_Pic_SendEoi(irqnum);
+    archi586_pic_send_eoi(irqnum);
 }
 
-[[nodiscard]] int ArchI586_Serial_Init(struct ArchI586_Serial *out, uint16_t baseaddr, int32_t masterclock, uint8_t irq) {
+[[nodiscard]] int archi586_serial_init(struct archi586_serial *out, uint16_t baseaddr, int32_t masterclock, uint8_t irq) {
     memset(out, 0, sizeof(*out));
     out->tty.stream.data = out;
     out->tty.stream.ops = &OPS;
@@ -258,7 +258,7 @@ static void irq_handler(int irqnum, void *data) {
     return 0;
 }
 
-[[nodiscard]] int ArchI586_Serial_Config(struct ArchI586_Serial *self, int32_t baudrate) {
+[[nodiscard]] int archi586_serial_config(struct archi586_serial *self, int32_t baudrate) {
     int ret = get_divisor(self, baudrate);
     if (ret < 0) {
         return ret;
@@ -268,9 +268,9 @@ static void irq_handler(int irqnum, void *data) {
     return 0;
 }
 
-void ArchI586_Serial_UseIrq(struct ArchI586_Serial *self) {
-    ArchI586_Pic_RegisterHandler(&self->irqhandler, self->irq, irq_handler, self);
-    ArchI586_Pic_UnmaskIrq(self->irq);
+void archi586_serial_use_irq(struct archi586_serial *self) {
+    archi586_pic_register_handler(&self->irqhandler, self->irq, irq_handler, self);
+    archi586_pic_unmask_irq(self->irq);
     write_ier(self, 0x3); /* Transmit and Receive interrupts */
     /* MCR's OUT2 also needs to be set */
     uint8_t mcr = read_reg(self, REG_MCR);
@@ -279,6 +279,6 @@ void ArchI586_Serial_UseIrq(struct ArchI586_Serial *self) {
     self->useirq = true;
 }
 
-[[nodiscard]] int ArchI586_Serial_InitIoDev(struct ArchI586_Serial *self) {
-    return Tty_Register(&self->tty, self);
+[[nodiscard]] int archi586_serial_init_iodev(struct archi586_serial *self) {
+    return tty_register(&self->tty, self);
 }

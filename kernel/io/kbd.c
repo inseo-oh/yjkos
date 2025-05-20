@@ -20,10 +20,10 @@ static bool const CONFIG_PRINT_KEYS = false;
 /******************************************************************************/
 
 /* NOTE: Use event_queue() instead, which initializes the queue if it wasn't. */
-static struct Queue s_event_queue;
+static struct queue s_event_queue;
 /* 500 should be more than enough */
-static struct Kbd_KeyEvent s_event_queue_buf[500];
-static struct List s_keyboard_list;
+static struct kbd_key_event s_event_queue_buf[500];
+static struct list s_keyboard_list;
 static uint16_t s_flags;
 /* TODO: Use bitmap instead? */
 static bool s_keysdown[KBD_KEY_COUNT];
@@ -177,11 +177,11 @@ static void update_leds(void) {
     bool caps = s_flags & KBD_FLAG_LOCK_CAPS;
     bool num = s_flags & KBD_FLAG_LOCK_NUM;
     LIST_FOREACH(&s_keyboard_list, devnode) {
-        struct Kbd_Dev *device = devnode->data;
+        struct kbd_dev *device = devnode->data;
         assert(device);
         int ret = device->ops->updateleds(device, scroll, caps, num);
         if (ret < 0) {
-            Iodev_Printf(&device->iodev, "failed to set LED state (error %d)\n", ret);
+            iodev_printf(&device->iodev, "failed to set LED state (error %d)\n", ret);
         }
     }
 }
@@ -193,35 +193,35 @@ static void release_all_keys_except(KBD_KEY except) {
             continue;
         }
         if (s_keysdown[key]) {
-            Kbd_KeyReleased(key);
+            kbd_key_released(key);
         }
     }
 }
 
-static struct Queue *event_queue(void) {
+static struct queue *event_queue(void) {
     if (s_event_queue.buf == NULL) {
         QUEUE_INIT_FOR_ARRAY(&s_event_queue, s_event_queue_buf);
     }
     return &s_event_queue;
 }
 
-static void enqueue_event(struct Kbd_KeyEvent const *event) {
-    bool prev_interrupts = Arch_Irq_Disable();
+static void enqueue_event(struct kbd_key_event const *event) {
+    bool prev_interrupts = arch_irq_disable();
     int ret = QUEUE_ENQUEUE(event_queue(), event);
-    Arch_Irq_Restore(prev_interrupts);
+    arch_irq_restore(prev_interrupts);
     if (ret < 0) {
-        Co_Printf("kbd: failed to enqueue key event (error %d)\n", ret);
+        co_printf("kbd: failed to enqueue key event (error %d)\n", ret);
     }
 }
 
-bool Kbd_PullEvent(struct Kbd_KeyEvent *out) {
-    bool prev_interrupts = Arch_Irq_Disable();
+bool kbd_pull_event(struct kbd_key_event *out) {
+    bool prev_interrupts = arch_irq_disable();
     bool result = QUEUE_DEQUEUE(out, event_queue());
-    Arch_Irq_Restore(prev_interrupts);
+    arch_irq_restore(prev_interrupts);
     return result;
 }
 
-void Kbd_KeyPressed(KBD_KEY key) {
+void kbd_key_pressed(KBD_KEY key) {
     struct keymapentry const *entry = &KEYMAP[key];
     switch (key) {
     /* Modifier key except for lock keys, like Shift and Alt. */
@@ -279,9 +279,9 @@ void Kbd_KeyPressed(KBD_KEY key) {
     s_keysdown[key] = true;
     if (key_to_report != KBD_KEY_INVALID) {
         if (CONFIG_PRINT_KEYS) {
-            Co_Printf("[KEY_DOWN] PKEY=%03d RKEY=%03d CHAR=[%c]\n", key, key_to_report, chr);
+            co_printf("[KEY_DOWN] PKEY=%03d RKEY=%03d CHAR=[%c]\n", key, key_to_report, chr);
         }
-        struct Kbd_KeyEvent event;
+        struct kbd_key_event event;
         event.chr = chr;
         event.is_down = true;
         event.key = key_to_report;
@@ -289,7 +289,7 @@ void Kbd_KeyPressed(KBD_KEY key) {
     }
 }
 
-void Kbd_KeyReleased(KBD_KEY key) {
+void kbd_key_released(KBD_KEY key) {
     struct keymapentry const *entry = &KEYMAP[key];
     switch (key) {
     /* Modifier key except for lock keys, like Shift and Alt. */
@@ -336,9 +336,9 @@ void Kbd_KeyReleased(KBD_KEY key) {
     s_keysdown[key] = false;
     if (key_to_report != KBD_KEY_INVALID) {
         if (CONFIG_PRINT_KEYS) {
-            Co_Printf("[ KEY_UP ] PKEY=%03d RKEY=%03d CHAR=[%c]\n", key, key_to_report, chr);
+            co_printf("[ KEY_UP ] PKEY=%03d RKEY=%03d CHAR=[%c]\n", key, key_to_report, chr);
         }
-        struct Kbd_KeyEvent event;
+        struct kbd_key_event event;
         event.chr = chr;
         event.is_down = false;
         event.key = key_to_report;
@@ -346,17 +346,17 @@ void Kbd_KeyReleased(KBD_KEY key) {
     }
 }
 
-[[nodiscard]] int Kbd_Register(struct Kbd_Dev *dev_out, struct Kbd_DevOps const *ops, void *data) {
+[[nodiscard]] int kbd_register(struct kbd_dev *dev_out, struct kbd_dev_ops const *ops, void *data) {
     int result = 0;
-    bool prev_interrupts = Arch_Irq_Disable();
+    bool prev_interrupts = arch_irq_disable();
     memset(dev_out, 0, sizeof(*dev_out));
     dev_out->data = data;
     dev_out->ops = ops;
-    result = Iodev_Register(&dev_out->iodev, IODEV_TYPE_KEYBOARD, dev_out);
+    result = iodev_register(&dev_out->iodev, IODEV_TYPE_KEYBOARD, dev_out);
     if (result < 0) {
         goto out;
     }
 out:
-    Arch_Irq_Restore(prev_interrupts);
+    arch_irq_restore(prev_interrupts);
     return result;
 }

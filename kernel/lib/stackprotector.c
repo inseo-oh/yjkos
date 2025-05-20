@@ -6,5 +6,5 @@
 [[gnu::used]] uintptr_t __stack_chk_guard = STACK_CHECK_GUARD_MAGIC;
 
 [[noreturn, gnu::used]] void __stack_chk_fail(void) {
-    Panic("stack smashing detected");
+    panic("stack smashing detected");
 }

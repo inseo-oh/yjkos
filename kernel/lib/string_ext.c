@@ -1,7 +1,7 @@
 #include <kernel/lib/string_ext.h>
 #include <stddef.h>
 
-void MemCopy32(void *restrict s1, const void *restrict s2, size_t n) {
+void memcpy32(void *restrict s1, const void *restrict s2, size_t n) {
 #ifdef YJKERNEL_ARCH_I586
     int dummy[3];
     __asm__ volatile (

@@ -40,18 +40,18 @@ static long findlastcontiguousbit(UINT word, long startpos) {
     return index - 1;
 }
 
-UINT MakeBitmask(size_t offset, size_t len) {
+UINT make_bitmask(size_t offset, size_t len) {
     if (len == 0) {
         return 0;
     }
     return (WORD_ALL_ONES >> (BITS_PER_WORD - len)) << offset;
 }
 
-size_t Bitmap_NeededWordCount(size_t bits) {
-    return SizeToBlocks(bits, BITS_PER_WORD);
+size_t bitmap_needed_word_count(size_t bits) {
+    return size_to_blocks(bits, BITS_PER_WORD);
 }
 
-long Bitmap_FindFirstSetBit(struct Bitmap *self, long startpos) {
+long bitmap_find_first_set_bit(struct bitmap *self, long startpos) {
     if (startpos < 0) {
         return -1;
     }
@@ -66,7 +66,7 @@ long Bitmap_FindFirstSetBit(struct Bitmap *self, long startpos) {
     return -1;
 }
 
-long Bitmap_FindLastContiguousBit(struct Bitmap *self, long startpos) {
+long bitmap_find_last_contiguous_bit(struct bitmap *self, long startpos) {
     if (startpos < 0) {
         return -1;
     }
@@ -92,18 +92,18 @@ long Bitmap_FindLastContiguousBit(struct Bitmap *self, long startpos) {
     return (long)(self->word_count * BITS_PER_WORD) - 1;
 }
 
-long Bitmap_FindSetBits(struct Bitmap *self, long startpos, size_t minlen) {
+long bitmap_find_set_bits(struct bitmap *self, long startpos, size_t minlen) {
     if (startpos < 0) {
         return -1;
     }
     long first_bit_idx = startpos;
     long last_bit_idx;
     for (;; first_bit_idx = last_bit_idx + 1) {
-        first_bit_idx = Bitmap_FindFirstSetBit(self, first_bit_idx);
+        first_bit_idx = bitmap_find_first_set_bit(self, first_bit_idx);
         if (first_bit_idx < 0) {
             return -1;
         }
-        last_bit_idx = Bitmap_FindLastContiguousBit(self, first_bit_idx);
+        last_bit_idx = bitmap_find_last_contiguous_bit(self, first_bit_idx);
         size_t foundlen = last_bit_idx - first_bit_idx + 1;
         if (minlen <= foundlen) {
             return first_bit_idx;
@@ -111,7 +111,7 @@ long Bitmap_FindSetBits(struct Bitmap *self, long startpos, size_t minlen) {
     }
 }
 
-bool Bitmap_AreBitsSet(struct Bitmap *self, long offset, size_t len) {
+bool bitmap_are_bits_set(struct bitmap *self, long offset, size_t len) {
     if ((offset < 0) || (len == 0)) {
         return false;
     }
@@ -131,7 +131,7 @@ bool Bitmap_AreBitsSet(struct Bitmap *self, long offset, size_t len) {
         if (BITS_PER_WORD < (bitoffset + currentlen)) {
             currentlen = BITS_PER_WORD - bitoffset;
         }
-        UINT mask = MakeBitmask(bitoffset, currentlen);
+        UINT mask = make_bitmask(bitoffset, currentlen);
         if ((word & mask) != mask) {
             return false;
         }
@@ -139,7 +139,7 @@ bool Bitmap_AreBitsSet(struct Bitmap *self, long offset, size_t len) {
     return true;
 }
 
-void Bitmap_SetBits(struct Bitmap *self, long offset, size_t len) {
+void bitmap_set_bits(struct bitmap *self, long offset, size_t len) {
     if (len == 0) {
         return;
     }
@@ -155,12 +155,12 @@ void Bitmap_SetBits(struct Bitmap *self, long offset, size_t len) {
         if (BITS_PER_WORD < (bitoffset + currentlen)) {
             currentlen = BITS_PER_WORD - bitoffset;
         }
-        UINT mask = MakeBitmask(bitoffset, currentlen);
+        UINT mask = make_bitmask(bitoffset, currentlen);
         self->words[word_idx] |= mask;
     }
 }
 
-void Bitmap_ClearBits(struct Bitmap *self, long offset, size_t len) {
+void bitmap_clear_bits(struct bitmap *self, long offset, size_t len) {
     if (len == 0) {
         return;
     }
@@ -176,26 +176,26 @@ void Bitmap_ClearBits(struct Bitmap *self, long offset, size_t len) {
         if (BITS_PER_WORD < (bitoffset + currentlen)) {
             currentlen = BITS_PER_WORD - bitoffset;
         }
-        UINT mask = MakeBitmask(bitoffset, currentlen);
+        UINT mask = make_bitmask(bitoffset, currentlen);
         self->words[word_idx] &= ~mask;
     }
 }
 
-void Bitmap_SetBit(struct Bitmap *self, long offset) {
+void bitmap_set_bit(struct bitmap *self, long offset) {
     if ((offset < 0) || (self->word_count < (offset / BITS_PER_WORD))) {
         return;
     }
     self->words[offset / BITS_PER_WORD] |= (1U << (offset % BITS_PER_WORD));
 }
 
-void Bitmap_ClearBit(struct Bitmap *self, long offset) {
+void bitmap_clear_bit(struct bitmap *self, long offset) {
     if ((offset < 0) || (self->word_count < (offset / BITS_PER_WORD))) {
         return;
     }
     self->words[offset / BITS_PER_WORD] &= ~(1U << (offset % BITS_PER_WORD));
 }
 
-bool Bitmap_IsBitSet(struct Bitmap *self, long offset) {
+bool bitmap_is_bit_set(struct bitmap *self, long offset) {
     if ((offset < 0) || (self->word_count < (offset / BITS_PER_WORD))) {
         return false;
     }

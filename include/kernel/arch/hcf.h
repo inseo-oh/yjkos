@@ -1,4 +1,4 @@
 #pragma once
 
-[[noreturn]] void Arch_Hcf(void);
+[[noreturn]] void arch_hcf(void);
 

@@ -50,27 +50,27 @@ struct type_descriptor {
 
 static void print_type_descriptor(struct type_descriptor const *desc) {
     if (desc == NULL) {
-        Co_Printf("<no info>");
+        co_printf("<no info>");
         return;
     }
     switch (desc->typekind) {
     case UBSAN_KIND_INTEGER:
-        Co_Printf("(int %c%u) %s", (desc->typeinfo & 1U) ? 's' : 'u', 1U << ((uint32_t)desc->typeinfo >> 1), desc->typename);
+        co_printf("(int %c%u) %s", (desc->typeinfo & 1U) ? 's' : 'u', 1U << ((uint32_t)desc->typeinfo >> 1), desc->typename);
         break;
     case UBSAN_KIND_FLOAT:
-        Co_Printf("(f%u) %s", desc->typeinfo, desc->typename);
+        co_printf("(f%u) %s", desc->typeinfo, desc->typename);
         break;
     case UBSAN_KIND_BIGINT:
-        Co_Printf("(bigint %c%u) %s", (desc->typeinfo & 1U) ? 's' : 'u', 1U << ((uint32_t)desc->typeinfo >> 1), desc->typename);
+        co_printf("(bigint %c%u) %s", (desc->typeinfo & 1U) ? 's' : 'u', 1U << ((uint32_t)desc->typeinfo >> 1), desc->typename);
         break;
     default:
-        Co_Printf("??");
+        co_printf("??");
     }
 }
 
 #define DEFINE_RECOVERABLE_ERROR(_name, ...)                        \
-    void __ubsan_handle_##_name(__VA_ARGS__) __attribute__((used)); \
-    [[noreturn]] void __ubsan_handle_##_name##_abort(__VA_ARGS__) __attribute__((used))
+    [[gnu::used]] void __ubsan_handle_##_name(__VA_ARGS__); \
+    [[noreturn, gnu::used]] void __ubsan_handle_##_name##_abort(__VA_ARGS__)
 
 struct type_mismatch_data {
     struct source_location loc;
@@ -79,23 +79,23 @@ struct type_mismatch_data {
 
 DEFINE_RECOVERABLE_ERROR(type_mismatch_v1, struct type_mismatch_data *data, void *ptr);
 [[noreturn]] static void die(void) {
-    Panic("execution aborted by ubsanitizer\n");
+    panic("execution aborted by ubsanitizer\n");
 }
 
 static void printheadermessage(void) {
-    Co_Printf("oops, ubsan detected a kernel UB!\n");
-    Arch_Stacktrace();
+    co_printf("oops, ubsan detected a kernel UB!\n");
+    arch_stacktrace();
 }
 
 static void type_mismatch(struct type_mismatch_data *data, void *ptr) {
-    bool prev_interrupts = Arch_Irq_Disable();
+    bool prev_interrupts = arch_irq_disable();
     printheadermessage();
-    Co_Printf("type mismatch error at %s:%d:%d!\n", data->loc.filename, data->loc.line, data->loc.column);
-    Co_Printf("pointer: %p\n", ptr);
-    Co_Printf("   type: ");
+    co_printf("type mismatch error at %s:%d:%d!\n", data->loc.filename, data->loc.line, data->loc.column);
+    co_printf("pointer: %p\n", ptr);
+    co_printf("   type: ");
     print_type_descriptor(data->type);
-    Co_Printf("\n");
-    Arch_Irq_Restore(prev_interrupts);
+    co_printf("\n");
+    arch_irq_restore(prev_interrupts);
 }
 void __ubsan_handle_type_mismatch_v1(struct type_mismatch_data *data, void *ptr) {
     type_mismatch(data, ptr);
@@ -111,12 +111,12 @@ struct pointer_overflow_data {
 
 DEFINE_RECOVERABLE_ERROR(pointer_overflow, struct pointer_overflow_data *data, void *base, void *result);
 static void pointer_overflow(struct pointer_overflow_data *data, void *base, void *result) {
-    bool prev_interrupts = Arch_Irq_Disable();
+    bool prev_interrupts = arch_irq_disable();
     printheadermessage();
-    Co_Printf("pointer overflow error at %s:%d:%d!\n", data->loc.filename, data->loc.line, data->loc.column);
-    Co_Printf("     base pointer: %p\n", base);
-    Co_Printf("resulting pointer: %p\n", result);
-    Arch_Irq_Restore(prev_interrupts);
+    co_printf("pointer overflow error at %s:%d:%d!\n", data->loc.filename, data->loc.line, data->loc.column);
+    co_printf("     base pointer: %p\n", base);
+    co_printf("resulting pointer: %p\n", result);
+    arch_irq_restore(prev_interrupts);
 }
 void __ubsan_handle_pointer_overflow(struct pointer_overflow_data *data, void *base, void *result) {
     pointer_overflow(data, base, result);
@@ -134,17 +134,17 @@ struct out_of_bounds_data {
 
 DEFINE_RECOVERABLE_ERROR(out_of_bounds, struct out_of_bounds_data *data, void *index);
 static void out_of_bounds(struct out_of_bounds_data *data, void *index) {
-    bool prev_interrupts = Arch_Irq_Disable();
+    bool prev_interrupts = arch_irq_disable();
     printheadermessage();
-    Co_Printf("out of bounds error at %s:%d:%d!\n", data->loc.filename, data->loc.column, data->loc.line);
-    Co_Printf(" array type: ");
+    co_printf("out of bounds error at %s:%d:%d!\n", data->loc.filename, data->loc.column, data->loc.line);
+    co_printf(" array type: ");
     print_type_descriptor(data->array_type);
-    Co_Printf("\n");
-    Co_Printf(" index type: ");
+    co_printf("\n");
+    co_printf(" index type: ");
     print_type_descriptor(data->index_type);
-    Co_Printf("\n");
-    Co_Printf("index value: %zu\n", (size_t)index);
-    Arch_Irq_Restore(prev_interrupts);
+    co_printf("\n");
+    co_printf("index value: %zu\n", (size_t)index);
+    arch_irq_restore(prev_interrupts);
 }
 void __ubsan_handle_out_of_bounds(struct out_of_bounds_data *data, void *index) {
     out_of_bounds(data, index);
@@ -161,18 +161,18 @@ struct shift_out_of_bounds_data {
 };
 DEFINE_RECOVERABLE_ERROR(shift_out_of_bounds, struct shift_out_of_bounds_data *data, void *lhs, void *rhs);
 static void shift_out_of_bounds(struct shift_out_of_bounds_data *data, void *lhs, void *rhs) {
-    bool prev_interrupts = Arch_Irq_Disable();
+    bool prev_interrupts = arch_irq_disable();
     printheadermessage();
-    Co_Printf("shift out of bounds error at %s:%d:%d!\n", data->loc.filename, data->loc.column, data->loc.line);
-    Co_Printf("            lhs type: ");
+    co_printf("shift out of bounds error at %s:%d:%d!\n", data->loc.filename, data->loc.column, data->loc.line);
+    co_printf("            lhs type: ");
     print_type_descriptor(data->lhstype);
-    Co_Printf("\n");
-    Co_Printf("            rhs type: ");
+    co_printf("\n");
+    co_printf("            rhs type: ");
     print_type_descriptor(data->rhstype);
-    Co_Printf("\n");
-    Co_Printf("lhs value(as size_t): %zu\n", (size_t)lhs);
-    Co_Printf("rhs value(as size_t): %zu\n", (size_t)rhs);
-    Arch_Irq_Restore(prev_interrupts);
+    co_printf("\n");
+    co_printf("lhs value(as size_t): %zu\n", (size_t)lhs);
+    co_printf("rhs value(as size_t): %zu\n", (size_t)rhs);
+    arch_irq_restore(prev_interrupts);
 }
 void __ubsan_handle_shift_out_of_bounds(struct shift_out_of_bounds_data *data, void *lhs, void *rhs) {
     shift_out_of_bounds(data, lhs, rhs);
@@ -188,14 +188,14 @@ struct invalid_value_data {
 };
 DEFINE_RECOVERABLE_ERROR(load_invalid_value, struct invalid_value_data *data, void *val);
 static void load_invalid_value(struct invalid_value_data *data, void *val) {
-    bool prev_interrupts = Arch_Irq_Disable();
+    bool prev_interrupts = arch_irq_disable();
     printheadermessage();
-    Co_Printf("load invalid value error at %s:%d:%d!\n", data->loc.filename, data->loc.column, data->loc.line);
-    Co_Printf("           type: ");
+    co_printf("load invalid value error at %s:%d:%d!\n", data->loc.filename, data->loc.column, data->loc.line);
+    co_printf("           type: ");
     print_type_descriptor(data->type);
-    Co_Printf("\n");
-    Co_Printf("value(as size_t): %zu\n", (size_t)val);
-    Arch_Irq_Restore(prev_interrupts);
+    co_printf("\n");
+    co_printf("value(as size_t): %zu\n", (size_t)val);
+    arch_irq_restore(prev_interrupts);
 }
 void __ubsan_handle_load_invalid_value(struct invalid_value_data *data, void *val) {
     load_invalid_value(data, val);
@@ -212,15 +212,15 @@ struct overflow_data {
 
 DEFINE_RECOVERABLE_ERROR(add_overflow, struct overflow_data *data, void *lhs, void *rhs);
 static void overflow(char const *type, struct overflow_data *data, void *lhs, void *rhs) {
-    bool prev_interrupts = Arch_Irq_Disable();
+    bool prev_interrupts = arch_irq_disable();
     printheadermessage();
-    Co_Printf("%s overflow error at %s:%d:%d!\n", type, data->loc.filename, data->loc.column, data->loc.line);
-    Co_Printf("                type: ");
+    co_printf("%s overflow error at %s:%d:%d!\n", type, data->loc.filename, data->loc.column, data->loc.line);
+    co_printf("                type: ");
     print_type_descriptor(data->type);
-    Co_Printf("\n");
-    Co_Printf("lhs value(as size_t): %zu\n", (size_t)lhs);
-    Co_Printf("rhs value(as size_t): %zu\n", (size_t)rhs);
-    Arch_Irq_Restore(prev_interrupts);
+    co_printf("\n");
+    co_printf("lhs value(as size_t): %zu\n", (size_t)lhs);
+    co_printf("rhs value(as size_t): %zu\n", (size_t)rhs);
+    arch_irq_restore(prev_interrupts);
 }
 
 #define DEFINE_OVERFLOW_ERROR(type, name)                                                                         \

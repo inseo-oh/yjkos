@@ -25,7 +25,7 @@ typedef enum {
 } PROTO_BYTEORDER;
 
 struct connection {
-    struct Stream *stream;
+    struct stream *stream;
     PROTO_BYTEORDER byteorder;
 };
 
@@ -39,19 +39,19 @@ static size_t proto_pad(size_t len) {
 
 static void proto_send_unused(struct connection *conn, size_t count) {
     for (size_t i = 0; i < count; i++) {
-        int ret = Stream_PutChar(conn->stream, 0);
+        int ret = stream_put_char(conn->stream, 0);
         if (ret < 0) {
-            Co_Printf("windowd: Failed to send data to the client\n");
-            Arch_Hcf();
+            co_printf("windowd: Failed to send data to the client\n");
+            arch_hcf();
         }
     }
 }
 
 static void proto_send_card8(struct connection *conn, uint8_t val) {
-    int ret = Stream_PutChar(conn->stream, val);
+    int ret = stream_put_char(conn->stream, val);
     if (ret < 0) {
-        Co_Printf("windowd: Failed to send data to the client\n");
-        Arch_Hcf();
+        co_printf("windowd: Failed to send data to the client\n");
+        arch_hcf();
     }
 }
 
@@ -94,12 +94,12 @@ static void proto_send_string8(struct connection *conn, char const *str, size_t 
 
 static void proto_recv_unused(struct connection *conn, size_t count) {
     for (size_t i = 0; i < count; i++) {
-        Stream_GetChar(conn->stream);
+        stream_get_char(conn->stream);
     }
 }
 
 static uint8_t proto_recv_card8(struct connection *conn) {
-    return Stream_GetChar(conn->stream);
+    return stream_get_char(conn->stream);
 }
 
 static uint16_t proto_recv_card16(struct connection *conn) {
@@ -127,7 +127,7 @@ static uint32_t proto_recv_card32(struct connection *conn) {
 }
 
 static char *proto_recv_string8(struct connection *conn, size_t len) {
-    char *str = Heap_Calloc(sizeof(char), len + 1, HEAP_FLAG_ZEROMEMORY);
+    char *str = heap_calloc(sizeof(char), len + 1, HEAP_FLAG_ZEROMEMORY);
     if (str == NULL) {
         return NULL;
     }
@@ -146,11 +146,11 @@ struct proto_connection_setup {
     char *authorization_protocol_data;
 };
 
-[[nodiscard]] static int proto_recv_connection_setup(struct proto_connection_setup *out, struct Stream *client) {
+[[nodiscard]] static int proto_recv_connection_setup(struct proto_connection_setup *out, struct stream *client) {
     struct connection conn;
     memset(out, 0, sizeof(*out));
     memset(&conn, 0, sizeof(conn));
-    int byte_order_raw = Stream_GetChar(client);
+    int byte_order_raw = stream_get_char(client);
     switch (byte_order_raw) {
     case 'B':
         out->byteorder = BYTEORDER_MSB_FIRST;
@@ -159,7 +159,7 @@ struct proto_connection_setup {
         out->byteorder = BYTEORDER_LSB_FIRST;
         break;
     default:
-        Co_Printf("windowd: WARNING: bad byteorder byte %u - assuming LSB first\n", byte_order_raw);
+        co_printf("windowd: WARNING: bad byteorder byte %u - assuming LSB first\n", byte_order_raw);
         out->byteorder = BYTEORDER_LSB_FIRST;
     }
     conn.stream = client;
@@ -179,8 +179,8 @@ struct proto_connection_setup {
     }
     return 0;
 oom:
-    Heap_Free(out->authorization_protocol_name);
-    Heap_Free(out->authorization_protocol_data);
+    heap_free(out->authorization_protocol_name);
+    heap_free(out->authorization_protocol_data);
     return -ENOMEM;
 }
 
@@ -214,7 +214,7 @@ static void proto_send_connection_accept(struct connection *conn, uint16_t proto
 #define REASON_FOOTER \
     "\n[YJK Operating System " YJKOS_RELEASE "-" YJKOS_VERSION "]\n"
 
-[[nodiscard]] static int proto_handle_connection_setup(struct connection *out, struct Stream *client) {
+[[nodiscard]] static int proto_handle_connection_setup(struct connection *out, struct stream *client) {
     memset(out, 0, sizeof(*out));
     int ret = 0;
     struct proto_connection_setup setup;
@@ -224,7 +224,7 @@ static void proto_send_connection_accept(struct connection *conn, uint16_t proto
     }
     out->stream = client;
     out->byteorder = setup.byteorder;
-    Co_Printf("windowd: protocol version %u.%u\n", setup.protocol_major_version, setup.protocol_minor_version);
+    co_printf("windowd: protocol version %u.%u\n", setup.protocol_major_version, setup.protocol_minor_version);
 
     proto_send_connection_refuse(out, "I hate you" REASON_FOOTER, setup.protocol_major_version, setup.protocol_minor_version);
 
@@ -234,40 +234,40 @@ static void proto_send_connection_accept(struct connection *conn, uint16_t proto
 
 static void tmain(void *arg) {
     (void)arg;
-    Arch_Irq_Enable();
-    struct List *devlst = Iodev_GetList(IODEV_TYPE_TTY);
+    arch_irq_enable();
+    struct list *devlst = iodev_get_list(IODEV_TYPE_TTY);
     if ((devlst == NULL) || (devlst->front == NULL)) {
-        Co_Printf("windowd: no serial device available\n");
+        co_printf("windowd: no serial device available\n");
         return;
     }
-    struct IoDev *clientdev = devlst->front->data;
-    struct Tty *clienttty = clientdev->data;
-    struct Stream *client = Tty_GetStream(clienttty);
+    struct iodev *clientdev = devlst->front->data;
+    struct tty *clienttty = clientdev->data;
+    struct stream *client = tty_get_stream(clienttty);
 
-    Co_Printf("windowd: listening commands on serial1\n");
+    co_printf("windowd: listening commands on serial1\n");
     struct connection conn;
     int ret = proto_handle_connection_setup(&conn, client);
     if (ret < 0) {
-        Co_Printf("windowd: failed to setup connection (error %d)\n", ret);
-        Arch_Hcf();
+        co_printf("windowd: failed to setup connection (error %d)\n", ret);
+        arch_hcf();
     }
-    Co_Printf("windowd: proto_handle_connection_setup complete\n");
+    co_printf("windowd: proto_handle_connection_setup complete\n");
     while (1) {
-        Co_Printf("%x\n", Stream_GetChar(client));
+        co_printf("%x\n", stream_get_char(client));
     }
-    Arch_Hcf();
+    arch_hcf();
 }
 
-void Windowd_Start(void) {
+void windowd_start(void) {
     bool thread_started = false;
-    struct Thread *thread = Thread_Create(THREAD_STACK_SIZE, tmain, NULL);
+    struct thread *thread = thread_create(THREAD_STACK_SIZE, tmain, NULL);
     if (thread == NULL) {
-        Co_Printf("not enough memory to create thread\n");
+        co_printf("not enough memory to create thread\n");
         goto die;
     }
-    int ret = Sched_Queue(thread);
+    int ret = sched_queue(thread);
     if (ret < 0) {
-        Co_Printf("failed to queue thread (error %d)\n", ret);
+        co_printf("failed to queue thread (error %d)\n", ret);
         goto die;
     }
     thread_started = true;

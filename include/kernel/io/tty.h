@@ -3,11 +3,11 @@
 #include <kernel/io/stream.h>
 #include <kernel/lib/diagnostics.h>
 
-struct Tty {
-    struct Stream stream;
-    struct IoDev iodev;
+struct tty {
+    struct stream stream;
+    struct iodev iodev;
     void *data;
 };
 
-[[nodiscard]] int Tty_Register(struct Tty *out, void *data);
-struct Stream *Tty_GetStream(struct Tty *self);
+[[nodiscard]] int tty_register(struct tty *out, void *data);
+struct stream *tty_get_stream(struct tty *self);

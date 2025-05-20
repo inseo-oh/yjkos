@@ -22,18 +22,18 @@ static bool const CONFIG_SHOW_DAMAGE = false;
 
 /******************************************************************************/
 
-FB_COLOR MakeColor(uint8_t red, uint8_t green, uint8_t blue) {
+FB_COLOR make_color(uint8_t red, uint8_t green, uint8_t blue) {
     return (((uint32_t)(red >> 3)) << 10) |
            (((uint32_t)(green >> 3)) << 5) |
            ((FB_COLOR)(blue >> 3));
 }
 
-FB_COLOR Black(void) {
-    return MakeColor(0, 0, 0);
+FB_COLOR black(void) {
+    return make_color(0, 0, 0);
 }
 
-FB_COLOR White(void) {
-    return MakeColor(255, 255, 255);
+FB_COLOR white(void) {
+    return make_color(255, 255, 255);
 }
 
 static int s_width;
@@ -52,7 +52,7 @@ static void include_damage(int from, int to) {
     }
 }
 
-void Fb_DrawPixel(int x, int y, FB_COLOR color) {
+void fb_draw_pixel(int x, int y, FB_COLOR color) {
     if (s_backbuffer == NULL) {
         return;
     }
@@ -61,7 +61,7 @@ void Fb_DrawPixel(int x, int y, FB_COLOR color) {
     include_damage(y, y);
 }
 
-void Fb_DrawImage(FB_COLOR *image, int width, int height, int pixels_per_line, int destx, int desty) {
+void fb_draw_image(FB_COLOR *image, int width, int height, int pixels_per_line, int destx, int desty) {
     size_t baseoffset = (desty * s_width) + destx;
     FB_COLOR *srcline = image;
     FB_COLOR *destline = &s_backbuffer[baseoffset];
@@ -73,7 +73,7 @@ void Fb_DrawImage(FB_COLOR *image, int width, int height, int pixels_per_line, i
     include_damage(desty, desty + height - 1);
 }
 
-void Fb_DrawRect(int width, int height, int destx, int desty, FB_COLOR color) {
+void fb_draw_rect(int width, int height, int destx, int desty, FB_COLOR color) {
     size_t baseoffset = (desty * s_width) + destx;
     FB_COLOR *destline = &s_backbuffer[baseoffset];
     for (int srcy = 0; srcy < height; srcy++) {
@@ -85,7 +85,7 @@ void Fb_DrawRect(int width, int height, int destx, int desty, FB_COLOR color) {
     include_damage(desty, desty + height - 1);
 }
 
-void Fb_DrawText(char *text, int destx, int desty, FB_COLOR color) {
+void fb_draw_text(char *text, int destx, int desty, FB_COLOR color) {
     size_t baseoffset = (desty * s_width) + destx;
     for (char *nextchar = text; *nextchar != '\0'; nextchar++) {
         /* TODO: Decode UTF-8 */
@@ -186,7 +186,7 @@ static uint32_t make_native_color_indexed(FB_COLOR rgb) {
 
 static void update_null(void) {}
 
-void (*Fb_Update)(void) = update_null;
+void (*fb_update)(void) = update_null;
 
 static void update32(void) {
     if ((s_backbuffer == NULL) || (s_damage_first_y < 0)) {
@@ -392,7 +392,7 @@ static void update1(void) {
     s_damage_last_y = -1;
 }
 
-void Fb_Scroll(int scrolllen) {
+void fb_scroll(int scrolllen) {
     assert(0 < scrolllen);
     if (s_backbuffer == NULL) {
         return;
@@ -401,27 +401,27 @@ void Fb_Scroll(int scrolllen) {
         uint8_t *srcline = &((uint8_t *)s_fbbase)[s_fbpitch * scrolllen];
         uint8_t *destline = s_fbbase;
         for (int y = 0; y < s_height - scrolllen; y++, destline += s_fbpitch, srcline += s_fbpitch) {
-            MemCopy32(destline, srcline, s_fbpitch / 4);
+            memcpy32(destline, srcline, s_fbpitch / 4);
         }
     }
     {
         uint16_t *srcline = &s_backbuffer[s_width * scrolllen];
         uint16_t *destline = s_backbuffer;
         for (int y = 0; y < s_height - scrolllen; y++, destline += s_width, srcline += s_width) {
-            MemCopy32(destline, srcline, (s_width * sizeof(*destline)) / 4);
+            memcpy32(destline, srcline, (s_width * sizeof(*destline)) / 4);
         }
     }
 }
 
-int Fb_GetWidth(void) {
+int fb_get_width(void) {
     return s_width;
 }
 
-int Fb_GetHeight(void) {
+int fb_get_height(void) {
     return s_height;
 }
 
-void Fb_InitRgb(
+void fb_init_rgb(
     int red_field_pos,
     int red_mask_size,
     int green_field_pos,
@@ -442,70 +442,70 @@ void Fb_InitRgb(
     s_width = width;
     s_height = height;
     s_fbpitch = pitch;
-    s_backbuffer = Heap_Alloc(width * height * sizeof(*s_backbuffer), 0);
+    s_backbuffer = heap_alloc(width * height * sizeof(*s_backbuffer), 0);
     if (s_backbuffer == NULL) {
-        Co_Printf("fb: not enough memory to allocate buffer\n");
+        co_printf("fb: not enough memory to allocate buffer\n");
         goto fail;
     }
     switch (bpp) {
     case 32:
-        Fb_Update = update32;
+        fb_update = update32;
         break;
     case 24:
-        Fb_Update = update24;
+        fb_update = update24;
         break;
     case 16:
     case 15:
-        Fb_Update = update16;
+        fb_update = update16;
         break;
     default:
-        Co_Printf("fb: unsupported rgb bpp %dbpp\n", bpp);
+        co_printf("fb: unsupported rgb bpp %dbpp\n", bpp);
         goto fail;
     }
-    s_fbbase = Vmm_EzMap(framebuffer_base, pitch * height);
-    Co_Printf("fb: rgb %dx%d %dbpp video\n", width, height, bpp);
-    Fb_Update();
+    s_fbbase = vmm_ezmap(framebuffer_base, pitch * height);
+    co_printf("fb: rgb %dx%d %dbpp video\n", width, height, bpp);
+    fb_update();
     psf_init();
     fbtty_init();
     return;
 fail:
-    Heap_Free(s_backbuffer);
+    heap_free(s_backbuffer);
 }
 
-void Fb_initIndexed(uint8_t *palette, int colorcount, PHYSPTR framebufferbase, int width, int height, int pitch, int bpp) {
+void fb_init_indexed(uint8_t *palette, int colorcount, PHYSPTR framebufferbase, int width, int height, int pitch, int bpp) {
     s_colorinfo.indexed.palette = palette;
     s_colorinfo.indexed.colorcount = colorcount;
     s_width = width;
     s_height = height;
     s_fbpitch = pitch;
-    s_backbuffer = Heap_Alloc(width * height * sizeof(*s_backbuffer), 0);
+    s_backbuffer = heap_alloc(width * height * sizeof(*s_backbuffer), 0);
     if (s_backbuffer == NULL) {
-        Co_Printf("fb: not enough memory to allocate buffer\n");
+        co_printf("fb: not enough memory to allocate buffer\n");
         goto fail;
     }
     switch (bpp) {
     case 8:
-        Fb_Update = update8;
+        fb_update = update8;
         break;
     case 1:
         assert((width % 8) == 0);
-        Fb_Update = update1;
+        fb_update = update1;
         break;
     default:
-        Co_Printf("fb: unsupported indexed bpp %dbpp\n", bpp);
+        co_printf("fb: unsupported indexed bpp %dbpp\n", bpp);
         goto fail;
     }
-    s_fbbase = Vmm_EzMap(framebufferbase, pitch * height);
-    Co_Printf("fb: %u-color indexed %dx%d %dbpp video\n", colorcount, width, height, bpp);
+    s_fbbase = vmm_ezmap(framebufferbase, pitch * height);
+    co_printf("fb: %u-color indexed %dx%d %dbpp video\n", colorcount, width, height, bpp);
 
     /* Make sure we can safely use MemCopy32 */
     assert(s_fbpitch % 4 == 0);
     assert((s_width * sizeof(*s_backbuffer)) % 4 == 0);
 
-    Fb_Update();
+    fb_update();
     psf_init();
     fbtty_init();
     return;
 fail:
-    Heap_Free(s_backbuffer);
+    heap_free(s_backbuffer);
 }

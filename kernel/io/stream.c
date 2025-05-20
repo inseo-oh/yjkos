@@ -34,7 +34,7 @@
     return len + measure_dec_unsigned(i);
 }
 
-[[nodiscard]] static ssize_t print_dec_unsigned(struct Stream *self, uint64_t i) {
+[[nodiscard]] static ssize_t print_dec_unsigned(struct stream *self, uint64_t i) {
     size_t written_count = 0;
     ULONG divisor = 1;
     {
@@ -46,7 +46,7 @@
     }
     for (; divisor; divisor /= 10) {
         int digit = (int)((i / divisor) % 10);
-        int result = Stream_PutChar(self, '0' + digit);
+        int result = stream_put_char(self, '0' + digit);
         if (result < 0) {
             return result;
         }
@@ -55,10 +55,10 @@
     return (ssize_t)written_count;
 }
 
-[[nodiscard]] static ssize_t print_dec_signed(struct Stream *self, int64_t i) {
+[[nodiscard]] static ssize_t print_dec_signed(struct stream *self, int64_t i) {
     size_t written_count = 0;
     if (i < 0) {
-        int result = Stream_PutChar(self, '-');
+        int result = stream_put_char(self, '-');
         if (result < 0) {
             return result;
         }
@@ -89,7 +89,7 @@ static size_t measurehex(ULONG i) {
     return len;
 }
 
-[[nodiscard]] static ssize_t print_hex(struct Stream *self,
+[[nodiscard]] static ssize_t print_hex(struct stream *self,
                                        uint64_t i, bool uppercase) {
     size_t written_count = 0;
     char a = uppercase ? 'A' : 'a';
@@ -105,9 +105,9 @@ static size_t measurehex(ULONG i) {
         int digit = (int)((i / divisor) % 16);
         int result;
         if (digit < 10) {
-            result = Stream_PutChar(self, '0' + digit);
+            result = stream_put_char(self, '0' + digit);
         } else {
-            result = Stream_PutChar(self, a + (digit - 10));
+            result = stream_put_char(self, a + (digit - 10));
         }
         if (result < 0) {
             return result;
@@ -117,8 +117,8 @@ static size_t measurehex(ULONG i) {
     return (ssize_t)written_count;
 }
 
-[[nodiscard]] int Stream_PutChar(struct Stream *self, int c) {
-    ssize_t result = self->ops->Write(self, &c, 1);
+[[nodiscard]] int stream_put_char(struct stream *self, int c) {
+    ssize_t result = self->ops->write(self, &c, 1);
     if (result < 0) {
         return result;
     }
@@ -126,13 +126,13 @@ static size_t measurehex(ULONG i) {
     return result;
 }
 
-[[nodiscard]] ssize_t Stream_PutStr(struct Stream *self, char const *s) {
+[[nodiscard]] ssize_t stream_put_string(struct stream *self, char const *s) {
     if (!s) {
         s = "<null>";
     }
     size_t written_count = 0;
     for (char const *nextchar = s; *nextchar != '\0'; nextchar++, written_count++) {
-        int result = Stream_PutChar(self, *nextchar);
+        int result = stream_put_char(self, *nextchar);
         if (result < 0) {
             return result;
         }
@@ -154,7 +154,7 @@ typedef enum {
     LENMOD_PTRDIFF,
 } LENMOD;
 
-[[nodiscard]] ssize_t Stream_VPrintf(struct Stream *self, char const *fmt, va_list ap) {
+[[nodiscard]] ssize_t stream_vprintf(struct stream *self, char const *fmt, va_list ap) {
     uint8_t flags;
     char padchar;
     LENMOD lenmod;
@@ -175,7 +175,7 @@ percentorchar:
         padchar = ' ';
         goto fmtflag;
     }
-    ret = Stream_PutChar(self, fmt[0]);
+    ret = stream_put_char(self, fmt[0]);
     if (ret < 0) {
         return ret;
     }
@@ -267,7 +267,7 @@ doformat:
      */
     case 'c': {
         char c = va_arg(ap, int);
-        ret = Stream_PutChar(self, c);
+        ret = stream_put_char(self, c);
         if (ret < 0) {
             return ret;
         }
@@ -276,7 +276,7 @@ doformat:
     }
     case 's': {
         char const *s = va_arg(ap, char *);
-        ret = Stream_PutStr(self, s);
+        ret = stream_put_string(self, s);
         if (ret < 0) {
             return ret;
         }
@@ -310,7 +310,7 @@ doformat:
         if (flags & FMTFLAG_MINWIDTH_PRESENT) {
             measureresult = measure_dec_signed(val);
             for (size_t i = measureresult; i < minwidth; i++) {
-                ret = Stream_PutChar(self, padchar);
+                ret = stream_put_char(self, padchar);
                 if (ret < 0) {
                     return ret;
                 }
@@ -351,7 +351,7 @@ doformat:
         if (flags & FMTFLAG_MINWIDTH_PRESENT) {
             measureresult = measure_dec_unsigned(val);
             for (size_t i = measureresult; i < minwidth; i++) {
-                ret = Stream_PutChar(self, padchar);
+                ret = stream_put_char(self, padchar);
                 if (ret < 0) {
                     return ret;
                 }
@@ -400,7 +400,7 @@ doformat:
         }
 
         if (flags & FMTFLAG_ALTERNATEFORM) {
-            ret = Stream_PutStr(self, isuppercase ? "0X" : "0x");
+            ret = stream_put_string(self, isuppercase ? "0X" : "0x");
             if (ret < 0) {
                 return ret;
             }
@@ -408,7 +408,7 @@ doformat:
         }
         if (flags & FMTFLAG_MINWIDTH_PRESENT) {
             for (size_t i = measureresult; i < minwidth; i++) {
-                ret = Stream_PutChar(self, padchar);
+                ret = stream_put_char(self, padchar);
                 if (ret < 0) {
                     return ret;
                 }
@@ -424,7 +424,7 @@ doformat:
     }
     case 'p': {
         void *p = va_arg(ap, void *);
-        ret = Stream_PutStr(self, "0x");
+        ret = stream_put_string(self, "0x");
         if (ret < 0) {
             return ret;
         }
@@ -437,7 +437,7 @@ doformat:
         break;
     }
     default:
-        ret = Stream_PutChar(self, fmt[0]);
+        ret = stream_put_char(self, fmt[0]);
         if (ret < 0) {
             return ret;
         }
@@ -450,19 +450,19 @@ end:
     return (ssize_t)written_count;
 }
 
-ssize_t Stream_Printf(struct Stream *self, char const *fmt, ...) {
+ssize_t stream_printf(struct stream *self, char const *fmt, ...) {
     va_list ap;
 
     va_start(ap, fmt);
-    ssize_t result = Stream_VPrintf(self, fmt, ap);
+    ssize_t result = stream_vprintf(self, fmt, ap);
     va_end(ap);
     return result;
 }
 
-int Stream_WaitChar(struct Stream *self, TICKTIME timeout) {
+int stream_wait_char(struct stream *self, TICKTIME timeout) {
     ssize_t size = 0;
     if (timeout != 0) {
-        assert(Arch_Irq_AreEnabled());
+        assert(arch_irq_are_enabled());
     }
 
     TICKTIME starttime = g_ticktime;
@@ -471,7 +471,7 @@ int Stream_WaitChar(struct Stream *self, TICKTIME timeout) {
         if ((timeout != 0) && (timeout <= (g_ticktime - starttime))) {
             return STREAM_EOF;
         }
-        size = self->ops->Read(self, &chr, 1);
+        size = self->ops->read(self, &chr, 1);
         if (size < 0) {
             return size;
         }
@@ -482,18 +482,18 @@ int Stream_WaitChar(struct Stream *self, TICKTIME timeout) {
     return chr;
 }
 
-int Stream_GetChar(struct Stream *self) {
+int stream_get_char(struct stream *self) {
     uint8_t chr;
-    ssize_t size = self->ops->Read(self, &chr, 1);
+    ssize_t size = self->ops->read(self, &chr, 1);
     if (size == 0) {
         return STREAM_EOF;
     }
     return chr;
 }
 
-void Stream_Flush(struct Stream *self) {
-    if (self->ops->Flush == NULL) {
+void stream_flush(struct stream *self) {
+    if (self->ops->flush == NULL) {
         return;
     }
-    self->ops->Flush(self);
+    self->ops->flush(self);
 }

@@ -1,4 +1,4 @@
 #pragma once
 
-[[noreturn]] void Panic(char const *msg);
+[[noreturn]] void panic(char const *msg);
 

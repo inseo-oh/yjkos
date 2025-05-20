@@ -4,12 +4,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
-void Pmm_RegisterMem(PHYSPTR base, size_t page_count);
+void pmm_register_mem(PHYSPTR base, size_t page_count);
 /*
  * Returns NULL on failure
  */
-PHYSPTR Pmm_Alloc(size_t *pagecount_inout);
-void Pmm_Free(PHYSPTR ptr, size_t page_count);
-size_t Pmm_GetTotalMem(void);
+PHYSPTR pmm_alloc(size_t *pagecount_inout);
+void pmm_free(PHYSPTR ptr, size_t page_count);
+size_t pmm_get_total_mem_size(void);
 
-bool Pmm_PagePoolTestRandom(void);
+bool pmm_page_pool_test_random(void);

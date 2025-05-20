@@ -27,9 +27,9 @@ static uint8_t const PIC_ICW1_FLAG_INIT = 1 << 4;
 static uint8_t const PIC_ICW4_FLAG_8086MODE = 1 << 0;
 
 static uint16_t readirqreg(uint8_t readcmd) {
-    ArchI586_Out8(CMDPORT_MASTER, readcmd);
-    ArchI586_Out8(CMDPORT_SLAVE, readcmd);
-    return ((uint32_t)ArchI586_In8(CMDPORT_SLAVE) << 8) | ArchI586_In8(CMDPORT_MASTER);
+    archi586_out8(CMDPORT_MASTER, readcmd);
+    archi586_out8(CMDPORT_SLAVE, readcmd);
+    return ((uint32_t)archi586_in8(CMDPORT_SLAVE) << 8) | archi586_in8(CMDPORT_MASTER);
 }
 
 static uint16_t readirr(void) {
@@ -41,62 +41,62 @@ static uint16_t readisr(void) {
 }
 
 static uint16_t getirqmask(void) {
-    uint32_t master_mask = ArchI586_In8(DATAPORT_MASTER);
-    uint32_t slave_mask = ArchI586_In8(DATAPORT_SLAVE);
+    uint32_t master_mask = archi586_in8(DATAPORT_MASTER);
+    uint32_t slave_mask = archi586_in8(DATAPORT_SLAVE);
     return (slave_mask << 8) | master_mask;
 }
 
 static void setirqmask(uint16_t mask) {
-    ArchI586_Out8(DATAPORT_MASTER, mask);
-    ArchI586_Out8(DATAPORT_SLAVE, mask >> 8);
+    archi586_out8(DATAPORT_MASTER, mask);
+    archi586_out8(DATAPORT_SLAVE, mask >> 8);
 }
 
-void ArchI586_Pic_SendEoi(uint8_t irq) {
+void archi586_pic_send_eoi(uint8_t irq) {
     if (irq >= IRQS_PER_PIC) {
-        ArchI586_Out8(CMDPORT_SLAVE, CMD_EOI);
+        archi586_out8(CMDPORT_SLAVE, CMD_EOI);
     }
-    ArchI586_Out8(CMDPORT_MASTER, CMD_EOI);
+    archi586_out8(CMDPORT_MASTER, CMD_EOI);
 }
 
 static bool checkspuriousirq(uint8_t irq) {
     bool is_real = readisr() & (1U << irq);
     if (irq == 7) {
         if (!is_real) {
-            Co_Printf("pic: spurious irq %u received\n", irq);
+            co_printf("pic: spurious irq %u received\n", irq);
         }
         return is_real;
     }
     if (irq == 15) {
         if (!is_real) {
-            Co_Printf("pic: spurious irq %u received\n", irq);
+            co_printf("pic: spurious irq %u received\n", irq);
             /*
              * If spurious IRQ occured on the slave PIC, master PIC has no idea
              * that it is spurious at all.
              * So we must send EOI to the master.
              */
-            ArchI586_Pic_SendEoi(SLAVEPIN_ON_MASTER);
+            archi586_pic_send_eoi(SLAVEPIN_ON_MASTER);
         }
         return is_real;
     }
     return true;
 }
 
-bool ArchI586_Pic_IsIrqMasked(uint8_t irq) {
+bool archi586_pic_is_irq_masked(uint8_t irq) {
     return getirqmask() & (1U << irq);
 }
 
-void ArchI586_Pic_MaskIrq(uint8_t irq) {
+void archi586_pic_mask_irq(uint8_t irq) {
     setirqmask(getirqmask() | (1U << irq));
 }
 
-void ArchI586_Pic_UnmaskIrq(uint8_t irq) {
+void archi586_pic_unmask_irq(uint8_t irq) {
     setirqmask(getirqmask() & ~(1U << irq));
 }
 
-static struct TrapHandler s_traphandler[IRQS_TOTAL];
+static struct trap_handler s_traphandler[IRQS_TOTAL];
 
 /* Each IRQ entry is a list of IRQ handlers. */
-static struct List s_irqs[IRQS_TOTAL];
+static struct list s_irqs[IRQS_TOTAL];
 
 /* Default handler that just EOIs given IRQ */
 static void default_irq_handler(int trapnum, void *trapframe, void *data) {
@@ -106,45 +106,45 @@ static void default_irq_handler(int trapnum, void *trapframe, void *data) {
     assert(irqnum < IRQS_TOTAL);
     bool is_suprious_irq = checkspuriousirq(irqnum);
     if (s_irqs[irqnum].front == NULL) {
-        Co_Printf("no irq handler registered for irq %d\n", trapnum);
+        co_printf("no irq handler registered for irq %d\n", trapnum);
         return;
     }
     LIST_FOREACH(&s_irqs[irqnum], handlernode) {
-        struct ArchI586_Pic_IrqHandler *handler = handlernode->data;
+        struct archi586_pic_irq_handler *handler = handlernode->data;
         assert(handler != NULL);
         handler->callback(irqnum, handler->data);
     }
     if (!is_suprious_irq) {
-        ArchI586_Pic_SendEoi(irqnum);
+        archi586_pic_send_eoi(irqnum);
     }
 }
 
-void ArchI586_Pic_Init(void) {
+void archi586_pic_init(void) {
     /* ICW1 *******************************************************************/
-    ArchI586_Out8(CMDPORT_MASTER, PIC_ICW1_FLAG_INIT | PIC_ICW1_FLAG_ICW4);
-    ArchI586_Out8(CMDPORT_SLAVE, PIC_ICW1_FLAG_INIT | PIC_ICW1_FLAG_ICW4);
+    archi586_out8(CMDPORT_MASTER, PIC_ICW1_FLAG_INIT | PIC_ICW1_FLAG_ICW4);
+    archi586_out8(CMDPORT_SLAVE, PIC_ICW1_FLAG_INIT | PIC_ICW1_FLAG_ICW4);
     /* ICW2 *******************************************************************/
-    ArchI586_Out8(DATAPORT_MASTER, PIC_VECTOR_BASE);
-    ArchI586_Out8(DATAPORT_SLAVE, PIC_VECTOR_BASE + IRQS_PER_PIC);
+    archi586_out8(DATAPORT_MASTER, PIC_VECTOR_BASE);
+    archi586_out8(DATAPORT_SLAVE, PIC_VECTOR_BASE + IRQS_PER_PIC);
     /* ICW3 *******************************************************************/
-    ArchI586_Out8(DATAPORT_MASTER, 1 << SLAVEPIN_ON_MASTER);
-    ArchI586_Out8(DATAPORT_SLAVE, SLAVEPIN_ON_MASTER);
+    archi586_out8(DATAPORT_MASTER, 1 << SLAVEPIN_ON_MASTER);
+    archi586_out8(DATAPORT_SLAVE, SLAVEPIN_ON_MASTER);
     /* ICW4 *******************************************************************/
-    ArchI586_Out8(DATAPORT_MASTER, PIC_ICW4_FLAG_8086MODE);
-    ArchI586_Out8(DATAPORT_SLAVE, PIC_ICW4_FLAG_8086MODE);
+    archi586_out8(DATAPORT_MASTER, PIC_ICW4_FLAG_8086MODE);
+    archi586_out8(DATAPORT_SLAVE, PIC_ICW4_FLAG_8086MODE);
     /* Setup default PIC handler **********************************************/
     for (size_t i = 0; i < 8; i++) {
-        TrapManager_Register(&s_traphandler[i], PIC_VECTOR_BASE + i, default_irq_handler, NULL);
-        TrapManager_Register(&s_traphandler[IRQS_PER_PIC + i], PIC_VECTOR_BASE + IRQS_PER_PIC + i, default_irq_handler, NULL);
+        trapmanager_register_trap(&s_traphandler[i], PIC_VECTOR_BASE + i, default_irq_handler, NULL);
+        trapmanager_register_trap(&s_traphandler[IRQS_PER_PIC + i], PIC_VECTOR_BASE + IRQS_PER_PIC + i, default_irq_handler, NULL);
     }
     /* Disable IRQs except for IRQ2(which is connected to slave PIC) **********/
     setirqmask(~(uint16_t)(1U << 2));
 }
 
-void ArchI586_Pic_RegisterHandler(struct ArchI586_Pic_IrqHandler *out, int irqnum, void (*callback)(int irqnum, void *data), void *data) {
-    bool prev_interrupts = Arch_Irq_Disable();
+void archi586_pic_register_handler(struct archi586_pic_irq_handler *out, int irqnum, void (*callback)(int irqnum, void *data), void *data) {
+    bool prev_interrupts = arch_irq_disable();
     out->callback = callback;
     out->data = data;
-    List_InsertBack(&s_irqs[irqnum], &out->node, out);
-    Arch_Irq_Restore(prev_interrupts);
+    list_insert_back(&s_irqs[irqnum], &out->node, out);
+    arch_irq_restore(prev_interrupts);
 }

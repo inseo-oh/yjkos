@@ -1,18 +1,18 @@
 #include "asm/i586.h"
 #include <kernel/arch/interrupts.h>
 
-ARCH_IRQSTATE Arch_Irq_AreEnabled(void) {
-    return (ArchI586_GetEFlags() & EFLAGS_FLAG_IF) ? IRQSTATE_ENABLED : IRQSTATE_DISABLED;
+ARCH_IRQSTATE arch_irq_are_enabled(void) {
+    return (archi586_get_eflags() & EFLAGS_FLAG_IF) ? IRQSTATE_ENABLED : IRQSTATE_DISABLED;
 }
 
-ARCH_IRQSTATE Arch_Irq_Enable(void) {
-    ARCH_IRQSTATE prev_state = Arch_Irq_AreEnabled();
-    ArchI586_Sti();
+ARCH_IRQSTATE arch_irq_enable(void) {
+    ARCH_IRQSTATE prev_state = arch_irq_are_enabled();
+    archi586_sti();
     return prev_state;
 }
 
-ARCH_IRQSTATE Arch_Irq_Disable(void) {
-    ARCH_IRQSTATE prev_state = Arch_Irq_AreEnabled();
-    ArchI586_Cli();
+ARCH_IRQSTATE arch_irq_disable(void) {
+    ARCH_IRQSTATE prev_state = arch_irq_are_enabled();
+    archi586_cli();
     return prev_state;
 }

@@ -122,7 +122,7 @@ int getopt(int argc, char *const argv[], const char *optstring) {
     goto error;
 error:
     if (print_err) {
-        Co_Printf("%s: %s -- '%c'\n", argv[0], errmsg, optopt);
+        co_printf("%s: %s -- '%c'\n", argv[0], errmsg, optopt);
         result_opt = '?';
     }
 out:

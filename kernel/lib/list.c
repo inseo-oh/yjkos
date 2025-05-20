@@ -3,11 +3,11 @@
 #include <stddef.h>
 #include <string.h>
 
-void List_Init(struct List *self) {
+void list_init(struct list *self) {
     memset(self, 0, sizeof(*self));
 }
 
-void List_InsertFront(struct List *list, struct List_Node *node, void *data) {
+void list_insert_front(struct list *list, struct list_node *node, void *data) {
     if (list->front) {
         list->front->prev = node;
     }
@@ -20,7 +20,7 @@ void List_InsertFront(struct List *list, struct List_Node *node, void *data) {
     }
 }
 
-void List_InsertBack(struct List *list, struct List_Node *node, void *data) {
+void list_insert_back(struct list *list, struct list_node *node, void *data) {
     if (list->back) {
         list->back->next = node;
     }
@@ -33,7 +33,7 @@ void List_InsertBack(struct List *list, struct List_Node *node, void *data) {
     }
 }
 
-void List_InsertAfter(struct List *list, struct List_Node *after, struct List_Node *node, void *data) {
+void list_insert_after(struct list *list, struct list_node *after, struct list_node *node, void *data) {
     node->prev = after;
     node->next = after->next;
     node->data = data;
@@ -46,7 +46,7 @@ void List_InsertAfter(struct List *list, struct List_Node *after, struct List_No
     }
 }
 
-void List_InsertBefore(struct List *list, struct List_Node *before, struct List_Node *node, void *data) {
+void list_insert_before(struct list *list, struct list_node *before, struct list_node *node, void *data) {
     node->next = before;
     node->prev = before->prev;
     node->data = data;
@@ -59,8 +59,8 @@ void List_InsertBefore(struct List *list, struct List_Node *before, struct List_
     }
 }
 
-struct List_Node *List_RemoveFront(struct List *list) {
-    struct List_Node *removed = list->front;
+struct list_node *list_remove_front(struct list *list) {
+    struct list_node *removed = list->front;
     if (!removed) {
         return NULL;
     }
@@ -73,8 +73,8 @@ struct List_Node *List_RemoveFront(struct List *list) {
     return removed;
 }
 
-struct List_Node *List_RemoveBack(struct List *list) {
-    struct List_Node *removed = list->back;
+struct list_node *list_remove_back(struct list *list) {
+    struct list_node *removed = list->back;
     if (!removed) {
         return NULL;
     }
@@ -87,7 +87,7 @@ struct List_Node *List_RemoveBack(struct List *list) {
     return removed;
 }
 
-void List_RemoveNode(struct List *list, struct List_Node *node) {
+void list_remove_node(struct list *list, struct list_node *node) {
     if (node->prev) {
         node->prev->next = node->next;
     }
@@ -106,7 +106,7 @@ void List_RemoveNode(struct List *list, struct List_Node *node) {
     }
 }
 
-void *List_GetDataOrNull(struct List_Node *node) {
+void *list_get_data_or_null(struct list_node *node) {
     if (node == NULL) {
         return NULL;
     }

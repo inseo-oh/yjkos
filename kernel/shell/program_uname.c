@@ -68,46 +68,46 @@ static int program_main(int argc, char *argv[]) {
         /* No options were given */
         opts.sysname = true;
     } else if (optind < argc) {
-        Co_Printf("%s: Extra operand %s", argv[0], argv[optind]);
+        co_printf("%s: Extra operand %s", argv[0], argv[optind]);
         return 1;
     }
     if (opts.sysname) {
-        Co_Printf("YJKOS");
+        co_printf("YJKOS");
         if (opts.node || opts.release || opts.version || opts.machine) {
-            Co_Printf(" ");
+            co_printf(" ");
         }
     }
     if (opts.node) {
-        Co_Printf("localhost");
+        co_printf("localhost");
         if (opts.release || opts.version || opts.machine) {
-            Co_Printf(" ");
+            co_printf(" ");
         }
     }
     if (opts.release) {
-        Co_Printf(YJKOS_RELEASE);
+        co_printf(YJKOS_RELEASE);
         if (opts.version || opts.machine) {
-            Co_Printf(" ");
+            co_printf(" ");
         }
     }
     if (opts.version) {
-        Co_Printf(YJKOS_VERSION);
+        co_printf(YJKOS_VERSION);
         if (opts.machine) {
-            Co_Printf(" ");
+            co_printf(" ");
         }
     }
     if (opts.machine) {
 #if YJKERNEL_ARCH_I586
-        Co_Printf("i586");
+        co_printf("i586");
 #else
 #error Unknown arch
 #endif
     }
-    Co_Printf("\n");
+    co_printf("\n");
 
     return 0;
 }
 
-struct Shell_Program g_shell_program_uname = {
+struct shell_program g_shell_program_uname = {
     .name = "uname",
     .main = program_main,
 };

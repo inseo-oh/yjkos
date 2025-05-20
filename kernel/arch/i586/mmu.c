@@ -63,15 +63,15 @@ static size_t pte_index(void *ptr) {
     return ((uintptr_t)ptr & PTE_BIT_MASK) >> PTE_BIT_OFFSET;
 }
 
-void Arch_Mmu_FlushTlbFor(void *ptr) {
-    ArchI586_Invlpg(ptr);
+void arch_mmu_flush_tlb_for(void *ptr) {
+    archi586_invlpg(ptr);
 }
 
-void Arch_Mmu_FlushTlb(void) {
-    ArchI586_ReloadCr3();
+void arch_mmu_flush_tlb(void) {
+    archi586_reload_cr3();
 }
 
-[[nodiscard]] int Arch_Mmu_Emulate(PHYSPTR *physaddr_out, void *virtaddr, uint8_t flags, MMU_USER_ACCESS is_from_user) {
+[[nodiscard]] int arch_mmu_emulate(PHYSPTR *physaddr_out, void *virtaddr, uint8_t flags, MMU_USER_ACCESS is_from_user) {
     uint16_t pde = pde_index(virtaddr);
     uint16_t pte = pte_index(virtaddr);
     bool is_write = flags & MAP_PROT_WRITE;
@@ -99,7 +99,7 @@ void Arch_Mmu_FlushTlb(void) {
     return 0;
 }
 
-[[nodiscard]] int Arch_Mmu_VirtToPhys(PHYSPTR *physaddr_out, void *virt) {
+[[nodiscard]] int arch_mmu_virtual_to_physical(PHYSPTR *physaddr_out, void *virt) {
     uint16_t pde = pde_index(virt);
     uint16_t pte = pte_index(virt);
     uint32_t pd_entry = s_pagedir[pde];
@@ -124,16 +124,16 @@ void Arch_Mmu_FlushTlb(void) {
 
 static int create_pd(uint8_t pde) {
     size_t size = 1;
-    PHYSPTR addr = Pmm_Alloc(&size);
+    PHYSPTR addr = pmm_alloc(&size);
     if (addr == PHYSICALPTR_NULL) {
         return -ENOMEM;
     }
     s_pagedir[pde] = addr | ARCHI586_MMU_PDE_FLAG_P | ARCHI586_MMU_PDE_FLAG_RW | ARCHI586_MMU_PDE_FLAG_US;
-    Arch_Mmu_FlushTlbFor(&s_pagetables[pde]);
+    arch_mmu_flush_tlb_for(&s_pagetables[pde]);
     memset(&s_pagetables[pde], 0, sizeof(s_pagetables[pde]));
     /* Flush TLB just to be safe **********************************************/
     for (size_t i = 0; i < ARCHI586_MMU_ENTRY_COUNT; i++) {
-        Arch_Mmu_FlushTlbFor((void *)MAKE_VIRTADDR(pde, i, 0));
+        arch_mmu_flush_tlb_for((void *)MAKE_VIRTADDR(pde, i, 0));
     }
     return 0;
 }
@@ -167,17 +167,17 @@ static void map_single_page(void *virt, PHYSPTR phys, uint8_t flags, MMU_USER_AC
         s_pagetables[pde].entry[pte] |= ARCHI586_MMU_PTE_FLAG_US;
     }
     if (shouldflush) {
-        Arch_Mmu_FlushTlbFor(virt);
+        arch_mmu_flush_tlb_for(virt);
     }
 }
 
-[[nodiscard]] int Arch_Mmu_Map(void *virt_base, PHYSPTR physbase, size_t page_count, uint8_t flags, MMU_USER_ACCESS user_access) {
+[[nodiscard]] int arch_mmu_map(void *virt_base, PHYSPTR physbase, size_t page_count, uint8_t flags, MMU_USER_ACCESS user_access) {
     ASSERT_IRQ_DISABLED();
     int ret = 0;
     bool pdcreated = false;
     ASSERT_ADDR_VALID(virt_base, page_count);
     ASSERT_ADDR_VALID(physbase, page_count);
-    assert(IsAligned(physbase, ARCHI586_MMU_PAGE_SIZE));
+    assert(is_aligned(physbase, ARCHI586_MMU_PAGE_SIZE));
     if (!(flags & MAP_PROT_READ)) {
         ret = -EPERM;
         goto fail;
@@ -205,7 +205,7 @@ static void map_single_page(void *virt, PHYSPTR phys, uint8_t flags, MMU_USER_AC
 fail:
     if (pdcreated) {
         /* TODO: Clean-up unused PD entries */
-        Co_Printf("todo: clean-up unused pd entries\n");
+        co_printf("todo: clean-up unused pd entries\n");
     }
 out:
     return ret;
@@ -249,11 +249,11 @@ static void remap_single_page(void *virt, uint8_t flags, MMU_USER_ACCESS user_ac
         s_pagetables[pde].entry[pte] |= ARCHI586_MMU_PTE_FLAG_US;
     }
     if (should_flush) {
-        Arch_Mmu_FlushTlbFor(virt);
+        arch_mmu_flush_tlb_for(virt);
     }
 }
 
-[[nodiscard]] int Arch_Mmu_Remap(void *virt_base, size_t page_count, uint8_t flags, MMU_USER_ACCESS user_access) {
+[[nodiscard]] int arch_mmu_remap(void *virt_base, size_t page_count, uint8_t flags, MMU_USER_ACCESS user_access) {
     ASSERT_IRQ_DISABLED();
     ASSERT_ADDR_VALID(virt_base, page_count);
     if (!(flags & MAP_PROT_READ)) {
@@ -274,7 +274,7 @@ static void remap_single_page(void *virt, uint8_t flags, MMU_USER_ACCESS user_ac
     return 0;
 }
 
-[[nodiscard]] int Arch_Mmu_Unmap(void *virt_base, size_t page_count) {
+[[nodiscard]] int arch_mmu_unmap(void *virt_base, size_t page_count) {
     ASSERT_IRQ_DISABLED();
     ASSERT_ADDR_VALID(virt_base, page_count);
     for (size_t i = 0; i < page_count; i++) {
@@ -289,7 +289,7 @@ static void remap_single_page(void *virt, uint8_t flags, MMU_USER_ACCESS user_ac
         uint16_t pde = pde_index(current_virt_base);
         uint16_t pte = pte_index(current_virt_base);
         s_pagetables[pde].entry[pte] = 0;
-        Arch_Mmu_FlushTlbFor(current_virt_base);
+        arch_mmu_flush_tlb_for(current_virt_base);
     }
     /* TODO: Clean-up unused PD entries */
     return true;
@@ -297,9 +297,9 @@ static void remap_single_page(void *virt, uint8_t flags, MMU_USER_ACCESS user_ac
 
 STATIC_ASSERT_TEST(ARCHI586_MMU_SCRATCH_PDE == (ARCHI586_MMU_KERNEL_PDE_START + ARCHI586_MMU_KERNEL_PDE_COUNT - 1));
 
-void Arch_Mmu_ScratchMap(PHYSPTR physaddr, MMU_CACHE_INHIBIT cache_inhibit) {
+void arch_mmu_scratch_map(PHYSPTR physaddr, MMU_CACHE_INHIBIT cache_inhibit) {
     ASSERT_IRQ_DISABLED();
-    assert(IsAligned(physaddr, ARCHI586_MMU_PAGE_SIZE));
+    assert(is_aligned(physaddr, ARCHI586_MMU_PAGE_SIZE));
     uint16_t pde = ARCHI586_MMU_SCRATCH_PDE;
     uint16_t pte = ARCHI586_MMU_SCRATCH_PTE;
     uint32_t pd_entry = s_pagedir[pde];
@@ -323,7 +323,7 @@ void Arch_Mmu_ScratchMap(PHYSPTR physaddr, MMU_CACHE_INHIBIT cache_inhibit) {
         s_pagetables[pde].entry[pte] |= ARCHI586_MMU_PTE_FLAG_PCD;
     }
     if (should_flush) {
-        Arch_Mmu_FlushTlbFor(ARCH_SCRATCH_MAP_BASE);
+        arch_mmu_flush_tlb_for(ARCH_SCRATCH_MAP_BASE);
     }
 }
 
@@ -331,8 +331,8 @@ void Arch_Mmu_ScratchMap(PHYSPTR physaddr, MMU_CACHE_INHIBIT cache_inhibit) {
  * Internal API
  ******************************************************************************/
 
-void ArchI586_Mmu_WriteProtectKernelText(void) {
-    int ret = Arch_Mmu_Remap(
+void archi586_mmu_write_protect_kernel_text(void) {
+    int ret = arch_mmu_remap(
         ARCHI586_ARCH_KERNEL_TEXT_BEGIN,
         (ARCHI586_ARCH_KERNEL_TEXT_END - ARCHI586_ARCH_KERNEL_TEXT_BEGIN) / ARCHI586_MMU_PAGE_SIZE,
         MAP_PROT_READ,
@@ -340,8 +340,8 @@ void ArchI586_Mmu_WriteProtectKernelText(void) {
     MUST_SUCCEED(ret);
 }
 
-void ArchI586_Mmu_WriteProtectAfterEarlyInit(void) {
-    int ret = Arch_Mmu_Remap(
+void arch_mmu_write_protect_after_early_init(void) {
+    int ret = arch_mmu_remap(
         ARCHI586_KERNEL_RO_AFTER_EARLY_INIT_BEGIN,
         (ARCHI586_KERNEL_RO_AFTER_EARLY_INIT_END -
          ARCHI586_KERNEL_RO_AFTER_EARLY_INIT_BEGIN) /
@@ -352,19 +352,19 @@ void ArchI586_Mmu_WriteProtectAfterEarlyInit(void) {
 
 extern const void *archi586_stackbottomtrap;
 
-void ArchI586_Mmu_Init(void) {
+void archi586_mmu_init(void) {
 #if 0
     /* Unmap lower 2MB area ***************************************************/
     for (size_t i = 0; i < ARCHI586_MMU_ENTRY_COUNT; i++) {
         s_pagetables[0].entry[i] = 0;
-        Arch_Mmu_FlushTlbFor((void *)MAKE_VIRTADDR(0, i, 0));
+        arch_mmu_flush_tlb_for((void *)MAKE_VIRTADDR(0, i, 0));
     }
 #endif
     /* Setup "stack bottom trap", which basically forces system to triple-fault immediately when kernel runs out of stack memory. */
-    int ret = Arch_Mmu_Unmap(&archi586_stackbottomtrap, 1);
+    int ret = arch_mmu_unmap(&archi586_stackbottomtrap, 1);
     MUST_SUCCEED(ret);
     /* Unmap kernel VM region */
-    ret = Arch_Mmu_Unmap(
+    ret = arch_mmu_unmap(
         ARCH_KERNEL_VM_START,
         ((uintptr_t)ARCH_KERNEL_VM_END - (uintptr_t)ARCH_KERNEL_VM_START + 1) / ARCHI586_MMU_PAGE_SIZE);
     MUST_SUCCEED(ret);

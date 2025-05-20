@@ -1,3 +1,3 @@
 #pragma once
 
-[[noreturn]] void Kernel_Init(void);
+[[noreturn]] void kernel_init(void);

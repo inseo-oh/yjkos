@@ -10,7 +10,7 @@
 
 static bool const CONFIG_DEBUG_CONTEXT_SWITCH = false;
 
-struct Arch_Thread {
+struct arch_thread {
     void *saved_esp;
     uint32_t stack[];
 };
@@ -35,7 +35,7 @@ static void exitcallback(void) {
 }
 
 #define STACK_MINSIZE STACK_ITEM_COUNT * sizeof(uint32_t)
-[[nodiscard]] struct Arch_Thread *Arch_Thread_Create(size_t init_stacksize, void (*init_mainfunc)(void *), void *init_data) {
+[[nodiscard]] struct arch_thread *arch_thread_create(size_t init_stacksize, void (*init_mainfunc)(void *), void *init_data) {
     STATIC_ASSERT_TEST(STACK_ITEM_COUNT == 8);
 
     size_t stacksize = init_stacksize;
@@ -43,16 +43,16 @@ static void exitcallback(void) {
         stacksize = STACK_MINSIZE;
     }
     if ((stacksize % sizeof(uint32_t)) != 0) {
-        stacksize = AlignUp(stacksize, sizeof(uint32_t));
+        stacksize = align_up(stacksize, sizeof(uint32_t));
     }
     assert((stacksize % sizeof(uint32_t)) == 0);
-    Co_Printf("creating thread with %uk stack and entry point %p\n", stacksize / 1024, init_mainfunc);
-    struct Arch_Thread *thread = NULL;
+    co_printf("creating thread with %uk stack and entry point %p\n", stacksize / 1024, init_mainfunc);
+    struct arch_thread *thread = NULL;
 
-    if ((SIZE_MAX - sizeof(struct Arch_Thread)) < stacksize) {
+    if ((SIZE_MAX - sizeof(struct arch_thread)) < stacksize) {
         goto out;
     }
-    thread = Heap_Alloc(sizeof(*thread) + stacksize, 0);
+    thread = heap_alloc(sizeof(*thread) + stacksize, 0);
     if (thread == NULL) {
         goto out;
     }
@@ -71,35 +71,35 @@ out:
     return thread;
 }
 
-void Arch_Thread_Destroy(struct Arch_Thread *thread) {
-    Heap_Free(thread);
+void arch_thread_destroy(struct arch_thread *thread) {
+    heap_free(thread);
 }
 
-void Arch_Thread_Switch(struct Arch_Thread *from, struct Arch_Thread *to) {
+void arch_thread_switch(struct arch_thread *from, struct arch_thread *to) {
     if (CONFIG_DEBUG_CONTEXT_SWITCH) {
-        Co_Printf("context switch from=%p, to=%p(esp=%p)\n", from, to, to->saved_esp);
-        Arch_Stacktrace();
+        co_printf("context switch from=%p, to=%p(esp=%p)\n", from, to, to->saved_esp);
+        arch_stacktrace();
         uint32_t edi = ((uint32_t *)to->saved_esp)[STACK_IDX_EDI];
         uint32_t esi = ((uint32_t *)to->saved_esp)[STACK_IDX_ESI];
         uint32_t ebx = ((uint32_t *)to->saved_esp)[STACK_IDX_EBX];
         uint32_t eflags = ((uint32_t *)to->saved_esp)[STACK_IDX_EFLAGS];
         uint32_t ebp = ((uint32_t *)to->saved_esp)[STACK_IDX_EBP];
         uint32_t eip = ((uint32_t *)to->saved_esp)[STACK_IDX_EIP];
-        Co_Printf("ebx=%08lx esi=%08lx edi=%08lx\n", ebx, esi, edi);
-        Co_Printf("ebp=%08lx eip=%08lx efl=%08lx\n", ebp, eip, eflags);
+        co_printf("ebx=%08lx esi=%08lx edi=%08lx\n", ebx, esi, edi);
+        co_printf("ebp=%08lx eip=%08lx efl=%08lx\n", ebp, eip, eflags);
     }
     assert(from != NULL);
-    ArchI586_ContextSwitch(&from->saved_esp, to->saved_esp);
+    archi586_context_switch(&from->saved_esp, to->saved_esp);
     if (CONFIG_DEBUG_CONTEXT_SWITCH) {
-        Co_Printf("context switch returned! from=%p(esp=%p), to=%p\n", from, from->saved_esp, to);
-        Arch_Stacktrace();
+        co_printf("context switch returned! from=%p(esp=%p), to=%p\n", from, from->saved_esp, to);
+        arch_stacktrace();
         uint32_t edi = ((uint32_t *)from->saved_esp)[STACK_IDX_EDI];
         uint32_t esi = ((uint32_t *)from->saved_esp)[STACK_IDX_ESI];
         uint32_t ebx = ((uint32_t *)from->saved_esp)[STACK_IDX_EBX];
         uint32_t eflags = ((uint32_t *)to->saved_esp)[STACK_IDX_EFLAGS];
         uint32_t ebp = ((uint32_t *)from->saved_esp)[STACK_IDX_EBP];
         uint32_t eip = ((uint32_t *)from->saved_esp)[STACK_IDX_EIP];
-        Co_Printf("ebx=%08lx esi=%08lx edi=%08lx\n", ebx, esi, edi);
-        Co_Printf("ebp=%08lx eip=%08lx efl=%08lx\n", ebp, eip, eflags);
+        co_printf("ebx=%08lx esi=%08lx edi=%08lx\n", ebx, esi, edi);
+        co_printf("ebp=%08lx eip=%08lx efl=%08lx\n", ebp, eip, eflags);
     }
 }

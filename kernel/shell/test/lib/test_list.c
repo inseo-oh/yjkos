@@ -3,20 +3,20 @@
 #include <string.h>
 
 static bool do_insertfront(void) {
-    struct List lst;
-    struct List_Node nodes[3];
+    struct list lst;
+    struct list_node nodes[3];
 
     memset(&lst, 0x55, sizeof(lst));
     memset(nodes, 0x55, sizeof(nodes));
-    List_Init(&lst);
+    list_init(&lst);
 
-    List_InsertFront(&lst, &nodes[0], NULL);
+    list_insert_front(&lst, &nodes[0], NULL);
     TEST_EXPECT(lst.front == &nodes[0]);
     TEST_EXPECT(lst.back == &nodes[0]);
     TEST_EXPECT(nodes[0].prev == NULL);
     TEST_EXPECT(nodes[0].next == NULL);
 
-    List_InsertFront(&lst, &nodes[1], NULL);
+    list_insert_front(&lst, &nodes[1], NULL);
     TEST_EXPECT(lst.front == &nodes[1]);
     TEST_EXPECT(lst.back == &nodes[0]);
     TEST_EXPECT(nodes[1].prev == NULL);
@@ -24,7 +24,7 @@ static bool do_insertfront(void) {
     TEST_EXPECT(nodes[0].prev == &nodes[1]);
     TEST_EXPECT(nodes[0].next == NULL);
 
-    List_InsertFront(&lst, &nodes[2], NULL);
+    list_insert_front(&lst, &nodes[2], NULL);
     TEST_EXPECT(lst.front == &nodes[2]);
     TEST_EXPECT(lst.back == &nodes[0]);
     TEST_EXPECT(nodes[2].prev == NULL);
@@ -38,19 +38,19 @@ static bool do_insertfront(void) {
 }
 
 static bool do_insertback(void) {
-    struct List lst;
-    struct List_Node nodes[3];
+    struct list lst;
+    struct list_node nodes[3];
 
     memset(nodes, 0x55, sizeof(nodes));
-    List_Init(&lst);
+    list_init(&lst);
 
-    List_InsertBack(&lst, &nodes[0], NULL);
+    list_insert_back(&lst, &nodes[0], NULL);
     TEST_EXPECT(lst.front == &nodes[0]);
     TEST_EXPECT(lst.back == &nodes[0]);
     TEST_EXPECT(nodes[0].prev == NULL);
     TEST_EXPECT(nodes[0].next == NULL);
 
-    List_InsertBack(&lst, &nodes[1], NULL);
+    list_insert_back(&lst, &nodes[1], NULL);
     TEST_EXPECT(lst.front == &nodes[0]);
     TEST_EXPECT(lst.back == &nodes[1]);
     TEST_EXPECT(nodes[0].prev == NULL);
@@ -58,7 +58,7 @@ static bool do_insertback(void) {
     TEST_EXPECT(nodes[1].prev == &nodes[0]);
     TEST_EXPECT(nodes[1].next == NULL);
 
-    List_InsertBack(&lst, &nodes[2], NULL);
+    list_insert_back(&lst, &nodes[2], NULL);
     TEST_EXPECT(lst.front == &nodes[0]);
     TEST_EXPECT(lst.back == &nodes[2]);
     TEST_EXPECT(nodes[0].prev == NULL);
@@ -72,17 +72,17 @@ static bool do_insertback(void) {
 }
 
 static bool do_insertafter(void) {
-    struct List lst;
-    struct List_Node nodes[5];
+    struct list lst;
+    struct list_node nodes[5];
 
     memset(nodes, 0x55, sizeof(nodes));
-    List_Init(&lst);
+    list_init(&lst);
 
-    List_InsertBack(&lst, &nodes[0], NULL);
-    List_InsertBack(&lst, &nodes[1], NULL);
-    List_InsertBack(&lst, &nodes[2], NULL);
+    list_insert_back(&lst, &nodes[0], NULL);
+    list_insert_back(&lst, &nodes[1], NULL);
+    list_insert_back(&lst, &nodes[2], NULL);
 
-    List_InsertAfter(&lst, &nodes[1], &nodes[3], NULL);
+    list_insert_after(&lst, &nodes[1], &nodes[3], NULL);
     TEST_EXPECT(lst.front == &nodes[0]);
     TEST_EXPECT(lst.back == &nodes[2]);
     TEST_EXPECT(nodes[1].prev == &nodes[0]);
@@ -92,7 +92,7 @@ static bool do_insertafter(void) {
     TEST_EXPECT(nodes[2].prev == &nodes[3]);
     TEST_EXPECT(nodes[2].next == NULL);
 
-    List_InsertAfter(&lst, &nodes[2], &nodes[4], NULL);
+    list_insert_after(&lst, &nodes[2], &nodes[4], NULL);
     TEST_EXPECT(lst.front == &nodes[0]);
     TEST_EXPECT(lst.back == &nodes[4]);
     TEST_EXPECT(nodes[2].prev == &nodes[3]);
@@ -104,17 +104,17 @@ static bool do_insertafter(void) {
 }
 
 static bool do_insertbefore(void) {
-    struct List lst;
-    struct List_Node nodes[5];
+    struct list lst;
+    struct list_node nodes[5];
 
     memset(nodes, 0x55, sizeof(nodes));
-    List_Init(&lst);
+    list_init(&lst);
 
-    List_InsertBack(&lst, &nodes[0], NULL);
-    List_InsertBack(&lst, &nodes[1], NULL);
-    List_InsertBack(&lst, &nodes[2], NULL);
+    list_insert_back(&lst, &nodes[0], NULL);
+    list_insert_back(&lst, &nodes[1], NULL);
+    list_insert_back(&lst, &nodes[2], NULL);
 
-    List_InsertBefore(&lst, &nodes[1], &nodes[3], NULL);
+    list_insert_before(&lst, &nodes[1], &nodes[3], NULL);
     TEST_EXPECT(lst.front == &nodes[0]);
     TEST_EXPECT(lst.back == &nodes[2]);
     TEST_EXPECT(nodes[0].prev == NULL);
@@ -124,7 +124,7 @@ static bool do_insertbefore(void) {
     TEST_EXPECT(nodes[1].prev == &nodes[3]);
     TEST_EXPECT(nodes[1].next == &nodes[2]);
 
-    List_InsertBefore(&lst, &nodes[0], &nodes[4], NULL);
+    list_insert_before(&lst, &nodes[0], &nodes[4], NULL);
     TEST_EXPECT(lst.front == &nodes[4]);
     TEST_EXPECT(lst.back == &nodes[2]);
     TEST_EXPECT(nodes[4].prev == NULL);
@@ -136,18 +136,18 @@ static bool do_insertbefore(void) {
 }
 
 static bool do_removefront(void) {
-    struct List lst;
-    struct List_Node nodes[3];
-    struct List_Node *removednode = NULL;
+    struct list lst;
+    struct list_node nodes[3];
+    struct list_node *removednode = NULL;
 
     memset(nodes, 0x55, sizeof(nodes));
-    List_Init(&lst);
+    list_init(&lst);
 
-    List_InsertBack(&lst, &nodes[0], NULL);
-    List_InsertBack(&lst, &nodes[1], NULL);
-    List_InsertBack(&lst, &nodes[2], NULL);
+    list_insert_back(&lst, &nodes[0], NULL);
+    list_insert_back(&lst, &nodes[1], NULL);
+    list_insert_back(&lst, &nodes[2], NULL);
     
-    removednode = List_RemoveFront(&lst);
+    removednode = list_remove_front(&lst);
     TEST_EXPECT(removednode == &nodes[0]);
     TEST_EXPECT(lst.front == &nodes[1]);
     TEST_EXPECT(lst.back == &nodes[2]);
@@ -156,36 +156,36 @@ static bool do_removefront(void) {
     TEST_EXPECT(nodes[2].prev == &nodes[1]);
     TEST_EXPECT(nodes[2].next == NULL);
 
-    removednode = List_RemoveFront(&lst);
+    removednode = list_remove_front(&lst);
     TEST_EXPECT(removednode == &nodes[1]);
     TEST_EXPECT(lst.front == &nodes[2]);
     TEST_EXPECT(lst.back == &nodes[2]);
     TEST_EXPECT(nodes[2].prev == NULL);
     TEST_EXPECT(nodes[2].next == NULL);
 
-    removednode = List_RemoveFront(&lst);
+    removednode = list_remove_front(&lst);
     TEST_EXPECT(removednode == &nodes[2]);
     TEST_EXPECT(lst.front == NULL);
     TEST_EXPECT(lst.back == NULL);
 
-    removednode = List_RemoveFront(&lst);
+    removednode = list_remove_front(&lst);
     TEST_EXPECT(removednode == NULL);
     return true;
 }
 
 static bool do_removeback(void) {
-    struct List lst;
-    struct List_Node nodes[3];
-    struct List_Node *removednode = NULL;
+    struct list lst;
+    struct list_node nodes[3];
+    struct list_node *removednode = NULL;
 
     memset(nodes, 0x55, sizeof(nodes));
-    List_Init(&lst);
+    list_init(&lst);
 
-    List_InsertBack(&lst, &nodes[0], NULL);
-    List_InsertBack(&lst, &nodes[1], NULL);
-    List_InsertBack(&lst, &nodes[2], NULL);
+    list_insert_back(&lst, &nodes[0], NULL);
+    list_insert_back(&lst, &nodes[1], NULL);
+    list_insert_back(&lst, &nodes[2], NULL);
 
-    removednode = List_RemoveBack(&lst);
+    removednode = list_remove_back(&lst);
     TEST_EXPECT(removednode == &nodes[2]);
     TEST_EXPECT(lst.front == &nodes[0]);
     TEST_EXPECT(lst.back == &nodes[1]);
@@ -194,35 +194,35 @@ static bool do_removeback(void) {
     TEST_EXPECT(nodes[1].prev == &nodes[0]);
     TEST_EXPECT(nodes[1].next == NULL);
 
-    removednode = List_RemoveBack(&lst);
+    removednode = list_remove_back(&lst);
     TEST_EXPECT(removednode == &nodes[1]);
     TEST_EXPECT(lst.front == &nodes[0]);
     TEST_EXPECT(lst.back == &nodes[0]);
     TEST_EXPECT(nodes[0].prev == NULL);
     TEST_EXPECT(nodes[0].next == NULL);
 
-    removednode = List_RemoveBack(&lst);
+    removednode = list_remove_back(&lst);
     TEST_EXPECT(removednode == &nodes[0]);
     TEST_EXPECT(lst.front == NULL);
     TEST_EXPECT(lst.back == NULL);
 
-    removednode = List_RemoveBack(&lst);
+    removednode = list_remove_back(&lst);
     TEST_EXPECT(removednode == NULL);
     return true;
 }
 
 static bool do_removenode(void) {
-    struct List lst;
-    struct List_Node nodes[3];
+    struct list lst;
+    struct list_node nodes[3];
 
     memset(nodes, 0x55, sizeof(nodes));
-    List_Init(&lst);
+    list_init(&lst);
 
-    List_InsertBack(&lst, &nodes[0], NULL);
-    List_InsertBack(&lst, &nodes[1], NULL);
-    List_InsertBack(&lst, &nodes[2], NULL);
+    list_insert_back(&lst, &nodes[0], NULL);
+    list_insert_back(&lst, &nodes[1], NULL);
+    list_insert_back(&lst, &nodes[2], NULL);
     
-    List_RemoveNode(&lst, &nodes[1]);
+    list_remove_node(&lst, &nodes[1]);
     TEST_EXPECT(lst.front == &nodes[0]);
     TEST_EXPECT(lst.back == &nodes[2]);
     TEST_EXPECT(nodes[0].prev == NULL);
@@ -230,20 +230,20 @@ static bool do_removenode(void) {
     TEST_EXPECT(nodes[2].prev == &nodes[0]);
     TEST_EXPECT(nodes[2].next == NULL);
 
-    List_RemoveNode(&lst, &nodes[0]);
+    list_remove_node(&lst, &nodes[0]);
     TEST_EXPECT(lst.front == &nodes[2]);
     TEST_EXPECT(lst.back == &nodes[2]);
     TEST_EXPECT(nodes[2].prev == NULL);
     TEST_EXPECT(nodes[2].next == NULL);
 
-    List_RemoveNode(&lst, &nodes[2]);
+    list_remove_node(&lst, &nodes[2]);
     TEST_EXPECT(lst.front == NULL);
     TEST_EXPECT(lst.back == NULL);
 
     return true;
 }
 
-static struct Test const TESTS[] = {
+static struct test const TESTS[] = {
     { .name = "insert front",   .fn = do_insertfront  },
     { .name = "insert back",    .fn = do_insertback   },
     { .name = "insert after",   .fn = do_insertafter  },
@@ -253,7 +253,7 @@ static struct Test const TESTS[] = {
     { .name = "remove node",    .fn = do_removenode   },
 };
 
-const struct TestGroup TESTGROUP_LIST = {
+const struct test_group TESTGROUP_LIST = {
     .name = "list",
     .tests = TESTS,
     .testslen = sizeof(TESTS)/sizeof(*TESTS),

@@ -13,12 +13,12 @@
 /* XXX: We have to bring rest of kernel stream API to libc as normal stdio API. */
 
 struct vsnprintf_stream {
-    struct Stream stream;
+    struct stream stream;
     char *restrict dest;
     size_t remaininglen;
 };
 
-[[nodiscard]] static ssize_t vsnprintf_stream_op_write(struct Stream *self, void *buf, size_t size) {
+[[nodiscard]] static ssize_t vsnprintf_stream_op_write(struct stream *self, void *buf, size_t size) {
     assert(size < STREAM_MAX_TRANSFER_SIZE);
     struct vsnprintf_stream *stream = self->data;
     size_t writelen = size;
@@ -32,8 +32,8 @@ struct vsnprintf_stream {
     return (ssize_t)writelen;
 }
 
-static const struct StreamOps VSNPRINTF_STREAM_OPS = {
-    .Write = vsnprintf_stream_op_write,
+static const struct stream_ops VSNPRINTF_STREAM_OPS = {
+    .write = vsnprintf_stream_op_write,
 };
 
 int vsnprintf(char *restrict str, size_t size, char const *fmt, va_list ap) {
@@ -43,7 +43,7 @@ int vsnprintf(char *restrict str, size_t size, char const *fmt, va_list ap) {
     stream.remaininglen = size - 1;
     stream.stream.ops = &VSNPRINTF_STREAM_OPS;
     stream.stream.data = &stream;
-    return Stream_VPrintf(&stream.stream, fmt, ap);
+    return stream_vprintf(&stream.stream, fmt, ap);
 }
 
 int vsprintf(char *restrict str, char const *fmt, va_list ap) {

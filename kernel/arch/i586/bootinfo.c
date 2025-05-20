@@ -114,14 +114,14 @@ static void print_mem_map(struct multiboot_info const *info) {
     multiboot_uint32_t mmaplen = info->mmap_length;
     multiboot_uint32_t mmapaddr = info->mmap_addr;
     size_t readlen;
-    Co_Printf("----------------- Memory map -----------------\n");
-    Co_Printf("fromaddr  toaddr   length  type\n");
+    co_printf("----------------- Memory map -----------------\n");
+    co_printf("fromaddr  toaddr   length  type\n");
     size_t totalsize;
     bool warn_too_much_mem = false;
     PHYSPTR entryaddr = mmapaddr;
     for (readlen = 0; readlen < mmaplen; entryaddr += totalsize) {
         struct multiboot_mmap_entry entry;
-        PMemCopyIn(&entry, entryaddr, sizeof(entry), false);
+        pmemcpy_in(&entry, entryaddr, sizeof(entry), false);
         static char const *const MEMMAP_TYPES[] = {
             "other",
             "available",
@@ -160,11 +160,11 @@ static void print_mem_map(struct multiboot_info const *info) {
         size_t displaylen;
         human_readable_len(&displaylen, &lenunit, len);
 
-        Co_Printf("%08X  %08X  %4zu%s  %s(%u)\n", addr, addr + len - 1, displaylen, lenunit, type_str, type);
+        co_printf("%08X  %08X  %4zu%s  %s(%u)\n", addr, addr + len - 1, displaylen, lenunit, type_str, type);
     }
-    Co_Printf("----------------------------------------------\n");
+    co_printf("----------------------------------------------\n");
     if (warn_too_much_mem) {
-        Co_Printf("the system has more memory, but ignored due to being outside of 32-bit address space.\n");
+        co_printf("the system has more memory, but ignored due to being outside of 32-bit address space.\n");
     }
 }
 
@@ -224,8 +224,8 @@ static void register_region(PHYSPTR addr, size_t len) {
     if (page_count == 0) {
         return;
     }
-    Co_Printf("register memory: %08x ~ %08x (%u pages)\n", addr, addr + len - 1, page_count);
-    Pmm_RegisterMem(addr, page_count);
+    co_printf("register memory: %08x ~ %08x (%u pages)\n", addr, addr + len - 1, page_count);
+    pmm_register_mem(addr, page_count);
 }
 
 static void process_mem_map(struct multiboot_info const *info) {
@@ -236,7 +236,7 @@ static void process_mem_map(struct multiboot_info const *info) {
     PHYSPTR entryaddr = mmapaddr;
     for (readlen = 0; readlen < mmaplen; entryaddr += totalsize) {
         struct multiboot_mmap_entry entry;
-        PMemCopyIn(&entry, entryaddr, sizeof(entry), false);
+        pmemcpy_in(&entry, entryaddr, sizeof(entry), false);
 
         totalsize = sizeof(entry.size) + entry.size;
         readlen += totalsize;
@@ -267,20 +267,20 @@ static void process_mem_map(struct multiboot_info const *info) {
 }
 
 static void process_framebuffer_info(struct multiboot_info const *info) {
-    Co_Printf("framebuffer address is %p\n", info->framebuffer_addr);
+    co_printf("framebuffer address is %p\n", info->framebuffer_addr);
     if (info->framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_INDEXED) {
-        uint8_t *colors = Heap_Alloc(info->framebuffer_palette_num_colors * 3, 0);
+        uint8_t *colors = heap_alloc(info->framebuffer_palette_num_colors * 3, 0);
         if (colors == NULL) {
-            Panic("not enough memory to store palette");
+            panic("not enough memory to store palette");
         }
         for (int i = 0; i < info->framebuffer_palette_num_colors; i++) {
             struct multiboot_color color;
-            PMemCopyIn(&color, info->framebuffer_palette_addr + (sizeof(color) * i), sizeof(color), true);
+            pmemcpy_in(&color, info->framebuffer_palette_addr + (sizeof(color) * i), sizeof(color), true);
             colors[i * 3 + 0] = color.red;
             colors[i * 3 + 1] = color.green;
             colors[i * 3 + 2] = color.blue;
         }
-        Fb_initIndexed(
+        fb_init_indexed(
             colors,
             info->framebuffer_palette_num_colors,
             info->framebuffer_addr,
@@ -289,7 +289,7 @@ static void process_framebuffer_info(struct multiboot_info const *info) {
             (int)info->framebuffer_pitch,
             (int)info->framebuffer_bpp);
     } else if (info->framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_RGB) {
-        Fb_InitRgb(
+        fb_init_rgb(
             info->framebuffer_red_field_position,
             info->framebuffer_red_mask_size,
             info->framebuffer_green_field_position,
@@ -302,27 +302,27 @@ static void process_framebuffer_info(struct multiboot_info const *info) {
             (int)info->framebuffer_pitch,
             info->framebuffer_bpp);
     } else if (info->framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_EGA_TEXT) {
-        Co_Printf("text mode %dx%d\n", info->framebuffer_width, info->framebuffer_height);
+        co_printf("text mode %dx%d\n", info->framebuffer_width, info->framebuffer_height);
         assert(info->framebuffer_bpp == 16);
-        ArchI586_VgaTty_Init(info->framebuffer_addr, info->framebuffer_width, info->framebuffer_height, info->framebuffer_pitch);
-        Co_Printf("initialized text mode console\n");
+        archi586_vgatty_init(info->framebuffer_addr, info->framebuffer_width, info->framebuffer_height, info->framebuffer_pitch);
+        co_printf("initialized text mode console\n");
     } else {
-        Co_Printf("unknown framebuffer type %d with size %dx%d\n", info->framebuffer_type, info->framebuffer_width, info->framebuffer_height);
+        co_printf("unknown framebuffer type %d with size %dx%d\n", info->framebuffer_type, info->framebuffer_width, info->framebuffer_height);
     }
 }
 
-void ArchI586_BootInfo_Process(PHYSPTR infoaddr) {
+void archi586_bootinfo_process(PHYSPTR infoaddr) {
     struct multiboot_info info;
-    PMemCopyIn(&info, infoaddr, sizeof(info), false);
+    pmemcpy_in(&info, infoaddr, sizeof(info), false);
     if (info.flags & (uint32_t)MULTIBOOT_INFO_MEM_MAP) {
         print_mem_map(&info);
         process_mem_map(&info);
     } else {
-        Co_Printf("no memory map! no memory will be registered\n");
+        co_printf("no memory map! no memory will be registered\n");
     }
     if (info.flags & (uint32_t)MULTIBOOT_INFO_FRAMEBUFFER_INFO) {
         process_framebuffer_info(&info);
     } else {
-        Co_Printf("no framebuffer info! not initializing video\n");
+        co_printf("no framebuffer info! not initializing video\n");
     }
 }

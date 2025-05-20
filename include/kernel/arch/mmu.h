@@ -23,14 +23,14 @@ typedef enum {
     MMU_CACHE_INHIBIT_YES,
 } MMU_CACHE_INHIBIT;
 
-void Arch_Mmu_FlushTlbFor(void *ptr);
-void Arch_Mmu_FlushTlb(void);
-[[nodiscard]] int Arch_Mmu_Map(void *virt_base, PHYSPTR physbase, size_t page_count, uint8_t flags, MMU_USER_ACCESS user_access);
-[[nodiscard]] int Arch_Mmu_Remap(void *virt_base, size_t page_count, uint8_t flags, MMU_USER_ACCESS user_access);
+void arch_mmu_flush_tlb_for(void *ptr);
+void arch_mmu_flush_tlb(void);
+[[nodiscard]] int arch_mmu_map(void *virt_base, PHYSPTR physbase, size_t page_count, uint8_t flags, MMU_USER_ACCESS user_access);
+[[nodiscard]] int arch_mmu_remap(void *virt_base, size_t page_count, uint8_t flags, MMU_USER_ACCESS user_access);
 /*
  * Returns false if such page does not exist.
  */
-[[nodiscard]] int Arch_Mmu_Unmap(void *virt_base, size_t page_count);
+[[nodiscard]] int arch_mmu_unmap(void *virt_base, size_t page_count);
 
 /*
  * Scratch map is useful for quickly mapping physical memory temporaily without going through VMM.
@@ -38,14 +38,14 @@ void Arch_Mmu_FlushTlb(void);
  *
  * Scratch page is mapped at ARCH_SCRATCH_MAP_BASE.
  */
-void Arch_Mmu_ScratchMap(PHYSPTR phys_addr, MMU_CACHE_INHIBIT cache_inhibit);
+void arch_mmu_scratch_map(PHYSPTR phys_addr, MMU_CACHE_INHIBIT cache_inhibit);
 
 /*
  * Emulate full linear->physical address translation, including privilege checks.
  */
-[[nodiscard]] int Arch_Mmu_Emulate(PHYSPTR *phys_addr_out, void *virt, uint8_t flags, MMU_USER_ACCESS is_from_user);
+[[nodiscard]] int arch_mmu_emulate(PHYSPTR *phys_addr_out, void *virt, uint8_t flags, MMU_USER_ACCESS is_from_user);
 
 /*
  * Emulate linear->physical address translation, without privilege checks.
  */
-[[nodiscard]] int Arch_Mmu_VirtToPhys(PHYSPTR *phys_addr_out, void *virt);
+[[nodiscard]] int arch_mmu_virtual_to_physical(PHYSPTR *phys_addr_out, void *virt);

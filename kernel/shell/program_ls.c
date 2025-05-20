@@ -51,7 +51,7 @@ struct opts {
             ok = false;
             break;
         default:
-            Co_Printf("NOT IMPLEMENTED: %c flag\n", c);
+            co_printf("NOT IMPLEMENTED: %c flag\n", c);
         }
     }
     return ok;
@@ -91,7 +91,7 @@ static bool should_hide_dirent(struct dirent *ent, struct opts const *opts) {
 
 static int collect_entries(struct entry **entries_out, size_t *entries_len_out, char const *path, struct opts const *opts) {
     DIR *dir = NULL;
-    int ret = Vfs_OpenDir(&dir, path);
+    int ret = vfs_open_directory(&dir, path);
     if (ret < 0) {
         return ret;
     }
@@ -99,7 +99,7 @@ static int collect_entries(struct entry **entries_out, size_t *entries_len_out, 
     size_t entries_len = 0;
     while (1) {
         struct dirent ent;
-        ret = Vfs_ReadDir(&ent, dir);
+        ret = vfs_read_directory(&ent, dir);
         if (ret < 0) {
             break;
         }
@@ -109,7 +109,7 @@ static int collect_entries(struct entry **entries_out, size_t *entries_len_out, 
         if (WILL_ADD_OVERFLOW(entries_len, 1, SIZE_MAX)) {
             goto oom;
         }
-        void *new_entries = Heap_ReallocArray(entries, sizeof(*entries), entries_len + 1, 0);
+        void *new_entries = heap_realloc_array(entries, sizeof(*entries), entries_len + 1, 0);
         if (new_entries == NULL) {
             goto oom;
         }
@@ -127,12 +127,12 @@ static int collect_entries(struct entry **entries_out, size_t *entries_len_out, 
 oom:
     ret = -ENOMEM;
     for (size_t i = 0; i < entries_len; i++) {
-        Heap_Free(entries[i].name);
+        heap_free(entries[i].name);
     }
-    Heap_Free(entries);
+    heap_free(entries);
     goto out;
 out:
-    Vfs_CloseDir(dir);
+    vfs_close_directory(dir);
     *entries_out = entries;
     *entries_len_out = entries_len;
     return ret;
@@ -143,7 +143,7 @@ static void show_dir(char const *progname, char const *path, struct opts const *
     size_t entries_len = 0;
     int ret = collect_entries(&entries, &entries_len, path, opts);
     if (ret < 0) {
-        Co_Printf("%s: failed to read directory %s (error %d)\n", progname, path, ret);
+        co_printf("%s: failed to read directory %s (error %d)\n", progname, path, ret);
         goto out;
     }
     int line_len = 0;
@@ -155,18 +155,18 @@ static void show_dir(char const *progname, char const *path, struct opts const *
         bool ishorizontal = opts->stream_format;
         if ((ishorizontal && (COLUMNS - line_len) < len) ||
             (!ishorizontal && i != 0)) {
-            Co_Printf("\n");
+            co_printf("\n");
             line_len = 0;
         }
-        Co_Printf("%s", buf);
+        co_printf("%s", buf);
         line_len += len;
     }
-    Co_Printf("\n");
+    co_printf("\n");
 out:
     for (size_t i = 0; i < entries_len; i++) {
-        Heap_Free(entries[i].name);
+        heap_free(entries[i].name);
     }
-    Heap_Free(entries);
+    heap_free(entries);
 }
 
 static int program_main(int argc, char *argv[]) {
@@ -180,14 +180,14 @@ static int program_main(int argc, char *argv[]) {
     }
     for (int i = optind; i < argc; i++) {
         if (optind + 1 != argc) {
-            Co_Printf("%s:\n", argv[i]);
+            co_printf("%s:\n", argv[i]);
         }
         show_dir(argv[0], argv[i], &opts);
     }
     return 0;
 }
 
-struct Shell_Program g_shell_program_ls = {
+struct shell_program g_shell_program_ls = {
     .name = "ls",
     .main = program_main,
 };

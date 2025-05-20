@@ -38,24 +38,24 @@ struct opts {
 
 static void showfile(char const *progname, char const *path, struct opts const *opts) {
     (void)opts;
-    struct File *fd = NULL;
-    ssize_t ret = Vfs_OpenFile(&fd, path, 0);
+    struct file *fd = NULL;
+    ssize_t ret = vfs_open_file(&fd, path, 0);
     if (ret < 0) {
-        Co_Printf("%s: failed to open directory %s (error %d)\n", progname, path, ret);
+        co_printf("%s: failed to open directory %s (error %d)\n", progname, path, ret);
         return;
     }
     while (1) {
         char buf[1024];
-        ret = Vfs_ReadFile(fd, buf, sizeof(buf));
+        ret = vfs_read_file(fd, buf, sizeof(buf));
         if (ret == 0) {
             break;
         }
         if (ret < 0) {
-            Co_Printf("%s: failed to read file %s (error %d)\n", progname, path, ret);
+            co_printf("%s: failed to read file %s (error %d)\n", progname, path, ret);
             break;
         }
         for (ssize_t i = 0; i < ret; i++) {
-            Co_Printf("%c", buf[i]);
+            co_printf("%c", buf[i]);
         }
     }
 }
@@ -66,7 +66,7 @@ static int program_main(int argc, char *argv[]) {
         return 1;
     }
     if (argc <= optind) {
-        Co_Printf("%s: reading from stdin is not supported yet\n", argv[0]);
+        co_printf("%s: reading from stdin is not supported yet\n", argv[0]);
         return 1;
     }
     for (int i = optind; i < argc; i++) {
@@ -75,7 +75,7 @@ static int program_main(int argc, char *argv[]) {
     return 0;
 }
 
-struct Shell_Program g_shell_program_cat = {
+struct shell_program g_shell_program_cat = {
     .name = "cat",
     .main = program_main,
 };

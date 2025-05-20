@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
 
-struct TrapFrame {
+struct trap_frame {
     uint32_t gs;
     uint32_t fs;
     uint32_t es;
@@ -24,4 +24,4 @@ struct TrapFrame {
     uint32_t esp_usermode, ss_usermode;
 };
 
-void ArchI586_Exceptions_Init(void);
+void archi586_exceptions_init(void);

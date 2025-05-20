@@ -68,7 +68,7 @@ STATIC_ASSERT_SIZE(struct tss, 108);
 #define GDT_ACCESS_FLAG_TYPE_TSS32_AVL 0x9U
 #define GDT_ACCESS_FLAG_TYPE_BUSY 0xbU
 
-static void init_descriptor(struct ArchI586_Gdt_SegmentDescriptor *out, uint32_t base, uint32_t limit, uint8_t flags, uint8_t access_byte) {
+static void init_descriptor(struct archi586_gdt_segment_descriptor *out, uint32_t base, uint32_t limit, uint8_t flags, uint8_t access_byte) {
     out->limit_b15tob0 = limit & 0xffffU;
     out->base_b15tob0 = (base & 0xffffU);
     out->base_b23tob16 = ((base >> 16) & 0xffffU);
@@ -77,11 +77,11 @@ static void init_descriptor(struct ArchI586_Gdt_SegmentDescriptor *out, uint32_t
     out->base_b31tob24 = ((base >> 24) & 0xffU);
 }
 
-static struct ArchI586_Gdt s_gdt;
+static struct archi586_gdt s_gdt;
 static struct tss s_tss;
 static uint8_t s_esp0stack[4096];
 
-void ArchI586_Gdt_Init(void) {
+void archi586_gdt_init(void) {
     /* Setup TSS **************************************************************/
     s_tss.ss0 = ARCHI586_GDT_KERNEL_DS;
     s_tss.esp0 = (uintptr_t)s_esp0stack;
@@ -96,11 +96,11 @@ void ArchI586_Gdt_Init(void) {
                     GDT_ACCESS_FLAG_P | GDT_ACCESS_FLAG_DPL0 | GDT_ACCESS_FLAG_TYPE_TSS32_AVL);
 }
 
-void ArchI586_Gdt_Load(void) {
-    struct gdtr {
+void archi586_gdt_load(void) {
+    struct [[gnu::packed]] gdtr {
         uint16_t size;
         uint32_t offset;
-    } __attribute__((packed));
+    };
 
     volatile struct gdtr gdtr;
     gdtr.offset = (uintptr_t)&s_gdt;
@@ -108,7 +108,7 @@ void ArchI586_Gdt_Load(void) {
     __asm__ volatile("lgdt (%0)" ::"r"(&gdtr));
 }
 
-void ArchI586_Gdt_ReloadSelectors(void) {
+void archi586_gdt_reload_selectors(void) {
     uint32_t cs = ARCHI586_GDT_KERNEL_CS;
     uint32_t ds = ARCHI586_GDT_KERNEL_DS;
     uint16_t tss = ARCHI586_GDT_TSS;

@@ -1,3 +1,3 @@
 #pragma once
 
-void ArchI586_Pit_Init(void);
+void archi586_pit_init(void);

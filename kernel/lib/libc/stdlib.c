@@ -19,7 +19,7 @@ int rand(void) {
         out = (out << 1) | shiftedbitout;
         if (s_rand_lfsr == s_randseed) {
             /* Reset seed */
-            s_randseed = Arch_RandSeed();
+            s_randseed = arch_randseed();
             s_rand_lfsr = s_randseed;
         }
     }

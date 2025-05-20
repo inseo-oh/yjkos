@@ -32,25 +32,25 @@ static uint32_t countefrommillis(uint32_t millis) {
 }
 
 static void shortinternaldelay(void) {
-    ArchI586_In8(PIT_MODE_PORT);
+    archi586_in8(PIT_MODE_PORT);
 }
 
 static void irqhandler(int irqnum, void *data) {
     (void)data;
     g_ticktime++;
-    ArchI586_Pic_SendEoi(irqnum);
-    Sched_Schedule();
+    archi586_pic_send_eoi(irqnum);
+    sched_schedule();
 }
 
-static struct ArchI586_Pic_IrqHandler s_irqhandler;
+static struct archi586_pic_irq_handler s_irqhandler;
 
-void ArchI586_Pit_Init(void) {
-    ArchI586_Pic_MaskIrq(PIT_IRQ);
+void archi586_pit_init(void) {
+    archi586_pic_mask_irq(PIT_IRQ);
     uint32_t initial_counter = countefrommillis(FREQ_MILLIS);
-    ArchI586_Out8(PIT_MODE_PORT, PIT_MODEFLAG_SELECT_CH0 | PIT_MODEFLAG_ACCESS_LSB_MSB | PIT_MODEFLAG_OP_RATEGEN | PIT_MODEFLAG_BINMODE);
-    ArchI586_Out8(PIT_CH0_DATA_PORT, initial_counter);
+    archi586_out8(PIT_MODE_PORT, PIT_MODEFLAG_SELECT_CH0 | PIT_MODEFLAG_ACCESS_LSB_MSB | PIT_MODEFLAG_OP_RATEGEN | PIT_MODEFLAG_BINMODE);
+    archi586_out8(PIT_CH0_DATA_PORT, initial_counter);
     shortinternaldelay();
-    ArchI586_Out8(PIT_CH0_DATA_PORT, initial_counter >> 8);
-    ArchI586_Pic_RegisterHandler(&s_irqhandler, PIT_IRQ, irqhandler, NULL);
-    ArchI586_Pic_UnmaskIrq(PIT_IRQ);
+    archi586_out8(PIT_CH0_DATA_PORT, initial_counter >> 8);
+    archi586_pic_register_handler(&s_irqhandler, PIT_IRQ, irqhandler, NULL);
+    archi586_pic_unmask_irq(PIT_IRQ);
 }

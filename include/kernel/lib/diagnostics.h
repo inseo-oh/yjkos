@@ -10,14 +10,14 @@
         (void)(_x);        \
     }
 
-struct SourceLocation {
+struct source_location {
     char const *filename;
     char const *function;
     int line;
 };
 
 #define SOURCELOCATION_CURRENT() \
-    (struct SourceLocation) {    \
+    (struct source_location) {    \
         .filename = __FILE__,    \
         .function = __func__,    \
         .line = __LINE__,        \

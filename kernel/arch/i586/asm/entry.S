@@ -93,7 +93,7 @@ archi586_kernelentry:
     sub $8, %esp /* Subtract 8 bytes for 16-byte alignment */
     push %ebx
     push %eax
-    call ArchI586_Init
+    call archi586_init
 
 	cli
 1:	hlt

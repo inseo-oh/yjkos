@@ -68,14 +68,14 @@ static uint8_t const ARCHI586_MMU_EMUTRANS_FAULT_FLAG_PTE_MISSING = 1 << 3;
 static uint8_t const ARCHI586_MMU_EMUTRANS_FAULT_FLAG_PTE_WRITE = 1 << 4;
 static uint8_t const ARCHI586_MMU_EMUTRANS_FAULT_FLAG_PTE_USER = 1 << 5;
 
-struct ArchI586_Mmu_EmulateResult {
+struct archi586_mmu_emulate_result {
     PHYSPTR physaddr;
     uint8_t faultflags; /* See ARCHI586_MMU_EMUTRANS_* */
 };
 
-void ArchI586_Mmu_WriteProtectKernelText(void);
-void ArchI586_Mmu_WriteProtectAfterEarlyInit(void);
-void ArchI586_Mmu_Init(void);
-void ArchI586_SetupStackBottomTrap(void);
+void archi586_mmu_write_protect_kernel_text(void);
+void arch_mmu_write_protect_after_early_init(void);
+void archi586_mmu_init(void);
+void archi586_setup_stack_bottom_trap(void);
 
 #endif

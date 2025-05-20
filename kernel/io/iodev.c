@@ -11,13 +11,13 @@
 #include <string.h>
 
 struct iodevtype {
-    struct List_Node node;
-    struct List devices;
+    struct list_node node;
+    struct list devices;
     char const *name;
     _Atomic size_t nextid;
 };
 
-static struct List s_iodevtypes;
+static struct list s_iodevtypes;
 
 static struct iodevtype *getiodevtypefor(char const *devtype) {
     LIST_FOREACH(&s_iodevtypes, typenode) {
@@ -29,46 +29,46 @@ static struct iodevtype *getiodevtypefor(char const *devtype) {
     return NULL;
 }
 
-[[nodiscard]] int Iodev_Register(struct IoDev *dev_out, char const *devtype, void *data) {
+[[nodiscard]] int iodev_register(struct iodev *dev_out, char const *devtype, void *data) {
     int result = 0;
-    bool prev_interrupts = Arch_Irq_Disable();
+    bool prev_interrupts = arch_irq_disable();
     /* Look for existing iodevtype */
     dev_out->devtype = devtype;
     dev_out->data = data;
     struct iodevtype *desttype = getiodevtypefor(devtype);
     /* If there's no such type, create a new type. */
     if (desttype == NULL) {
-        struct iodevtype *type = Heap_Alloc(sizeof(*type), HEAP_FLAG_ZEROMEMORY);
+        struct iodevtype *type = heap_alloc(sizeof(*type), HEAP_FLAG_ZEROMEMORY);
         if (type == NULL) {
             goto fail_oom;
         }
         type->name = devtype;
         desttype = type;
-        List_InsertBack(&s_iodevtypes, &type->node, type);
+        list_insert_back(&s_iodevtypes, &type->node, type);
     }
     dev_out->id = desttype->nextid++;
     if (dev_out->id == SIZE_MAX) {
         /* nextid overflowed */
-        Panic("iodev: TODO: Handle nextid integer overflow");
+        panic("iodev: TODO: Handle nextid integer overflow");
     }
-    List_InsertBack(&desttype->devices, &dev_out->node, dev_out);
+    list_insert_back(&desttype->devices, &dev_out->node, dev_out);
     goto out;
 fail_oom:
     result = -ENOMEM;
 out:
-    Arch_Irq_Restore(prev_interrupts);
+    arch_irq_restore(prev_interrupts);
     return result;
 }
 
-void Iodev_Printf(struct IoDev *device, char const *fmt, ...) {
-    Co_Printf("%s%d: ", device->devtype, device->id);
+void iodev_printf(struct iodev *device, char const *fmt, ...) {
+    co_printf("%s%d: ", device->devtype, device->id);
     va_list ap;
     va_start(ap, fmt);
-    Co_VPrintf(fmt, ap);
+    co_vprintf(fmt, ap);
     va_end(ap);
 }
 
-struct List *Iodev_GetList(char const *devtype) {
+struct list *iodev_get_list(char const *devtype) {
     struct iodevtype *type = getiodevtypefor(devtype);
     if (type == NULL) {
         return NULL;

@@ -58,23 +58,23 @@ static bool const CONFIG_COMM_DEBUG = false;
 #define STATUS_PARITY_ERR (1U << 7)
 
 struct portcontext {
-    struct Ps2Port ps2port;
+    struct ps2port ps2port;
     uint8_t portidx;
-    struct ArchI586_Pic_IrqHandler irqhandler;
+    struct archi586_pic_irq_handler irqhandler;
 };
 
 [[nodiscard]] static int waitforrecv(void) {
     TICKTIME oldtime = g_ticktime;
     bool timeout = true;
     while ((g_ticktime - oldtime) < PS2_TIMEOUT) {
-        uint8_t ctrl_status = ArchI586_In8(STATUS_PORT);
+        uint8_t ctrl_status = archi586_in8(STATUS_PORT);
         if (ctrl_status & STATUS_FLAG_OUTBUF_FULL) {
             timeout = false;
             break;
         }
     }
     if (timeout) {
-        Co_Printf("ps2: receive wait timeout\n");
+        co_printf("ps2: receive wait timeout\n");
         return -EIO;
     }
     return 0;
@@ -84,14 +84,14 @@ struct portcontext {
     TICKTIME oldtime = g_ticktime;
     bool timeout = true;
     while ((g_ticktime - oldtime) < PS2_TIMEOUT) {
-        uint8_t ctrl_status = ArchI586_In8(STATUS_PORT);
+        uint8_t ctrl_status = archi586_in8(STATUS_PORT);
         if (!(ctrl_status & STATUS_FLAG_INBUF_FULL)) {
             timeout = false;
             break;
         }
     }
     if (timeout) {
-        Co_Printf("ps2: send wait timeout\n");
+        co_printf("ps2: send wait timeout\n");
         return -EIO;
     }
     return 0;
@@ -99,44 +99,44 @@ struct portcontext {
 
 static int recv_from_ctrl(uint8_t *out) {
     if (CONFIG_COMM_DEBUG) {
-        Co_Printf("ps2: receive data from controller\n");
+        co_printf("ps2: receive data from controller\n");
     }
     int ret = waitforrecv();
     if (ret < 0) {
         return ret;
     }
-    *out = ArchI586_In8(DATA_PORT);
+    *out = archi586_in8(DATA_PORT);
     if (CONFIG_COMM_DEBUG) {
-        Co_Printf("ps2: recevied data from controller: %#x\n", *out);
+        co_printf("ps2: recevied data from controller: %#x\n", *out);
     }
     return 0;
 }
 
 static int send_to_ctrl(uint8_t cmd) {
     if (CONFIG_COMM_DEBUG) {
-        Co_Printf("ps2: send command %#x to controller\n", cmd);
+        co_printf("ps2: send command %#x to controller\n", cmd);
     }
     int ret = waitforsend();
     if (ret < 0) {
         return ret;
     }
-    ArchI586_Out8(CMD_PORT, cmd);
+    archi586_out8(CMD_PORT, cmd);
     return 0;
 }
 
 static int send_data_to_ctrl(uint8_t data) {
     if (CONFIG_COMM_DEBUG) {
-        Co_Printf("ps2: send data %#x to controller\n", data);
+        co_printf("ps2: send data %#x to controller\n", data);
     }
     int ret = waitforsend();
     if (ret < 0) {
         return ret;
     }
-    ArchI586_Out8(DATA_PORT, data);
+    archi586_out8(DATA_PORT, data);
     return 0;
 }
 
-static ssize_t stream_op_write(struct Stream *self, void *data, size_t size) {
+static ssize_t stream_op_write(struct stream *self, void *data, size_t size) {
     assert(size < STREAM_MAX_TRANSFER_SIZE);
     struct portcontext *port = self->data;
 
@@ -159,23 +159,23 @@ static ssize_t stream_op_write(struct Stream *self, void *data, size_t size) {
 
 static void irqhandler(int irqnum, void *data) {
     struct portcontext *port = data;
-    uint8_t value = ArchI586_In8(DATA_PORT);
+    uint8_t value = archi586_in8(DATA_PORT);
     if (CONFIG_COMM_DEBUG) {
-        Co_Printf("ps2: irq on port %u - data %#x\n", port->portidx, value);
+        co_printf("ps2: irq on port %u - data %#x\n", port->portidx, value);
     }
-    Ps2Port_ReceivedByte(&port->ps2port, value);
-    ArchI586_Pic_SendEoi(irqnum);
+    ps2port_received_byte(&port->ps2port, value);
+    archi586_pic_send_eoi(irqnum);
 }
 
-static struct StreamOps const OPS = {
+static struct stream_ops const OPS = {
     PS2_COMMON_STREAM_CALLBACKS,
-    .Write = stream_op_write,
+    .write = stream_op_write,
 };
 
 [[nodiscard]] static int discovered_port(size_t port_index) {
     assert(port_index < 2);
     int ret = 0;
-    struct portcontext *port = Heap_Alloc(sizeof(*port), HEAP_FLAG_ZEROMEMORY);
+    struct portcontext *port = heap_alloc(sizeof(*port), HEAP_FLAG_ZEROMEMORY);
     if (port == NULL) {
         goto fail;
     }
@@ -193,19 +193,19 @@ static struct StreamOps const OPS = {
     if (ret < 0) {
         goto fail;
     }
-    ArchI586_Pic_RegisterHandler(&port->irqhandler, irq, irqhandler, port);
-    ArchI586_Pic_UnmaskIrq(irq);
-    ret = Ps2Port_Register(&port->ps2port, &OPS, port);
+    archi586_pic_register_handler(&port->irqhandler, irq, irqhandler, port);
+    archi586_pic_unmask_irq(irq);
+    ret = ps2port_register(&port->ps2port, &OPS, port);
     if (ret < 0) {
         goto fail;
     }
     /*
-     * We can't undo Ps2Port_Register as of writing this code, so no further
+     * We can't undo ps2port_register as of writing this code, so no further
      * errors are allowed.
      */
     goto out;
 fail:
-    Heap_Free(port);
+    heap_free(port);
 out:
     return ret;
 }
@@ -225,8 +225,8 @@ out:
 }
 
 static void empty_output_buffer(void) {
-    while (ArchI586_In8(STATUS_PORT) & STATUS_FLAG_OUTBUF_FULL) {
-        ArchI586_In8(DATA_PORT);
+    while (archi586_in8(STATUS_PORT) & STATUS_FLAG_OUTBUF_FULL) {
+        archi586_in8(DATA_PORT);
     }
 }
 
@@ -319,7 +319,7 @@ static int ctrl_self_test(void) {
         return ret;
     }
     if (response != 0x55) {
-        Co_Printf("ps2: controller self test failed(response: %#x)\n", response);
+        co_printf("ps2: controller self test failed(response: %#x)\n", response);
         ret = -EIO;
         return ret;
     }
@@ -350,19 +350,19 @@ static int port_self_test(int port) {
         return ret;
     }
     if (response != 0x00) {
-        Co_Printf("ps2: port %d self test failed(response: %#x)\n", port, response);
+        co_printf("ps2: port %d self test failed(response: %#x)\n", port, response);
         return -EIO;
     }
     return 0;
 }
 
-void ArchI586_Ps2Ctrl_Init(void) {
+void archi586_ps2ctrl_init(void) {
     int ret;
     /* https://wiki.osdev.org/%228042%22_PS/2_Controller#Initialising_the_PS/2_Controller */
 
     /* Disable interrupts *****************************************************/
-    ArchI586_Pic_MaskIrq(IRQ_PORT0);
-    ArchI586_Pic_MaskIrq(IRQ_PORT1);
+    archi586_pic_mask_irq(IRQ_PORT0);
+    archi586_pic_mask_irq(IRQ_PORT1);
 
     /* Disable PS/2 devices ***************************************************/
     ret = disable_all();
@@ -395,10 +395,10 @@ void ArchI586_Ps2Ctrl_Init(void) {
     int port_count = 2;
     ret = init_port1_config();
     if (ret < 0) {
-        Co_Printf("ps2: failed to configure second port(error %d)\n", ret);
+        co_printf("ps2: failed to configure second port(error %d)\n", ret);
         port_count = 1;
     }
-    Co_Printf("ps2: detected as %d-port controller\n", port_count);
+    co_printf("ps2: detected as %d-port controller\n", port_count);
 
     /* Test each port *********************************************************/
     bool port_ok[] = {true, true};
@@ -406,7 +406,7 @@ void ArchI586_Ps2Ctrl_Init(void) {
     for (int i = 0; i < port_count; i++) {
         ret = port_self_test(0);
         if (ret < 0) {
-            Co_Printf("ps2: port %d self test failed(error %d)\n", i, ret);
+            co_printf("ps2: port %d self test failed(error %d)\n", i, ret);
             port_ok[i] = false;
         }
         any_ok = true;
@@ -439,10 +439,10 @@ void ArchI586_Ps2Ctrl_Init(void) {
         }
         int ret = discovered_port(i);
         if (ret < 0) {
-            Co_Printf("ps2: failed to register port %d\n", i);
+            co_printf("ps2: failed to register port %d\n", i);
         }
     }
     return;
 fail:
-    Co_Printf("ps2: error %d occured. aborting controller initialization\n", ret);
+    co_printf("ps2: error %d occured. aborting controller initialization\n", ret);
 }

@@ -49,25 +49,25 @@ void __fixdfsi(void) {
 
 static void *dmalloc(int size) {
     size_t finalsize = size * 2;
-    void *ptr = Heap_Alloc(finalsize, 0);
+    void *ptr = heap_alloc(finalsize, 0);
     if (ptr == NULL) {
-        Co_Printf("[kdoom] not enough memory (Requested %d bytes)\n", size);
+        co_printf("[kdoom] not enough memory (Requested %d bytes)\n", size);
     }
     return ptr;
 }
 
 static void dfree(void *ptr) {
     return;
-    Heap_Free(ptr);
+    heap_free(ptr);
 }
 
 static void dprint(const char *str) {
-    Co_Printf("%s", str);
+    co_printf("%s", str);
 }
 
 static void dexit(int exitcode) {
-    Co_Printf("[kdoom] exited with code %d. Halting system.\n", exitcode);
-    Arch_Hcf();
+    co_printf("[kdoom] exited with code %d. Halting system.\n", exitcode);
+    arch_hcf();
     while (1) {
     }
 }
@@ -84,13 +84,13 @@ static void *dopen(const char *filename, const char *mode) {
     if (mode[0] == 'w') {
         return NULL;
     }
-    struct File *fd;
-    int ret = Vfs_OpenFile(&fd, filename, 0);
+    struct file *fd;
+    int ret = vfs_open_file(&fd, filename, 0);
     if (ret < 0) {
-        Co_Printf("[kdoom] failed to open file %s (error %d)\n", filename, ret);
+        co_printf("[kdoom] failed to open file %s (error %d)\n", filename, ret);
         return NULL;
     }
-    Co_Printf("[kdoom] opened file %s (fd %p)\n", filename, fd);
+    co_printf("[kdoom] opened file %s (fd %p)\n", filename, fd);
     (void)mode;
     return fd;
 }
@@ -99,14 +99,14 @@ static void dclose(void *handle) {
     if (handle == NULL) {
         return;
     }
-    Vfs_CloseFile(handle);
+    vfs_close_file(handle);
 }
 
 static int dread(void *handle, void *buf, int count) {
     size_t len = count;
-    ssize_t ret = Vfs_ReadFile(handle, buf, len);
+    ssize_t ret = vfs_read_file(handle, buf, len);
     if (ret < 0) {
-        Co_Printf("[kdoom] failed to read file %p\n", handle);
+        co_printf("[kdoom] failed to read file %p\n", handle);
         /* idk if returning -1 is correct behavior */
         return -1;
     }
@@ -134,11 +134,11 @@ static int dseek(void *handle, int offset, doom_seek_t origin) {
         whence = SEEK_SET;
         break;
     default:
-        Panic("kdoom: unknown origin value");
+        panic("kdoom: unknown origin value");
     }
-    int ret = Vfs_SeekFile(handle, offset, whence);
+    int ret = vfs_seek_file(handle, offset, whence);
     if (ret < 0) {
-        Co_Printf("[kdoom] failed to seek file %p\n", handle);
+        co_printf("[kdoom] failed to seek file %p\n", handle);
         /* idk if returning -1 is correct behavior */
         return -1;
     }
@@ -215,15 +215,15 @@ static int program_main(int argc, char *argv[]) {
                 uint8_t r = framebuffer[y * (SCREENWIDTH * 4) + (x * 4) + 0];
                 uint8_t g = framebuffer[y * (SCREENWIDTH * 4) + (x * 4) + 1];
                 uint8_t b = framebuffer[y * (SCREENWIDTH * 4) + (x * 4) + 2];
-                newfb[y * SCREENWIDTH + x] = MakeColor(r, g, b);
+                newfb[y * SCREENWIDTH + x] = make_color(r, g, b);
             }
         }
-        Fb_DrawImage(newfb, SCREENWIDTH, SCREENHEIGHT, SCREENWIDTH, 0, 0);
-        Fb_DrawRect(188, 16, 0, 0, MakeColor(255, 255, 255));
+        fb_draw_image(newfb, SCREENWIDTH, SCREENHEIGHT, SCREENWIDTH, 0, 0);
+        fb_draw_rect(188, 16, 0, 0, make_color(255, 255, 255));
         char textbuf[16];
         snprintf(textbuf, sizeof(textbuf), "FPS: %d", fps);
-        Fb_DrawText(textbuf, 0, 0, MakeColor(0, 0, 0));
-        Fb_Update();
+        fb_draw_text(textbuf, 0, 0, make_color(0, 0, 0));
+        fb_update();
         framecount++;
     }
     return 0;
@@ -234,13 +234,13 @@ static int program_main(int argc, char *argv[]) {
 static int program_main(int argc, char *argv[]) {
     (void)argc;
     (void)argv;
-    Co_Printf("ERROR: YJKERNEL_ENABLE_KDOOM was disabled during compilation\n");
+    co_printf("ERROR: YJKERNEL_ENABLE_KDOOM was disabled during compilation\n");
     return 1;
 }
 
 #endif
 
-struct Shell_Program g_shell_program_kdoom = {
+struct shell_program g_shell_program_kdoom = {
     .name = "kdoom",
     .main = program_main,
 };
