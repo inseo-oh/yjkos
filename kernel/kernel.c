@@ -12,7 +12,8 @@
 #include <kernel/tasks/sched.h>
 #include <kernel/version.h>
 #include <stdalign.h>
-#include <stdint.h>
+
+
 
 [[noreturn]] void kernel_init(void) {
     co_printf("\nYJK Operating System " YJKOS_RELEASE "-" YJKOS_VERSION "\n");
