@@ -260,11 +260,6 @@ doformat:
         goto end;
     }
     switch (fmt[0]) {
-    /*
-     * NOLINT is used here because clang-tidy sees multiple types as the
-     * same underlying type, but those are platform-dependent types.
-     * So it makes sense to ignore it here.
-     */
     case 'c': {
         char c = va_arg(ap, int);
         ret = stream_put_char(self, c);
