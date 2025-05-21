@@ -1,8 +1,8 @@
 #include "../test.h"
 #include <kernel/io/co.h>
 #include <kernel/lib/bst.h>
+#include <kernel/lib/strutil.h>
 #include <kernel/panic.h>
-#include <string.h>
 
 static struct bst_node *assertnonnullnode(struct bst_node *node, char const *assertion, char const *function, char const *file, int line) {
     if (node == NULL) {
@@ -12,7 +12,7 @@ static struct bst_node *assertnonnullnode(struct bst_node *node, char const *ass
     return node;
 }
 
-#define ASSERT_NONNULL_BSTNODE(_x)  assertnonnullnode(_x, #_x, __func__, __FILE__, __LINE__)
+#define ASSERT_NONNULL_BSTNODE(_x) assertnonnullnode(_x, #_x, __func__, __FILE__, __LINE__)
 
 static bool do_insertnode_unbalenced(void) {
     struct bst bst;
@@ -31,7 +31,7 @@ static bool do_insertnode_unbalenced(void) {
      *   1000
      *   /
      * 500
-    */
+     */
     bst_insert_node_unbalenced(&bst, &nodes[1], 500, NULL);
     TEST_EXPECT(bst.root == &nodes[0]);
     TEST_EXPECT(bst.root->parent == NULL);
@@ -46,7 +46,7 @@ static bool do_insertnode_unbalenced(void) {
      *   1000
      *      \
      *      1500
-    */
+     */
     bst.root->children[BST_DIR_LEFT] = NULL;
     bst.root->height = 0;
     bst.root->bf = 0;
@@ -64,7 +64,7 @@ static bool do_insertnode_unbalenced(void) {
      *   1000
      *    / \
      *  500  1500
-    */
+     */
     bst.root->children[BST_DIR_LEFT] = NULL;
     bst.root->children[BST_DIR_RIGHT] = NULL;
     nodes[1].parent = NULL;
@@ -72,7 +72,7 @@ static bool do_insertnode_unbalenced(void) {
     bst.root->height = 0;
     bst.root->bf = 0;
     bst_insert_node_unbalenced(&bst, &nodes[1], nodes[1].key, NULL);
-    bst_insert_node_unbalenced(&bst, &nodes[2], nodes[2].key,NULL);
+    bst_insert_node_unbalenced(&bst, &nodes[2], nodes[2].key, NULL);
     TEST_EXPECT(bst.root == &nodes[0]);
     TEST_EXPECT(bst.root->parent == NULL);
     TEST_EXPECT(bst.root->children[BST_DIR_LEFT] == &nodes[1]);
@@ -93,7 +93,7 @@ static bool do_insertnode_unbalenced(void) {
      * 500    1500
      *   \     /
      *   600  1400
-    */
+     */
     bst_insert_node_unbalenced(&bst, &nodes[3], 600, NULL);
     bst_insert_node_unbalenced(&bst, &nodes[4], 1400, NULL);
     TEST_EXPECT(bst.root == &nodes[0]);
@@ -193,7 +193,7 @@ static bool do_balencing(void) {
     TEST_EXPECT(node1000->children[BST_DIR_LEFT] == NULL);
     TEST_EXPECT(node1000->children[BST_DIR_RIGHT] == NULL);
     TEST_EXPECT(node1000->bf == 0);
-    
+
     TEST_EXPECT(node600->parent == node700);
     TEST_EXPECT(node600->children[BST_DIR_LEFT] == NULL);
     TEST_EXPECT(node600->children[BST_DIR_RIGHT] == NULL);
@@ -238,7 +238,7 @@ static bool do_balencing(void) {
     TEST_EXPECT(node900->children[BST_DIR_LEFT] == node800);
     TEST_EXPECT(node900->children[BST_DIR_RIGHT] == node1000);
     TEST_EXPECT(node900->bf == 0);
-    
+
     TEST_EXPECT(node500->parent == node550);
     TEST_EXPECT(node500->children[BST_DIR_LEFT] == NULL);
     TEST_EXPECT(node500->children[BST_DIR_RIGHT] == NULL);
@@ -393,7 +393,7 @@ static bool do_balencing(void) {
     TEST_EXPECT(node1100->children[BST_DIR_LEFT] == node700);
     TEST_EXPECT(node1100->children[BST_DIR_RIGHT] == node1290);
     TEST_EXPECT(node1100->bf == 0);
-    
+
     TEST_EXPECT(node700->parent == node1100);
     TEST_EXPECT(node700->children[BST_DIR_LEFT] == node550);
     TEST_EXPECT(node700->children[BST_DIR_RIGHT] == node900);
@@ -422,7 +422,7 @@ struct testtree {
  *  12  37  63                3   4   5
  *            \                        \
  *             69                       6
-*/
+ */
 static void inittesttree(struct testtree *out) {
     memset(out, 0, sizeof(*out));
 
@@ -471,7 +471,7 @@ static bool do_removenode_unbalenced(void) {
      *    25      75
      *   /  \     /
      *  12  37  63
-     *             
+     *
      *             69 <--- Removed
      */
     inittesttree(&tree);
@@ -490,7 +490,7 @@ static bool do_removenode_unbalenced(void) {
      *   /  \       /
      *  12  37  63 |
      *          ^  |
-     *          |  69 
+     *          |  69
      *          +-------- Removed
      */
     inittesttree(&tree);
@@ -639,7 +639,7 @@ static bool do_rotate(void) {
     TEST_EXPECT(newsubtreeroot->key == 75);
     TEST_EXPECT(newsubtreeroot->children[BST_DIR_LEFT] == subtreeroot);
     TEST_EXPECT(newsubtreeroot->children[BST_DIR_RIGHT] == NULL);
-    
+
     // Rotate on the root
     subtreeroot = tree.bst.root;
     bst_rotate(&tree.bst, subtreeroot, BST_DIR_LEFT);
@@ -649,7 +649,7 @@ static bool do_rotate(void) {
      *      50 <--- Original subtree root
      *     /  \
      *    25  63
-     *   /  \   \ 
+     *   /  \   \
      *  12  37   69
      */
     TEST_EXPECT(ASSERT_NONNULL_BSTNODE(subtreeroot->children[BST_DIR_LEFT])->key == 25);
@@ -675,20 +675,20 @@ static bool do_height(void) {
 }
 
 static struct test const TESTS[] = {
-    { .name = "insert node unbalenced",     .fn = do_insertnode_unbalenced },
-    { .name = "remove node unbalenced",     .fn = do_removenode_unbalenced },
-    { .name = "insert node & balencing",    .fn = do_balencing             },
-    { .name = "find node",                  .fn = do_findnode              },
-    { .name = "minimum, maximum node",      .fn = do_minmaxof              },
-    { .name = "child direction in parent ", .fn = do_dirinparent           },
-    { .name = "successor",                  .fn = do_successor             },
-    { .name = "predecessor",                .fn = do_predecessor           },
-    { .name = "rotate",                     .fn = do_rotate                },
-    { .name = "height",                     .fn = do_height                },
+    {.name = "insert node unbalenced", .fn = do_insertnode_unbalenced},
+    {.name = "remove node unbalenced", .fn = do_removenode_unbalenced},
+    {.name = "insert node & balencing", .fn = do_balencing},
+    {.name = "find node", .fn = do_findnode},
+    {.name = "minimum, maximum node", .fn = do_minmaxof},
+    {.name = "child direction in parent ", .fn = do_dirinparent},
+    {.name = "successor", .fn = do_successor},
+    {.name = "predecessor", .fn = do_predecessor},
+    {.name = "rotate", .fn = do_rotate},
+    {.name = "height", .fn = do_height},
 };
 
 const struct test_group TESTGROUP_BST = {
     .name = "bst",
     .tests = TESTS,
-    .testslen = sizeof(TESTS)/sizeof(*TESTS),
+    .testslen = sizeof(TESTS) / sizeof(*TESTS),
 };

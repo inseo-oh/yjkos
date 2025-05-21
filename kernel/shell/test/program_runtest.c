@@ -2,7 +2,7 @@
 #include "test.h"
 #include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
-#include <string.h>
+#include <kernel/lib/strutil.h>
 #include <unistd.h>
 
 static struct test_group const *const TEST_GROUPS[] = {

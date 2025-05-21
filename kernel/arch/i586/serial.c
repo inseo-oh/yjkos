@@ -8,8 +8,8 @@
 #include <kernel/io/stream.h>
 #include <kernel/io/tty.h>
 #include <kernel/lib/diagnostics.h>
+#include <kernel/lib/strutil.h>
 #include <stdint.h>
-#include <string.h>
 #include <sys/types.h>
 
 #define REG_DATA 0 /* When LCR.DLAB=0 */

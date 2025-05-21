@@ -2,10 +2,10 @@
 #include <kernel/arch/mmu.h>
 #include <kernel/lib/miscmath.h>
 #include <kernel/lib/pstring.h>
+#include <kernel/lib/strutil.h>
 #include <kernel/types.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <string.h>
 
 void pmemcpy_in(void *dest, PHYSPTR src, size_t len, MMU_CACHE_INHIBIT cache_inhibit) {
     bool prev_interrupts = arch_irq_disable();

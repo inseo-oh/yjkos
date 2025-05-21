@@ -6,6 +6,7 @@
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/miscmath.h>
 #include <kernel/lib/pathreader.h>
+#include <kernel/lib/strutil.h>
 #include <kernel/mem/heap.h>
 
 #include <assert.h>
@@ -13,7 +14,6 @@
 #include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <string.h>
 #include <sys/types.h>
 #include <time.h>
 

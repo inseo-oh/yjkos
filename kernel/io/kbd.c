@@ -6,9 +6,9 @@
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
 #include <kernel/lib/queue.h>
+#include <kernel/lib/strutil.h>
 #include <stdarg.h>
 #include <stdint.h>
-#include <string.h>
 
 /******************************** Configuration *******************************/
 
@@ -40,15 +40,17 @@ struct keymapentry {
 
 /* KEY_CHAR_WITH_CAPSLOCK implies KEY_CHAR_WITH_SHIFT as well. */
 #define KEY_NOCHAR() \
-    {.key_alt = 0, .chr = 0, .chralt = 0, .flags = 0}
+    { .key_alt = 0, .chr = 0, .chralt = 0, .flags = 0 }
 #define KEY_CHAR(_chr) \
-    {.key_alt = 0, .chr = (_chr), .chralt = (_chr), .flags = 0}
-#define KEY_CHAR_WITH_SHIFT(_chr, _chralt) { \
-    .key_alt = 0, .chr = (_chr), .chralt = (_chralt), .flags = KEYMAP_FLAG_SHIFT}
+    { .key_alt = 0, .chr = (_chr), .chralt = (_chr), .flags = 0 }
+#define KEY_CHAR_WITH_SHIFT(_chr, _chralt)                                           \
+    {                                                                                \
+        .key_alt = 0, .chr = (_chr), .chralt = (_chralt), .flags = KEYMAP_FLAG_SHIFT \
+    }
 #define KEY_CHAR_WITH_CAPSLOCK(_chr, _chralt) \
-    {.key_alt = 0, .chr = (_chr), .chralt = (_chralt), .flags = KEYMAP_FLAG_SHIFT | KEYMAP_FLAG_CAPSLOCK}
+    { .key_alt = 0, .chr = (_chr), .chralt = (_chralt), .flags = KEYMAP_FLAG_SHIFT | KEYMAP_FLAG_CAPSLOCK }
 #define KEY_CHAR_WITH_NUMLOCK(_numlock_off_k, _chr) \
-    {.key_alt = (_numlock_off_k), .chr = (_chr), .chralt = (_chr), .flags = KEYMAP_FLAG_NUMLOCK}
+    { .key_alt = (_numlock_off_k), .chr = (_chr), .chralt = (_chr), .flags = KEYMAP_FLAG_NUMLOCK }
 
 static struct keymapentry const KEYMAP[] = {
     [KBD_KEY_ESCAPE] = KEY_NOCHAR(),

@@ -3,10 +3,10 @@
 #include <kernel/io/kbd.h>
 #include <kernel/io/stream.h>
 #include <kernel/lib/diagnostics.h>
+#include <kernel/lib/strutil.h>
 #include <kernel/mem/vmm.h>
 #include <kernel/types.h>
 #include <stdint.h>
-#include <string.h>
 #include <sys/types.h>
 
 struct chr {

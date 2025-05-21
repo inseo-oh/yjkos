@@ -7,11 +7,11 @@
 #include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/miscmath.h>
+#include <kernel/lib/strutil.h>
 #include <kernel/mem/pmm.h>
 #include <kernel/mem/vmm.h>
 #include <kernel/types.h>
 #include <stdint.h>
-#include <string.h>
 
 struct pagetable {
     uint32_t entry[ARCHI586_MMU_ENTRY_COUNT];

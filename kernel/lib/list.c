@@ -1,7 +1,7 @@
 #include <assert.h>
 #include <kernel/lib/list.h>
+#include <kernel/lib/strutil.h>
 #include <stddef.h>
-#include <string.h>
 
 void list_init(struct list *self) {
     memset(self, 0, sizeof(*self));

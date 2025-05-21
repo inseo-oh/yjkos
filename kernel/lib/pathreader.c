@@ -1,10 +1,9 @@
+#include <errno.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/pathreader.h>
-
-#include <errno.h>
+#include <kernel/lib/strutil.h>
 #include <limits.h>
 #include <stddef.h>
-#include <string.h>
 
 void pathreader_init(struct path_reader *out, char const *path) {
     out->remaining_path = path;

@@ -6,13 +6,13 @@
 #include <kernel/arch/mmu.h>
 #include <kernel/io/co.h>
 #include <kernel/lib/pstring.h>
+#include <kernel/lib/strutil.h>
 #include <kernel/mem/heap.h>
 #include <kernel/mem/pmm.h>
 #include <kernel/panic.h>
 #include <kernel/raster/fb.h>
 #include <kernel/types.h>
 #include <stdint.h>
-#include <string.h>
 
 struct mem_region {
     PHYSPTR base;

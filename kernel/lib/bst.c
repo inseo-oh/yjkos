@@ -1,9 +1,9 @@
 #include <assert.h>
 #include <kernel/io/co.h>
 #include <kernel/lib/bst.h>
+#include <kernel/lib/strutil.h>
 #include <kernel/panic.h>
 #include <stdint.h>
-#include <string.h>
 
 //------------------------------- Configuration -------------------------------
 

@@ -3,8 +3,8 @@
 #include "gdt.h"
 #include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
+#include <kernel/lib/strutil.h>
 #include <stdint.h>
-#include <string.h>
 
 struct gate_descriptor {
     uint16_t offset_b15tob0;

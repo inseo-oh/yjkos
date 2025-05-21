@@ -3,10 +3,10 @@
 #include <kernel/io/disk.h>
 #include <kernel/io/iodev.h>
 #include <kernel/lib/diagnostics.h>
+#include <kernel/lib/strutil.h>
 #include <kernel/ticktime.h>
 #include <stdarg.h>
 #include <stdint.h>
-#include <string.h>
 
 #define TIMEOUT 5000
 #define MAX_RETRIES 3

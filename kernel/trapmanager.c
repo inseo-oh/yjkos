@@ -2,9 +2,9 @@
 #include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
+#include <kernel/lib/strutil.h>
 #include <kernel/trapmanager.h>
 #include <stdint.h>
-#include <string.h>
 
 /* Each trap entry is a list of trap handlers. */
 static struct list s_traps[YJKERNEL_ARCH_TRAP_COUNT];

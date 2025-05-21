@@ -1,5 +1,5 @@
 #include "../test.h"
-#include <string.h>
+#include <kernel/lib/strutil.h>
 #include <unistd.h>
 
 static bool do_getopt(void) {

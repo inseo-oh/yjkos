@@ -11,9 +11,9 @@
 #include <assert.h>
 #include <dirent.h>
 #include <errno.h>
+#include <kernel/lib/strutil.h>
 #include <limits.h>
 #include <stddef.h>
-#include <string.h>
 #include <sys/types.h>
 
 /******************************************************************************/

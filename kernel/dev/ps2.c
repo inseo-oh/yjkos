@@ -10,9 +10,9 @@
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
 #include <kernel/lib/queue.h>
+#include <kernel/lib/strutil.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <string.h>
 #include <sys/types.h>
 
 static struct list s_ports;

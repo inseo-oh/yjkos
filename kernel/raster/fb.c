@@ -2,14 +2,13 @@
 #include "psf.h"
 #include <assert.h>
 #include <kernel/io/co.h>
-#include <kernel/lib/string_ext.h>
+#include <kernel/lib/strutil.h>
 #include <kernel/mem/heap.h>
 #include <kernel/mem/vmm.h>
 #include <kernel/raster/fb.h>
 #include <kernel/types.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <string.h>
 
 /******************************** Configuration *******************************/
 

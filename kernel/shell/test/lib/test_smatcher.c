@@ -1,6 +1,5 @@
 #include "../test.h"
-#include <kernel/lib/smatcher.h>
-#include <string.h>
+#include <kernel/lib/strutil.h>
 
 static bool do_slice(void) {
     struct smatcher smatcher;

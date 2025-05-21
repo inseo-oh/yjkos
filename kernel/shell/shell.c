@@ -3,12 +3,11 @@
 #include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
-#include <kernel/lib/smatcher.h>
+#include <kernel/lib/strutil.h>
 #include <kernel/mem/heap.h>
 #include <kernel/panic.h>
 #include <limits.h>
 #include <stdint.h>
-#include <string.h>
 #include <unistd.h>
 
 /******************************** Configuration *******************************/

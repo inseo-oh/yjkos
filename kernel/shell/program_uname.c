@@ -1,9 +1,8 @@
 #include "shell.h"
 #include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
+#include <kernel/lib/strutil.h>
 #include <kernel/version.h>
-#include <stdint.h>
-#include <string.h>
 #include <unistd.h>
 
 /* https://pubs.opengroup.org/onlinepubs/9799919799/utilities/ls.html */

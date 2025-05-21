@@ -1,5 +1,5 @@
 
-#include <string.h>
+#include <kernel/lib/strutil.h>
 #include <unistd.h>
 #ifdef YJKERNEL_SOURCE
 #include <kernel/io/co.h>

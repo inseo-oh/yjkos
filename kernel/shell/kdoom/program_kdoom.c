@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <kernel/arch/hcf.h>
 #include <kernel/fs/vfs.h>
+#include <kernel/lib/strutil.h>
 #include <kernel/mem/heap.h>
 #include <kernel/panic.h>
 #include <kernel/raster/fb.h>
@@ -12,7 +13,6 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <string.h>
 #include <sys/types.h>
 
 /* A hack to make it work with C23 boolean */

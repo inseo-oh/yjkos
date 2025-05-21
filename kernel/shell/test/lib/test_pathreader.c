@@ -1,8 +1,7 @@
 #include "../test.h"
-#include <kernel/lib/pathreader.h>
-
 #include <errno.h>
-#include <string.h>
+#include <kernel/lib/pathreader.h>
+#include <kernel/lib/strutil.h>
 
 static bool do_simple(void) {
     char const *str = NULL;
@@ -57,14 +56,14 @@ static bool do_trailing_slash(void) {
 }
 
 static struct test const TESTS[] = {
-    { .name = "simple",              .fn = do_simple         },
-    { .name = "empty",               .fn = do_empty          },
-    { .name = "with empty segments", .fn = do_empty_segments },
-    { .name = "with trailing slash", .fn = do_trailing_slash },
+    {.name = "simple", .fn = do_simple},
+    {.name = "empty", .fn = do_empty},
+    {.name = "with empty segments", .fn = do_empty_segments},
+    {.name = "with trailing slash", .fn = do_trailing_slash},
 };
 
 const struct test_group TESTGROUP_PATHREADER = {
     .name = "pathreader",
     .tests = TESTS,
-    .testslen = sizeof(TESTS)/sizeof(*TESTS),
+    .testslen = sizeof(TESTS) / sizeof(*TESTS),
 };

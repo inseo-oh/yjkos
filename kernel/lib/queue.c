@@ -1,8 +1,8 @@
 #include <errno.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/queue.h>
+#include <kernel/lib/strutil.h>
 #include <stdint.h>
-#include <string.h>
 
 void queue_init(struct queue *queue, void *buf, size_t itemsize, size_t cap) {
     memset(queue, 0, sizeof(*queue));

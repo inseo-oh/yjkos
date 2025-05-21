@@ -4,13 +4,13 @@
 #include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
+#include <kernel/lib/strutil.h>
 #include <kernel/mem/heap.h>
 #include <kernel/tasks/mutex.h>
 #include <kernel/tasks/sched.h>
 #include <kernel/tasks/thread.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define BOOT_THREAD_PRIORITY 20
 

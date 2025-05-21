@@ -8,6 +8,7 @@
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
 #include <kernel/lib/miscmath.h>
+#include <kernel/lib/strutil.h>
 #include <kernel/mem/heap.h>
 #include <kernel/mem/pmm.h>
 #include <kernel/mem/vmm.h>
@@ -16,7 +17,6 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 
 /* Configuration **************************************************************/
 

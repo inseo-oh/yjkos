@@ -4,8 +4,8 @@
 #include <kernel/io/stream.h>
 #include <kernel/io/vt100tty.h>
 #include <kernel/lib/diagnostics.h>
+#include <kernel/lib/strutil.h>
 #include <stdint.h>
-#include <string.h>
 #include <sys/types.h>
 
 static struct vt100tty_char *char_at(struct vt100tty *self, int row, int column) {

@@ -1,6 +1,6 @@
 #include "../test.h"
 #include <kernel/lib/list.h>
-#include <string.h>
+#include <kernel/lib/strutil.h>
 
 static bool do_insertfront(void) {
     struct list lst;
@@ -146,7 +146,7 @@ static bool do_removefront(void) {
     list_insert_back(&lst, &nodes[0], NULL);
     list_insert_back(&lst, &nodes[1], NULL);
     list_insert_back(&lst, &nodes[2], NULL);
-    
+
     removednode = list_remove_front(&lst);
     TEST_EXPECT(removednode == &nodes[0]);
     TEST_EXPECT(lst.front == &nodes[1]);
@@ -221,7 +221,7 @@ static bool do_removenode(void) {
     list_insert_back(&lst, &nodes[0], NULL);
     list_insert_back(&lst, &nodes[1], NULL);
     list_insert_back(&lst, &nodes[2], NULL);
-    
+
     list_remove_node(&lst, &nodes[1]);
     TEST_EXPECT(lst.front == &nodes[0]);
     TEST_EXPECT(lst.back == &nodes[2]);
@@ -244,17 +244,17 @@ static bool do_removenode(void) {
 }
 
 static struct test const TESTS[] = {
-    { .name = "insert front",   .fn = do_insertfront  },
-    { .name = "insert back",    .fn = do_insertback   },
-    { .name = "insert after",   .fn = do_insertafter  },
-    { .name = "insert before",  .fn = do_insertbefore },
-    { .name = "remove front",   .fn = do_removefront  },
-    { .name = "remove back",    .fn = do_removeback   },
-    { .name = "remove node",    .fn = do_removenode   },
+    {.name = "insert front", .fn = do_insertfront},
+    {.name = "insert back", .fn = do_insertback},
+    {.name = "insert after", .fn = do_insertafter},
+    {.name = "insert before", .fn = do_insertbefore},
+    {.name = "remove front", .fn = do_removefront},
+    {.name = "remove back", .fn = do_removeback},
+    {.name = "remove node", .fn = do_removenode},
 };
 
 const struct test_group TESTGROUP_LIST = {
     .name = "list",
     .tests = TESTS,
-    .testslen = sizeof(TESTS)/sizeof(*TESTS),
+    .testslen = sizeof(TESTS) / sizeof(*TESTS),
 };

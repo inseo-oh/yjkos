@@ -8,6 +8,7 @@
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
 #include <kernel/lib/miscmath.h>
+#include <kernel/lib/strutil.h>
 #include <kernel/mem/heap.h>
 #include <kernel/tasks/sched.h>
 #include <kernel/tasks/thread.h>
@@ -17,7 +18,6 @@
 #include <errno.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <string.h>
 
 typedef enum {
     BYTEORDER_MSB_FIRST,

@@ -1,9 +1,9 @@
 #include <kernel/arch/interrupts.h>
 #include <kernel/lib/diagnostics.h>
+#include <kernel/lib/strutil.h>
 #include <kernel/tasks/mutex.h>
 #include <kernel/tasks/sched.h>
 #include <stdatomic.h>
-#include <string.h>
 
 void mutex_init(struct mutex *out) {
     memset(out, 0, sizeof(*out));

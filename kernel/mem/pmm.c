@@ -5,13 +5,13 @@
 #include <kernel/lib/bitmap.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/pstring.h>
+#include <kernel/lib/strutil.h>
 #include <kernel/mem/heap.h>
 #include <kernel/mem/pmm.h>
 #include <kernel/panic.h>
 #include <kernel/types.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 
 /******************************** Configuration *******************************/
 

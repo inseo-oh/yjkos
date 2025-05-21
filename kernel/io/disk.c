@@ -6,9 +6,9 @@
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
 #include <kernel/lib/miscmath.h>
+#include <kernel/lib/strutil.h>
 #include <kernel/mem/heap.h>
 #include <stdint.h>
-#include <string.h>
 #include <sys/types.h>
 
 static void to_abs_block_range(size_t *firstaddr_out, struct ldisk *self, DISK_BLOCK_ADDR block_addr, size_t *blockcount_inout) {

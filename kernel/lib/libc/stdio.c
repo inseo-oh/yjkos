@@ -1,13 +1,12 @@
+#include <kernel/io/co.h>
+#include <kernel/io/stream.h>
+#include <kernel/lib/diagnostics.h>
+#include <kernel/lib/strutil.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <string.h>
-
-#include <kernel/io/co.h>
-#include <kernel/io/stream.h>
-#include <kernel/lib/diagnostics.h>
 #include <sys/types.h>
 
 /* XXX: We have to bring rest of kernel stream API to libc as normal stdio API. */

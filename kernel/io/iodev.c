@@ -4,11 +4,11 @@
 #include <kernel/io/iodev.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/list.h>
+#include <kernel/lib/strutil.h>
 #include <kernel/mem/heap.h>
 #include <kernel/panic.h>
 #include <stdarg.h>
 #include <stdint.h>
-#include <string.h>
 
 struct iodevtype {
     struct list_node node;
