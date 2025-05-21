@@ -6,7 +6,7 @@
 #include <stdatomic.h>
 
 void mutex_init(struct mutex *out) {
-    memset(out, 0, sizeof(*out));
+    vmemset(out, 0, sizeof(*out));
 }
 
 [[nodiscard]] bool __mutex_try_lock(struct mutex *self, struct source_location loc) {
@@ -14,7 +14,7 @@ void mutex_init(struct mutex *out) {
     if (!atomic_compare_exchange_strong_explicit(&self->locked, &expected, true, memory_order_acquire, memory_order_relaxed)) {
         return false;
     }
-    memcpy(&self->locksource, &loc, sizeof(self->locksource));
+    vmemcpy(&self->locksource, &loc, sizeof(self->locksource));
     return true;
 }
 

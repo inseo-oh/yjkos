@@ -489,7 +489,7 @@ static bool init_busmaster(struct bus *bus) {
     }
     /* Fill PRDT **************************************************************/
     bus->prdt = prdt_vm_object->start;
-    memset(bus->prdt, 0, prdtsize);
+    vmemset(bus->prdt, 0, prdtsize);
     size_t remaining_size = MAX_DMA_TRANSFER_SIZE_NEEDED;
     for (size_t i = 0; i < bus->prd_count; i++) {
         size_t current_size = remaining_size;

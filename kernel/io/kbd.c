@@ -351,7 +351,7 @@ void kbd_key_released(KBD_KEY key) {
 [[nodiscard]] int kbd_register(struct kbd_dev *dev_out, struct kbd_dev_ops const *ops, void *data) {
     int result = 0;
     bool prev_interrupts = arch_irq_disable();
-    memset(dev_out, 0, sizeof(*dev_out));
+    vmemset(dev_out, 0, sizeof(*dev_out));
     dev_out->data = data;
     dev_out->ops = ops;
     result = iodev_register(&dev_out->iodev, IODEV_TYPE_KEYBOARD, dev_out);

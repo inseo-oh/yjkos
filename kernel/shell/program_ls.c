@@ -30,7 +30,7 @@ struct opts {
 [[nodiscard]] static bool getopts(struct opts *out, int argc, char *argv[]) {
     bool ok = true;
     int c;
-    memset(out, 0, sizeof(*out));
+    vmemset(out, 0, sizeof(*out));
     while (1) {
         c = getopt(argc, argv, "ACFHLRSacdfghiklmnopqrstux1");
         if (c == -1) {
@@ -76,8 +76,8 @@ static int format(char *buf, size_t size, struct entry const *ent, struct opts c
 
 static bool should_hide_dirent(struct dirent *ent, struct opts const *opts) {
     if (!opts->all || opts->all_alt) {
-        if ((strcmp(ent->d_name, ".") == 0) ||
-            strcmp(ent->d_name, "..") == 0) {
+        if ((str_cmp(ent->d_name, ".") == 0) ||
+            str_cmp(ent->d_name, "..") == 0) {
             return true;
         }
     }
@@ -116,7 +116,7 @@ static int collect_entries(struct entry **entries_out, size_t *entries_len_out, 
         entries = new_entries;
         entries_len++;
         struct entry *dest = &entries[entries_len - 1];
-        memset(dest, 0, sizeof(*dest));
+        vmemset(dest, 0, sizeof(*dest));
         dest->name = strdup(ent.d_name);
         if (dest->name == NULL) {
             goto oom;

@@ -130,7 +130,7 @@ static int create_pd(uint8_t pde) {
     }
     s_pagedir[pde] = addr | ARCHI586_MMU_PDE_FLAG_P | ARCHI586_MMU_PDE_FLAG_RW | ARCHI586_MMU_PDE_FLAG_US;
     arch_mmu_flush_tlb_for(&s_pagetables[pde]);
-    memset(&s_pagetables[pde], 0, sizeof(s_pagetables[pde]));
+    vmemset(&s_pagetables[pde], 0, sizeof(s_pagetables[pde]));
     /* Flush TLB just to be safe **********************************************/
     for (size_t i = 0; i < ARCHI586_MMU_ENTRY_COUNT; i++) {
         arch_mmu_flush_tlb_for((void *)MAKE_VIRTADDR(pde, i, 0));

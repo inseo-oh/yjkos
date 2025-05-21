@@ -29,7 +29,7 @@ struct idt {
 };
 
 static void init_descriptor(struct gate_descriptor *out, uint32_t offset, uint16_t flags) {
-    memset(out, 0, sizeof(*out));
+    vmemset(out, 0, sizeof(*out));
     out->offset_b15tob0 = offset;
     out->segmentselector = ARCHI586_GDT_KERNEL_CS;
     out->flags = flags;

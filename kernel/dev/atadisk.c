@@ -164,7 +164,7 @@ struct identify_result {
     }
     struct ata_data_buf buffer;
     disk->ops->read_data(&buffer, disk);
-    memset(out, 0, sizeof(*out));
+    vmemset(out, 0, sizeof(*out));
     extract_string_from_identify_data(out->serial, &buffer, 10, 19);
     extract_string_from_identify_data(out->firmware, &buffer, 23, 26);
     extract_string_from_identify_data(out->modelnum, &buffer, 27, 46);
@@ -510,7 +510,7 @@ static struct pdisk_ops const OPS = {
 
 [[nodiscard]] int atadisk_register(struct atadisk *disk_out, struct atadisk_ops const *ops, void *data) {
     int ret = 0;
-    memset(disk_out, 0, sizeof(*disk_out));
+    vmemset(disk_out, 0, sizeof(*disk_out));
     disk_out->ops = ops;
     disk_out->data = data;
     struct identify_result result;

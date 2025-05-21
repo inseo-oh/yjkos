@@ -59,7 +59,7 @@ static struct list s_mounts;  /* struct vfs_fscontext items */
 [[nodiscard]] static int remove_rel_path(char **newpath_out, char const *path) {
     int ret = 0;
     char *new_path = NULL;
-    size_t size = strlen(path) + 2; /* Leave room for / and NULL terminator. */
+    size_t size = str_len(path) + 2; /* Leave room for / and NULL terminator. */
     if (size == 0) {
         ret = -ENOMEM;
         goto fail;
@@ -82,10 +82,10 @@ static struct list s_mounts;  /* struct vfs_fscontext items */
         if (ret < 0) {
             goto out;
         }
-        if (strcmp(name, ".") == 0) {
+        if (str_cmp(name, ".") == 0) {
             /* Do nothing */
-        } else if (strcmp(name, "..") == 0) {
-            char *found_pos = strrchr(new_path, '/');
+        } else if (str_cmp(name, "..") == 0) {
+            char *found_pos = str_find_char_rev(new_path, '/');
             if (found_pos == NULL) {
                 dest = new_path;
             } else {
@@ -95,8 +95,8 @@ static struct list s_mounts;  /* struct vfs_fscontext items */
         } else if (name[0] != '\0') {
             *dest = '/';
             dest++;
-            size_t name_len = strlen(name);
-            memcpy(dest, name, name_len);
+            size_t name_len = str_len(name);
+            vmemcpy(dest, name, name_len);
             dest += name_len;
         }
     }
@@ -149,7 +149,7 @@ out:
     LIST_FOREACH(&s_mounts, mountnode) {
         struct vfs_fscontext *entry = mountnode->data;
         assert(entry);
-        if (strcmp(entry->mount_path, newmountpath) == 0) {
+        if (str_cmp(entry->mount_path, newmountpath) == 0) {
             fscontext = entry;
             break;
         }
@@ -184,7 +184,7 @@ out:
         struct vfs_fstype *fstyperesult = NULL;
         LIST_FOREACH(&s_fstypes, fstypenode) {
             struct vfs_fstype *currentfstype = fstypenode->data;
-            if (strcmp(currentfstype->name, fstype) == 0) {
+            if (str_cmp(currentfstype->name, fstype) == 0) {
                 fstyperesult = currentfstype;
             }
         }
@@ -219,7 +219,7 @@ out:
 }
 
 void vfs_register_fstype(struct vfs_fstype *out, char const *name, struct vfs_fstype_ops const *ops) {
-    memset(out, 0, sizeof(*out));
+    vmemset(out, 0, sizeof(*out));
     out->name = name;
     out->ops = ops;
     list_insert_back(&s_fstypes, &out->node, out);
@@ -262,9 +262,9 @@ void vfs_mount_root(void) {
     size_t lastmatchlen = 0;
     LIST_FOREACH(&s_mounts, mountnode) {
         struct vfs_fscontext *entry = mountnode->data;
-        size_t len = strlen(entry->mount_path);
+        size_t len = str_len(entry->mount_path);
         if (lastmatchlen <= len) {
-            if (strncmp(entry->mount_path, path, len) == 0) {
+            if (str_cmp_up_to(entry->mount_path, path, len) == 0) {
                 result = entry;
                 lastmatchlen = len;
             }

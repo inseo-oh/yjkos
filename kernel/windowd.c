@@ -86,7 +86,7 @@ static void proto_send_card32(struct connection *conn, uint32_t val) {
 }
 
 static void proto_send_string8(struct connection *conn, char const *str, size_t len) {
-    assert(strlen(str) <= len);
+    assert(str_len(str) <= len);
     for (size_t i = 0; i < len; i++) {
         proto_send_card8(conn, str[i]);
     }
@@ -148,8 +148,8 @@ struct proto_connection_setup {
 
 [[nodiscard]] static int proto_recv_connection_setup(struct proto_connection_setup *out, struct stream *client) {
     struct connection conn;
-    memset(out, 0, sizeof(*out));
-    memset(&conn, 0, sizeof(conn));
+    vmemset(out, 0, sizeof(*out));
+    vmemset(&conn, 0, sizeof(conn));
     int byte_order_raw = stream_get_char(client);
     switch (byte_order_raw) {
     case 'B':
@@ -185,7 +185,7 @@ oom:
 }
 
 static void proto_send_connection_refuse(struct connection *conn, char const *reason, uint16_t protocol_major_version, uint16_t protocol_minor_version) {
-    size_t n = strlen(reason);
+    size_t n = str_len(reason);
     assert(n <= 255);
     size_t p = proto_pad(n);
     proto_send_card8(conn, 0); /* Failed */
@@ -199,7 +199,7 @@ static void proto_send_connection_refuse(struct connection *conn, char const *re
 
 static void proto_send_connection_accept(struct connection *conn, uint16_t protocol_major_version, uint16_t protocol_minor_version, uint32_t release_number, size_t formats_len, char const *vendor, size_t screens_len) {
     size_t n = formats_len;
-    size_t v = strlen(vendor);
+    size_t v = str_len(vendor);
     size_t m = screens_len;
     size_t p = proto_pad(v);
     proto_send_card8(conn, 1); /* Success */
@@ -215,7 +215,7 @@ static void proto_send_connection_accept(struct connection *conn, uint16_t proto
     "\n[YJK Operating System " YJKOS_RELEASE "-" YJKOS_VERSION "]\n"
 
 [[nodiscard]] static int proto_handle_connection_setup(struct connection *out, struct stream *client) {
-    memset(out, 0, sizeof(*out));
+    vmemset(out, 0, sizeof(*out));
     int ret = 0;
     struct proto_connection_setup setup;
     ret = proto_recv_connection_setup(&setup, client);

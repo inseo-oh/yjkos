@@ -452,10 +452,10 @@ static void rewindinode(struct ino_context *self) {
     heap_free(self->singly_indirect_buf.buf);
     heap_free(self->doubly_indirect_buf.buf);
     heap_free(self->triply_indirect_buf.buf);
-    memset(&self->blockbuf, 0, sizeof(self->blockbuf));
-    memset(&self->singly_indirect_buf, 0, sizeof(self->singly_indirect_buf));
-    memset(&self->doubly_indirect_buf, 0, sizeof(self->doubly_indirect_buf));
-    memset(&self->triply_indirect_buf, 0, sizeof(self->triply_indirect_buf));
+    vmemset(&self->blockbuf, 0, sizeof(self->blockbuf));
+    vmemset(&self->singly_indirect_buf, 0, sizeof(self->singly_indirect_buf));
+    vmemset(&self->doubly_indirect_buf, 0, sizeof(self->doubly_indirect_buf));
+    vmemset(&self->triply_indirect_buf, 0, sizeof(self->triply_indirect_buf));
     self->current_block_addr = 0;
     self->next_direct_ptr_index = 0;
     self->singly_indirect_used = false;
@@ -662,7 +662,7 @@ out:
             readlen = maxlen;
         }
         assert(readlen != 0);
-        memcpy(dest, &self->blockbuf.buf[self->blockbuf.offset_in_buf], readlen);
+        vmemcpy(dest, &self->blockbuf.buf[self->blockbuf.offset_in_buf], readlen);
         self->blockbuf.offset_in_buf += readlen;
         dest += readlen;
         remaining_len -= readlen;
@@ -686,7 +686,7 @@ out:
         goto fail;
     }
     uint8_t *inodedata = &blkdata[offset];
-    memset(out, 0, sizeof(*out));
+    vmemset(out, 0, sizeof(*out));
     uint32_t sizel = 0;
     uint32_t sizeh = 0;
     out->fs = self;
@@ -752,7 +752,7 @@ struct directory {
     int ret = 0;
     while (1) {
         uint8_t header[8];
-        memset(out, 0, sizeof(*out));
+        vmemset(out, 0, sizeof(*out));
         ret = read_inode(&dir->inocontext, header, 8);
         if (ret < 0) {
             goto fail;
@@ -882,7 +882,7 @@ static void closefile(struct ino_context *self) {
                 break;
             }
             current_ino = ent.d_ino;
-            if (strcmp(name, ent.d_name) == 0) {
+            if (str_cmp(name, ent.d_name) == 0) {
                 ret = 0;
                 break;
             }
@@ -1010,9 +1010,9 @@ static struct file_ops const FD_OPS = {
         context->optional_features = u32le_at(&superblk[0x05c]);
         context->required_features = u32le_at(&superblk[0x060]);
         context->required_features_rw = u32le_at(&superblk[0x064]);
-        memcpy(context->filesystem_id, &superblk[0x068], sizeof(context->filesystem_id));
-        memcpy(context->volumename, &superblk[0x078], sizeof(context->volumename));
-        memcpy(context->last_mount_path, &superblk[0x088], sizeof(context->last_mount_path));
+        vmemcpy(context->filesystem_id, &superblk[0x068], sizeof(context->filesystem_id));
+        vmemcpy(context->volumename, &superblk[0x078], sizeof(context->volumename));
+        vmemcpy(context->last_mount_path, &superblk[0x088], sizeof(context->last_mount_path));
         bool not_terminated = false;
         if (context->volumename[sizeof(context->volumename) - 1] != '\0') {
             context->volumename[sizeof(context->volumename) - 1] = '\0';
@@ -1028,7 +1028,7 @@ static struct file_ops const FD_OPS = {
         context->compressionalgorithms = u32le_at(&superblk[0x0c8]);
         context->preallocatefileblks = superblk[0x0cc];
         context->preallocatedirblks = superblk[0x0cd];
-        memcpy(context->journalid, &superblk[0x0d0], sizeof(context->journalid));
+        vmemcpy(context->journalid, &superblk[0x0d0], sizeof(context->journalid));
         context->journalinode = u32le_at(&superblk[0x0e0]);
         context->journaldevice = u32le_at(&superblk[0x0e4]);
         context->orphaninodelisthead = u32le_at(&superblk[0x0e8]);

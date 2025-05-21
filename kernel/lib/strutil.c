@@ -4,7 +4,7 @@
 #include <ctype.h>
 
 /* https://pubs.opengroup.org/onlinepubs/9799919799/functions/strlen.html */
-size_t strlen(char const *s) {
+size_t str_len(char const *s) {
     size_t len = 0;
     for (char const *next = s; *next != '\0'; next++, len++) {
     }
@@ -12,7 +12,7 @@ size_t strlen(char const *s) {
 }
 
 /* https://pubs.opengroup.org/onlinepubs/9799919799/functions/strcmp.html */
-int strcmp(char const *s1, char const *s2) {
+int str_cmp(char const *s1, char const *s2) {
     for (size_t idx = 0;; idx++) {
         if (s1[idx] != s2[idx]) {
             return s1[idx] - s2[idx];
@@ -25,7 +25,7 @@ int strcmp(char const *s1, char const *s2) {
 }
 
 /* https://pubs.opengroup.org/onlinepubs/9799919799/functions/strncmp.html */
-int strncmp(char const *s1, char const *s2, size_t n) {
+int str_cmp_up_to(char const *s1, char const *s2, size_t n) {
     for (size_t idx = 0; idx < n; idx++) {
         if (s1[idx] != s2[idx]) {
             return s1[idx] - s2[idx];
@@ -38,7 +38,7 @@ int strncmp(char const *s1, char const *s2, size_t n) {
 }
 
 /* https://pubs.opengroup.org/onlinepubs/9799919799/functions/strchr.html */
-char *strchr(char const *s, int c) {
+char *str_find_char(char const *s, int c) {
     for (char *next = (char *)s;; next++) {
         if (*next == c) {
             return next;
@@ -51,7 +51,7 @@ char *strchr(char const *s, int c) {
 }
 
 /* https://pubs.opengroup.org/onlinepubs/9799919799/functions/strrchr.html */
-char *strrchr(char const *s, int c) {
+char *str_find_char_rev(char const *s, int c) {
     char *result = NULL;
     for (char *next = (char *)s;; next++) {
         if (*next == c) {
@@ -65,7 +65,7 @@ char *strrchr(char const *s, int c) {
 }
 
 /* https://pubs.opengroup.org/onlinepubs/9799919799/functions/memset.html */
-void memset(void *s, int c, size_t n) {
+void vmemset(void *s, int c, size_t n) {
     char *next = (char *)s;
     for (size_t i = 0; i < n; i++) {
         *(next++) = (char)c;
@@ -73,7 +73,7 @@ void memset(void *s, int c, size_t n) {
 }
 
 /* https://pubs.opengroup.org/onlinepubs/9799919799/functions/memcpy.html */
-void memcpy(void *restrict dest, const void *restrict src, size_t n) {
+void vmemcpy(void *restrict dest, const void *restrict src, size_t n) {
 #ifdef YJKERNEL_ARCH_I586
     int dummy[3];
     __asm__ volatile(
@@ -97,7 +97,7 @@ void memcpy(void *restrict dest, const void *restrict src, size_t n) {
 /* https://pubs.opengroup.org/onlinepubs/9799919799/functions/strdup.html */
 char *strdup(char const *s) {
     char *mem;
-    size_t size = strlen(s) + 1;
+    size_t size = str_len(s) + 1;
     if (size == 0) {
         goto oom;
     }
@@ -105,7 +105,7 @@ char *strdup(char const *s) {
     if (mem == NULL) {
         goto oom;
     }
-    memcpy(mem, s, size - 1);
+    vmemcpy(mem, s, size - 1);
     mem[size - 1] = '\0';
     return mem;
 oom:
@@ -119,7 +119,7 @@ oom:
 }
 
 
-void memcpy32(void *restrict s1, const void *restrict s2, size_t n) {
+void vmemcpy32(void *restrict s1, const void *restrict s2, size_t n) {
 #ifdef YJKERNEL_ARCH_I586
     int dummy[3];
     __asm__ volatile (
@@ -140,11 +140,11 @@ void memcpy32(void *restrict s1, const void *restrict s2, size_t n) {
 }
 
 void smatcher_init(struct smatcher *out, char const *str) {
-    smatcher_init_with_len(out, str, strlen(str));
+    smatcher_init_with_len(out, str, str_len(str));
 }
 
 void smatcher_init_with_len(struct smatcher *out, char const *str, size_t len) {
-    memset(out, 0, sizeof(*out));
+    vmemset(out, 0, sizeof(*out));
     out->str = str;
     out->len = len;
 }
@@ -156,11 +156,11 @@ void smatcher_slice(struct smatcher *out, struct smatcher const *self, size_t fi
 }
 
 bool smatcher_consume_str_if_match(struct smatcher *self, char const *str) {
-    size_t len = strlen(str);
+    size_t len = str_len(str);
     if ((self->len - self->currentindex) < len) {
         return false;
     }
-    if (strncmp(&self->str[self->currentindex], str, len) != 0) {
+    if (str_cmp_up_to(&self->str[self->currentindex], str, len) != 0) {
         return false;
     }
     self->currentindex += len;
@@ -168,11 +168,11 @@ bool smatcher_consume_str_if_match(struct smatcher *self, char const *str) {
 }
 
 bool smatcher_consume_word_if_match(struct smatcher *self, char const *str) {
-    size_t len = strlen(str);
+    size_t len = str_len(str);
     if ((self->len - self->currentindex) < len) {
         return false;
     }
-    if (strncmp(&self->str[self->currentindex], str, len) != 0) {
+    if (str_cmp_up_to(&self->str[self->currentindex], str, len) != 0) {
         return false;
     }
     char nextchar = self->str[self->currentindex + len];

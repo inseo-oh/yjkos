@@ -227,7 +227,7 @@ void bst_remove_node_unbalenced(struct bst *self, struct bst_node *node) {
 }
 
 void bst_init(struct bst *self) {
-    memset(self, 0, sizeof(*self));
+    vmemset(self, 0, sizeof(*self));
 }
 
 void bst_insert_node(struct bst *self, struct bst_node *node, intmax_t key, void *data) {

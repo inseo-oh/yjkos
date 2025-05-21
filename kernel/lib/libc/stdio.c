@@ -24,7 +24,7 @@ struct vsnprintf_stream {
     if (stream->remaininglen < writelen) {
         writelen = stream->remaininglen;
     }
-    memcpy(stream->dest, buf, writelen);
+    vmemcpy(stream->dest, buf, writelen);
     stream->dest[writelen] = '\0';
     stream->remaininglen -= writelen;
     stream->dest += writelen;

@@ -11,7 +11,7 @@ static struct list s_traps[YJKERNEL_ARCH_TRAP_COUNT];
 
 static uint32_t calculate_checksum(struct trap_handler const *handler) {
     struct trap_handler temp;
-    memcpy(&temp, handler, sizeof(temp));
+    vmemcpy(&temp, handler, sizeof(temp));
     temp.checksum = 0;
     STATIC_ASSERT_TEST(sizeof(*handler) % sizeof(uint32_t) == 0);
     uint32_t *val = (void *)&temp;

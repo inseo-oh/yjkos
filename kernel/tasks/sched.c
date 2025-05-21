@@ -206,7 +206,7 @@ void sched_print_queues(void) {
 void sched_wait_mutex(struct mutex *mutex, struct source_location const *locksource) {
     assert(mutex->locked);
     bool prev_interrupts = arch_irq_disable();
-    memcpy(&s_runningthread->desired_locksource, locksource, sizeof(*locksource));
+    vmemcpy(&s_runningthread->desired_locksource, locksource, sizeof(*locksource));
     struct thread *nextthread = pick_next_task();
     if (nextthread == NULL) {
         co_printf("sched: WARNING: there is no thread to wait for mutex\n");

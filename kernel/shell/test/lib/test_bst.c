@@ -19,7 +19,7 @@ static bool do_insertnode_unbalenced(void) {
     bst_init(&bst);
 
     struct bst_node nodes[5];
-    memset(nodes, 0, sizeof(nodes));
+    vmemset(nodes, 0, sizeof(nodes));
     // Insert root node
     bst_insert_node_unbalenced(&bst, &nodes[0], 1000, NULL);
     TEST_EXPECT(bst.root == &nodes[0]);
@@ -130,7 +130,7 @@ static bool do_balencing(void) {
     struct bst_node nodes[12];
 
     bst_init(&bst);
-    memset(nodes, 0, sizeof(nodes));
+    vmemset(nodes, 0, sizeof(nodes));
 
     //--------------------------------------------------------------------------
     // Left-left case
@@ -424,7 +424,7 @@ struct testtree {
  *             69                       6
  */
 static void inittesttree(struct testtree *out) {
-    memset(out, 0, sizeof(*out));
+    vmemset(out, 0, sizeof(*out));
 
     out->nodes[0].key = 50;
     out->bst.root = &out->nodes[0];

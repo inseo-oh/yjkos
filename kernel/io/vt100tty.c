@@ -25,7 +25,7 @@ static void advanceline(struct vt100tty *self, bool wastextoverflow) {
             int destline = srcline - 1;
             struct vt100tty_char *dest = char_at(self, destline, 0);
             struct vt100tty_char *src = char_at(self, srcline, 0);
-            memcpy(dest, src, self->columns * sizeof(*self->chars));
+            vmemcpy(dest, src, self->columns * sizeof(*self->chars));
             if (!hasscroll) {
                 for (int col = 0; col < self->columns; col++) {
                     dest[col].need_supdate = true;

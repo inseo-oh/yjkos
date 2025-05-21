@@ -9,9 +9,9 @@ static bool do_simple(void) {
 
     pathreader_init(&reader, "hello/world");
     TEST_EXPECT(pathreader_next(&str, &reader) == 0);
-    TEST_EXPECT(strcmp(str, "hello") == 0);
+    TEST_EXPECT(str_cmp(str, "hello") == 0);
     TEST_EXPECT(pathreader_next(&str, &reader) == 0);
-    TEST_EXPECT(strcmp(str, "world") == 0);
+    TEST_EXPECT(str_cmp(str, "world") == 0);
     TEST_EXPECT(pathreader_next(&str, &reader) == -ENOENT);
 
     return true;
@@ -33,9 +33,9 @@ static bool do_empty_segments(void) {
 
     pathreader_init(&reader, "hello//world");
     TEST_EXPECT(pathreader_next(&str, &reader) == 0);
-    TEST_EXPECT(strcmp(str, "hello") == 0);
+    TEST_EXPECT(str_cmp(str, "hello") == 0);
     TEST_EXPECT(pathreader_next(&str, &reader) == 0);
-    TEST_EXPECT(strcmp(str, "world") == 0);
+    TEST_EXPECT(str_cmp(str, "world") == 0);
     TEST_EXPECT(pathreader_next(&str, &reader) == -ENOENT);
 
     return true;
@@ -47,9 +47,9 @@ static bool do_trailing_slash(void) {
 
     pathreader_init(&reader, "hello/world/");
     TEST_EXPECT(pathreader_next(&str, &reader) == 0);
-    TEST_EXPECT(strcmp(str, "hello") == 0);
+    TEST_EXPECT(str_cmp(str, "hello") == 0);
     TEST_EXPECT(pathreader_next(&str, &reader) == 0);
-    TEST_EXPECT(strcmp(str, "world") == 0);
+    TEST_EXPECT(str_cmp(str, "world") == 0);
     TEST_EXPECT(pathreader_next(&str, &reader) == -ENOENT);
 
     return true;

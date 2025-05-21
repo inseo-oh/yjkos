@@ -65,7 +65,7 @@ void fb_draw_image(FB_COLOR *image, int width, int height, int pixels_per_line, 
     FB_COLOR *srcline = image;
     FB_COLOR *destline = &s_backbuffer[baseoffset];
     for (int srcy = 0; srcy < height; srcy++) {
-        memcpy(destline, srcline, sizeof(*destline) * width);
+        vmemcpy(destline, srcline, sizeof(*destline) * width);
         srcline += pixels_per_line;
         destline += s_width;
     }
@@ -400,14 +400,14 @@ void fb_scroll(int scrolllen) {
         uint8_t *srcline = &((uint8_t *)s_fbbase)[s_fbpitch * scrolllen];
         uint8_t *destline = s_fbbase;
         for (int y = 0; y < s_height - scrolllen; y++, destline += s_fbpitch, srcline += s_fbpitch) {
-            memcpy32(destline, srcline, s_fbpitch / 4);
+            vmemcpy32(destline, srcline, s_fbpitch / 4);
         }
     }
     {
         uint16_t *srcline = &s_backbuffer[s_width * scrolllen];
         uint16_t *destline = s_backbuffer;
         for (int y = 0; y < s_height - scrolllen; y++, destline += s_width, srcline += s_width) {
-            memcpy32(destline, srcline, (s_width * sizeof(*destline)) / 4);
+            vmemcpy32(destline, srcline, (s_width * sizeof(*destline)) / 4);
         }
     }
 }

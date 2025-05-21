@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* memcpy, memset for physical pointers. */
+/* vmemcpy, vmemset for physical pointers. */
 void pmemcpy_in(void *dest, PHYSPTR src, size_t len, MMU_CACHE_INHIBIT cache_inhibit);
 void pmemcpy_out(PHYSPTR dest, void const *src, size_t len, MMU_CACHE_INHIBIT cache_inhibit);
 void pmemset(PHYSPTR dest, int byte, size_t len, MMU_CACHE_INHIBIT cache_inhibit);

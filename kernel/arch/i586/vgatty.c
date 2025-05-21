@@ -35,7 +35,7 @@ static void advance_line(void) {
     while (s_totalrows <= s_currentrow) {
         for (size_t src_line = 1; src_line < s_totalrows; src_line++) {
             size_t dest_line = src_line - 1;
-            memcpy(&s_chars[dest_line * s_totalcolumns], &s_chars[src_line * s_totalcolumns], s_totalcolumns * sizeof(*s_chars));
+            vmemcpy(&s_chars[dest_line * s_totalcolumns], &s_chars[src_line * s_totalcolumns], s_totalcolumns * sizeof(*s_chars));
         }
         s_currentrow--;
         if (s_currentrow < s_totalrows) {

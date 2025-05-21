@@ -43,8 +43,8 @@ static void exclude_region(struct mem_region *before_out, struct mem_region *aft
     PHYSPTR after_start = exclude_end;
     PHYSPTR after_end = end;
 
-    memset(before_out, 0, sizeof(*before_out));
-    memset(after_out, 0, sizeof(*after_out));
+    vmemset(before_out, 0, sizeof(*before_out));
+    vmemset(after_out, 0, sizeof(*after_out));
     if (before_start < before_end) {
         before_out->base = before_start;
         before_out->len = before_end - before_start;

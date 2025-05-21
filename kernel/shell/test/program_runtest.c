@@ -35,7 +35,7 @@ struct opts {
 [[nodiscard]] static bool getopts(struct opts *out, int argc, char *argv[]) {
     bool ok = true;
     int c = 0;
-    memset(out, 0, sizeof(*out));
+    vmemset(out, 0, sizeof(*out));
     while (1) {
         c = getopt(argc, argv, "hla");
         if (c == -1) {
@@ -85,7 +85,7 @@ static int program_main(int argc, char *argv[]) {
         notests = false;
         struct test_group const *group = NULL;
         for (size_t j = 0; j < sizeof(TEST_GROUPS) / sizeof(void *); j++) {
-            if (strcmp(argv[i], TEST_GROUPS[j]->name) == 0) {
+            if (str_cmp(argv[i], TEST_GROUPS[j]->name) == 0) {
                 group = TEST_GROUPS[j];
             }
         }

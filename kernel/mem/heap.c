@@ -145,7 +145,7 @@ out:
     alloc->size = size;
     assert(block_count <= s_free_block_count);
     s_free_block_count -= block_count;
-    memset(alloc->data, 0x90, size);
+    vmemset(alloc->data, 0x90, size);
     /* Setup poision values ***************************************************/
     uint8_t *poisiondest = &((uint8_t *)alloc->data)[size];
     for (size_t i = 0; i < sizeof(POISONVALUES); i++) {
@@ -489,7 +489,7 @@ static struct pool_header *add_mem(void *mem, size_t memsize) {
     pool->block_count = poolblock_count;
     pool->usedblock_count = 0;
     pool->node.data = pool;
-    memset(pool->blockbitmap.words, 0, pool->blockbitmap.word_count * sizeof(*pool->blockbitmap.words));
+    vmemset(pool->blockbitmap.words, 0, pool->blockbitmap.word_count * sizeof(*pool->blockbitmap.words));
     bitmap_set_bits(&pool->blockbitmap, 0, poolblock_count);
 
     s_initial_heap_initialized = true;
@@ -535,7 +535,7 @@ void *heap_alloc(size_t size, uint8_t flags) {
     HEAP_CHECKOVERFLOW();
     arch_irq_restore(prev_interrupts);
     if (flags & HEAP_FLAG_ZEROMEMORY) {
-        memset(result, 0, size);
+        vmemset(result, 0, size);
     }
     return result;
 }
@@ -572,7 +572,7 @@ void heap_free(void *ptr) {
     bitmap_set_bits(&alloc->pool->blockbitmap, (long)blockindex, alloc->block_count);
     alloc->pool->usedblock_count -= alloc->block_count;
     s_free_block_count += alloc->block_count;
-    memset(alloc, 0x6f, alloc->block_count * BLOCK_SIZE);
+    vmemset(alloc, 0x6f, alloc->block_count * BLOCK_SIZE);
     HEAP_CHECKOVERFLOW();
     arch_irq_restore(prev_interrupts);
     return;
@@ -600,7 +600,7 @@ void *heap_realloc(void *ptr, size_t newsize, uint8_t flags) {
     if (newmem == NULL) {
         goto out;
     }
-    memcpy(newmem, ptr, copysize);
+    vmemcpy(newmem, ptr, copysize);
     heap_free(ptr);
 out:
     arch_irq_restore(prev_interrupts);

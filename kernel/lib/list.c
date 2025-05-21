@@ -4,7 +4,7 @@
 #include <stddef.h>
 
 void list_init(struct list *self) {
-    memset(self, 0, sizeof(*self));
+    vmemset(self, 0, sizeof(*self));
 }
 
 void list_insert_front(struct list *list, struct list_node *node, void *data) {

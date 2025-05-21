@@ -243,7 +243,7 @@ static void irq_handler(int irqnum, void *data) {
 }
 
 [[nodiscard]] int archi586_serial_init(struct archi586_serial *out, uint16_t baseaddr, int32_t masterclock, uint8_t irq) {
-    memset(out, 0, sizeof(*out));
+    vmemset(out, 0, sizeof(*out));
     out->tty.stream.data = out;
     out->tty.stream.ops = &OPS;
     out->baseaddr = baseaddr;

@@ -147,7 +147,7 @@ static bool parse_mbr(struct pdisk *disk, uint8_t const *first_block, size_t blo
 }
 
 [[nodiscard]] int pdisk_register(struct pdisk *disk_out, size_t blocksize, struct pdisk_ops const *ops, void *data) {
-    memset(disk_out, 0, sizeof(*disk_out));
+    vmemset(disk_out, 0, sizeof(*disk_out));
     disk_out->ops = ops;
     disk_out->data = data;
     disk_out->block_size = blocksize;

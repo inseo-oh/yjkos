@@ -15,7 +15,7 @@ struct opts {
 [[nodiscard]] static bool getopts(struct opts *out, int argc, char *argv[]) {
     bool ok = true;
     int c;
-    memset(out, 0, sizeof(*out));
+    vmemset(out, 0, sizeof(*out));
     while (1) {
         c = getopt(argc, argv, "u");
         if (c == -1) {

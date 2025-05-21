@@ -3,14 +3,14 @@
 
 /* https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/string.h.html */
 
-size_t strlen(char const *s);
-int strcmp(char const *s1, char const *s2);
-int strncmp(char const *s1, char const *s2, size_t n);
-char *strchr(char const *s, int c);
-char *strrchr(char const *s, int c);
-void memset(void *s, int c, size_t n);
-void memcpy(void *restrict dest, const void *restrict src, size_t n);
-void memcpy32(void *restrict s1, const void *restrict s2, size_t n);
+size_t str_len(char const *s);
+int str_cmp(char const *s1, char const *s2);
+int str_cmp_up_to(char const *s1, char const *s2, size_t n);
+char *str_find_char(char const *s, int c);
+char *str_find_char_rev(char const *s, int c);
+void vmemset(void *s, int c, size_t n);
+void vmemcpy(void *restrict dest, const void *restrict src, size_t n);
+void vmemcpy32(void *restrict s1, const void *restrict s2, size_t n);
 
 char *strdup(char const *s);
 

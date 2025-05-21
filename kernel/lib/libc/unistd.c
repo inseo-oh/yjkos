@@ -76,10 +76,10 @@ int getopt(int argc, char *const argv[], const char *optstring) {
     }
     int result_opt = '?';
     char *arg = argv[optind];
-    if ((arg == NULL) || (*arg != '-') || (strcmp(arg, "-") == 0)) {
+    if ((arg == NULL) || (*arg != '-') || (str_cmp(arg, "-") == 0)) {
         return -1;
     }
-    if (strcmp(arg, "--") == 0) {
+    if (str_cmp(arg, "--") == 0) {
         getopt_nextarg();
         return -1;
     }

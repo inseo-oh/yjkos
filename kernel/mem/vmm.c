@@ -349,7 +349,7 @@ static struct uncommited_object *find_object_in_uncommited(struct vmm_address_sp
 }
 
 [[nodiscard]] bool vmm_init_address_space(struct vmm_address_space *out, void *start, void *end, bool is_user) {
-    memset(out, 0, sizeof(*out));
+    vmemset(out, 0, sizeof(*out));
     out->is_user = is_user;
     struct vmm_object *object = create_object(out, start, end, VMM_PHYSADDR_NOMAP, 0);
     if (object == NULL) {

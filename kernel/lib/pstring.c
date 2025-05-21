@@ -20,7 +20,7 @@ void pmemcpy_in(void *dest, PHYSPTR src, size_t len, MMU_CACHE_INHIBIT cache_inh
             copylen = maxlen;
         }
         arch_mmu_scratch_map(srcpage, cache_inhibit);
-        memcpy(dest_byte, (char *)ARCH_SCRATCH_MAP_BASE + offset, copylen);
+        vmemcpy(dest_byte, (char *)ARCH_SCRATCH_MAP_BASE + offset, copylen);
     }
     arch_irq_restore(prev_interrupts);
 }
@@ -38,7 +38,7 @@ void pmemcpy_out(PHYSPTR dest, void const *src, size_t len, MMU_CACHE_INHIBIT ca
             copylen = maxlen;
         }
         arch_mmu_scratch_map(destpage, cache_inhibit);
-        memcpy((char *)ARCH_SCRATCH_MAP_BASE + offset, src_byte, copylen);
+        vmemcpy((char *)ARCH_SCRATCH_MAP_BASE + offset, src_byte, copylen);
     }
     arch_irq_restore(prev_interrupts);
 }
@@ -55,7 +55,7 @@ void pmemset(PHYSPTR dest, int byte, size_t len, MMU_CACHE_INHIBIT cache_inhibit
             copylen = maxlen;
         }
         arch_mmu_scratch_map(destpage, cache_inhibit);
-        memset((char *)ARCH_SCRATCH_MAP_BASE + offset, byte, copylen);
+        vmemset((char *)ARCH_SCRATCH_MAP_BASE + offset, byte, copylen);
     }
     arch_irq_restore(prev_interrupts);
 }

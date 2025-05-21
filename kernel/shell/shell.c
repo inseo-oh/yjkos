@@ -69,7 +69,7 @@ static int parse_cmd_runprogram(union shellcmd *out, struct smatcher *cmdstr) {
         if (argv[newargc - 1] == NULL) {
             goto fail_alloc;
         }
-        memcpy(argv[newargc - 1], str, len);
+        vmemcpy(argv[newargc - 1], str, len);
         argv[newargc - 1][len] = '\0';
         argc = newargc;
     }
@@ -94,7 +94,7 @@ out:
  */
 [[nodiscard]] static int parse_cmd(union shellcmd *out, struct smatcher *cmdstr) {
     int result = SHELL_EXITCODE_OK;
-    memset(out, 0, sizeof(*out));
+    vmemset(out, 0, sizeof(*out));
     smatcher_skip_whitespaces(cmdstr);
     if (cmdstr->currentindex == cmdstr->len) {
         out->kind = CMDKIND_EMPTY;
@@ -143,7 +143,7 @@ static int cmd_exec(union shellcmd const *cmd) {
         struct shell_program *program_to_run = NULL;
         LIST_FOREACH(&s_programs, programnode) {
             struct shell_program *program = programnode->data;
-            if (strcmp(program->name, cmd->runprogram.argv[0]) == 0) {
+            if (str_cmp(program->name, cmd->runprogram.argv[0]) == 0) {
                 program_to_run = program;
                 break;
             }

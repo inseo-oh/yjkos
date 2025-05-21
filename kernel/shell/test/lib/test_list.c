@@ -6,8 +6,8 @@ static bool do_insertfront(void) {
     struct list lst;
     struct list_node nodes[3];
 
-    memset(&lst, 0x55, sizeof(lst));
-    memset(nodes, 0x55, sizeof(nodes));
+    vmemset(&lst, 0x55, sizeof(lst));
+    vmemset(nodes, 0x55, sizeof(nodes));
     list_init(&lst);
 
     list_insert_front(&lst, &nodes[0], NULL);
@@ -41,7 +41,7 @@ static bool do_insertback(void) {
     struct list lst;
     struct list_node nodes[3];
 
-    memset(nodes, 0x55, sizeof(nodes));
+    vmemset(nodes, 0x55, sizeof(nodes));
     list_init(&lst);
 
     list_insert_back(&lst, &nodes[0], NULL);
@@ -75,7 +75,7 @@ static bool do_insertafter(void) {
     struct list lst;
     struct list_node nodes[5];
 
-    memset(nodes, 0x55, sizeof(nodes));
+    vmemset(nodes, 0x55, sizeof(nodes));
     list_init(&lst);
 
     list_insert_back(&lst, &nodes[0], NULL);
@@ -107,7 +107,7 @@ static bool do_insertbefore(void) {
     struct list lst;
     struct list_node nodes[5];
 
-    memset(nodes, 0x55, sizeof(nodes));
+    vmemset(nodes, 0x55, sizeof(nodes));
     list_init(&lst);
 
     list_insert_back(&lst, &nodes[0], NULL);
@@ -140,7 +140,7 @@ static bool do_removefront(void) {
     struct list_node nodes[3];
     struct list_node *removednode = NULL;
 
-    memset(nodes, 0x55, sizeof(nodes));
+    vmemset(nodes, 0x55, sizeof(nodes));
     list_init(&lst);
 
     list_insert_back(&lst, &nodes[0], NULL);
@@ -178,7 +178,7 @@ static bool do_removeback(void) {
     struct list_node nodes[3];
     struct list_node *removednode = NULL;
 
-    memset(nodes, 0x55, sizeof(nodes));
+    vmemset(nodes, 0x55, sizeof(nodes));
     list_init(&lst);
 
     list_insert_back(&lst, &nodes[0], NULL);
@@ -215,7 +215,7 @@ static bool do_removenode(void) {
     struct list lst;
     struct list_node nodes[3];
 
-    memset(nodes, 0x55, sizeof(nodes));
+    vmemset(nodes, 0x55, sizeof(nodes));
     list_init(&lst);
 
     list_insert_back(&lst, &nodes[0], NULL);

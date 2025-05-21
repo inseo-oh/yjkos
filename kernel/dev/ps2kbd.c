@@ -751,7 +751,7 @@ static struct ps2port_ops const PS2_OPS = {
         ret = -ENOMEM;
         goto fail;
     }
-    memset(ctx, 0, sizeof(*ctx));
+    vmemset(ctx, 0, sizeof(*ctx));
     /* Setup fake iodev for logging ********************************************/
     ctx->state = INPUTSTATE_DEFAULT;
     ctx->port = port;
