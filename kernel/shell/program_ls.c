@@ -7,8 +7,10 @@
 #include <kernel/lib/miscmath.h>
 #include <kernel/lib/strutil.h>
 #include <kernel/mem/heap.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 /* https://pubs.opengroup.org/onlinepubs/9799919799/utilities/ls.html */

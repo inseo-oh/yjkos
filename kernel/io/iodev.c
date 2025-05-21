@@ -8,6 +8,7 @@
 #include <kernel/mem/heap.h>
 #include <kernel/panic.h>
 #include <stdarg.h>
+#include <stddef.h>
 #include <stdint.h>
 
 struct iodevtype {

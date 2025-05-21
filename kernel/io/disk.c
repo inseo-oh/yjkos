@@ -8,6 +8,7 @@
 #include <kernel/lib/miscmath.h>
 #include <kernel/lib/strutil.h>
 #include <kernel/mem/heap.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
 

@@ -3,6 +3,7 @@
 #include <kernel/lib/bst.h>
 #include <kernel/lib/strutil.h>
 #include <kernel/panic.h>
+#include <stddef.h>
 
 static struct bst_node *assertnonnullnode(struct bst_node *node, char const *assertion, char const *function, char const *file, int line) {
     if (node == NULL) {

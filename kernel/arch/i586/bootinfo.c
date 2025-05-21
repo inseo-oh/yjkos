@@ -12,6 +12,7 @@
 #include <kernel/panic.h>
 #include <kernel/raster/fb.h>
 #include <kernel/types.h>
+#include <stddef.h>
 #include <stdint.h>
 
 struct mem_region {

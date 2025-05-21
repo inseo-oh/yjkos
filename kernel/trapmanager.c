@@ -4,6 +4,7 @@
 #include <kernel/lib/list.h>
 #include <kernel/lib/strutil.h>
 #include <kernel/trapmanager.h>
+#include <stddef.h>
 #include <stdint.h>
 
 /* Each trap entry is a list of trap handlers. */

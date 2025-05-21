@@ -3,6 +3,7 @@
 #include <kernel/lib/bst.h>
 #include <kernel/lib/strutil.h>
 #include <kernel/panic.h>
+#include <stddef.h>
 #include <stdint.h>
 
 //------------------------------- Configuration -------------------------------

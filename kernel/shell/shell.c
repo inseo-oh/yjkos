@@ -7,6 +7,7 @@
 #include <kernel/mem/heap.h>
 #include <kernel/panic.h>
 #include <limits.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <unistd.h>
 

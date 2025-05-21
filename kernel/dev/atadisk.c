@@ -5,7 +5,6 @@
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/strutil.h>
 #include <kernel/ticktime.h>
-#include <stdarg.h>
 #include <stdint.h>
 
 #define TIMEOUT 5000

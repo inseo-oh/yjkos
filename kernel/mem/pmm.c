@@ -10,6 +10,7 @@
 #include <kernel/mem/pmm.h>
 #include <kernel/panic.h>
 #include <kernel/types.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 

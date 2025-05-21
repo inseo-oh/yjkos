@@ -2,6 +2,7 @@
 #include <errno.h>
 #include <kernel/lib/pathreader.h>
 #include <kernel/lib/strutil.h>
+#include <stddef.h>
 
 static bool do_simple(void) {
     char const *str = NULL;

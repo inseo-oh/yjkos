@@ -3,6 +3,7 @@
 #include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/strutil.h>
+#include <stddef.h>
 #include <sys/types.h>
 #include <unistd.h>
 

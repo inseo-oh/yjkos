@@ -3,6 +3,7 @@
 #include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/strutil.h>
+#include <stddef.h>
 #include <unistd.h>
 
 static struct test_group const *const TEST_GROUPS[] = {

@@ -1,7 +1,8 @@
+#include <ctype.h>
+#include <kernel/lib/diagnostics.h>
 #include <kernel/lib/strutil.h>
 #include <kernel/mem/heap.h>
 #include <stddef.h>
-#include <ctype.h>
 
 /* https://pubs.opengroup.org/onlinepubs/9799919799/functions/strlen.html */
 size_t str_len(char const *s) {
@@ -118,11 +119,10 @@ oom:
     return NULL;
 }
 
-
 void vmemcpy32(void *restrict s1, const void *restrict s2, size_t n) {
 #ifdef YJKERNEL_ARCH_I586
     int dummy[3];
-    __asm__ volatile (
+    __asm__ volatile(
         "pushf\n"
         "cld\n"
         "rep movsl\n"
@@ -132,10 +132,9 @@ void vmemcpy32(void *restrict s1, const void *restrict s2, size_t n) {
           "=D"(dummy[2])
         : "c"(n),
           "S"(s2),
-          "D"(s1)
-    );
+          "D"(s1));
 #else
-    #error TODO
+#error TODO
 #endif
 }
 

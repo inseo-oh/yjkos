@@ -5,6 +5,7 @@
 #include <kernel/io/vt100tty.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/strutil.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
 

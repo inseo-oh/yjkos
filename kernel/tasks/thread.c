@@ -3,7 +3,6 @@
 #include <kernel/mem/heap.h>
 #include <kernel/tasks/thread.h>
 #include <stddef.h>
-#include <stdint.h>
 
 struct thread *thread_create(size_t stacksize, void (*init_mainfunc)(void *), void *init_data) {
     struct thread *thread = heap_alloc(sizeof(*thread), HEAP_FLAG_ZEROMEMORY);

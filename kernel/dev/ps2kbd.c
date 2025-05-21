@@ -10,7 +10,7 @@
 #include <kernel/lib/list.h>
 #include <kernel/lib/strutil.h>
 #include <kernel/mem/heap.h>
-#include <stdarg.h>
+#include <stddef.h>
 #include <stdint.h>
 
 static bool const CONFIG_COMMDEBUG = false;

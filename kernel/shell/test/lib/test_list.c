@@ -1,6 +1,7 @@
 #include "../test.h"
 #include <kernel/lib/list.h>
 #include <kernel/lib/strutil.h>
+#include <stddef.h>
 
 static bool do_insertfront(void) {
     struct list lst;

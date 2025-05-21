@@ -4,6 +4,7 @@
 #include <kernel/tasks/mutex.h>
 #include <kernel/tasks/sched.h>
 #include <stdatomic.h>
+#include <stddef.h>
 
 void mutex_init(struct mutex *out) {
     vmemset(out, 0, sizeof(*out));

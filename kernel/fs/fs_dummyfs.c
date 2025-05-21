@@ -5,7 +5,7 @@
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/strutil.h>
 #include <kernel/mem/heap.h>
-#include <stdint.h>
+#include <stddef.h>
 
 [[nodiscard]] static int vfs_op_mount(struct vfs_fscontext **out, struct ldisk *disk) {
     int ret = 0;

@@ -7,7 +7,7 @@
 #include <kernel/lib/list.h>
 #include <kernel/lib/queue.h>
 #include <kernel/lib/strutil.h>
-#include <stdarg.h>
+#include <stddef.h>
 #include <stdint.h>
 
 /******************************** Configuration *******************************/

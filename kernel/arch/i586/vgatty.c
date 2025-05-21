@@ -6,6 +6,7 @@
 #include <kernel/lib/strutil.h>
 #include <kernel/mem/vmm.h>
 #include <kernel/types.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
 
