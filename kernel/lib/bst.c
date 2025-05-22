@@ -3,7 +3,6 @@
 #include <kernel/lib/bst.h>
 #include <kernel/lib/strutil.h>
 #include <kernel/panic.h>
-#include <stddef.h>
 #include <stdint.h>
 
 //------------------------------- Configuration -------------------------------
@@ -19,10 +18,10 @@ static bool const CONFIG_CHECK_TREE = true;
 static int32_t height_of_subtree(struct bst_node *subtree_root) {
     int32_t lheight = 0;
     int32_t rheight = 0;
-    if (subtree_root->children[BST_DIR_LEFT] != NULL) {
+    if (subtree_root->children[BST_DIR_LEFT] != nullptr) {
         lheight = height_of_subtree(subtree_root->children[BST_DIR_LEFT]) + 1;
     }
-    if (subtree_root->children[BST_DIR_RIGHT] != NULL) {
+    if (subtree_root->children[BST_DIR_RIGHT] != nullptr) {
         rheight = height_of_subtree(subtree_root->children[BST_DIR_RIGHT]) + 1;
     }
     return (lheight < rheight) ? rheight : lheight;
@@ -44,19 +43,19 @@ static void check_subtree(struct bst_node *root, struct bst_node *parent, bool p
     if (!CONFIG_CHECK_TREE) {
         return;
     }
-    if (root == NULL) {
+    if (root == nullptr) {
         return;
     }
     bool failed = false;
     if (root->parent != parent) {
-        if (parent != NULL) {
-            if (root->parent != NULL) {
+        if (parent != nullptr) {
+            if (root->parent != nullptr) {
                 co_printf("[%#lx] expected parent %#lx, got %#lx\n", root->key, parent->key, root->parent->key);
             } else {
                 co_printf("[%#lx] expected parent %#lx, got no parent\n", root->key, parent->key);
             }
         } else {
-            if (parent != NULL) {
+            if (parent != nullptr) {
                 co_printf("[%#lx] expected no parent, got %#lx\n", root->key, root->parent->key);
             } else {
                 assert(!"huh?");
@@ -97,28 +96,28 @@ static void check_tree(struct bst *self, bool preaction, uint8_t flags) {
     if (!CONFIG_CHECK_TREE) {
         return;
     }
-    check_subtree(self->root, NULL, preaction, flags);
+    check_subtree(self->root, nullptr, preaction, flags);
 }
 
 void bst_insert_node_unbalenced(struct bst *self, struct bst_node *node, intmax_t key, void *data) {
     check_tree(self, true, 0);
     // Find where to insert
-    node->children[BST_DIR_LEFT] = NULL;
-    node->children[BST_DIR_RIGHT] = NULL;
+    node->children[BST_DIR_LEFT] = nullptr;
+    node->children[BST_DIR_RIGHT] = nullptr;
     node->bf = 0;
     node->data = data;
     node->key = key;
     struct bst_node *current = self->root;
-    if (current == NULL) {
+    if (current == nullptr) {
         // Tree is empty
         self->root = node;
-        node->parent = NULL;
+        node->parent = nullptr;
         check_tree(self, false, 0);
         return;
     }
     struct bst_node *insertparent;
     BST_DIR childindex;
-    while (current != NULL) {
+    while (current != nullptr) {
         insertparent = current;
         if (node->key < current->key) {
             childindex = BST_DIR_LEFT;
@@ -132,7 +131,7 @@ void bst_insert_node_unbalenced(struct bst *self, struct bst_node *node, intmax_
     // Insert the node
     insertparent->children[childindex] = node;
     node->parent = insertparent;
-    if (node->parent != NULL) {
+    if (node->parent != nullptr) {
         bst_recalculate_height(node->parent);
         bst_recalculate_bf(node->parent);
     }
@@ -140,31 +139,31 @@ void bst_insert_node_unbalenced(struct bst *self, struct bst_node *node, intmax_
 }
 
 static void remove_terminal_node(struct bst *self, struct bst_node *node) {
-    if (node->parent != NULL) {
-        node->parent->children[bst_dir_in_parent(node)] = NULL;
+    if (node->parent != nullptr) {
+        node->parent->children[bst_dir_in_parent(node)] = nullptr;
     } else {
         assert(self->root == node);
-        self->root = NULL;
+        self->root = nullptr;
     }
 }
 
 static void remove_node_with_left_child(struct bst *self, struct bst_node *node) {
-    if (node->parent != NULL) {
+    if (node->parent != nullptr) {
         node->parent->children[bst_dir_in_parent(node)] = node->children[BST_DIR_LEFT];
         node->children[BST_DIR_LEFT]->parent = node->parent;
     } else {
-        node->children[BST_DIR_LEFT]->parent = NULL;
+        node->children[BST_DIR_LEFT]->parent = nullptr;
         assert(self->root == node);
         self->root = node->children[BST_DIR_LEFT];
     }
 }
 
 static void remove_node_with_right_child(struct bst *self, struct bst_node *node) {
-    if (node->parent != NULL) {
+    if (node->parent != nullptr) {
         node->parent->children[bst_dir_in_parent(node)] = node->children[BST_DIR_RIGHT];
         node->children[BST_DIR_RIGHT]->parent = node->parent;
     } else {
-        node->children[BST_DIR_RIGHT]->parent = NULL;
+        node->children[BST_DIR_RIGHT]->parent = nullptr;
         assert(self->root == node);
         self->root = node->children[BST_DIR_RIGHT];
     }
@@ -175,8 +174,8 @@ static void remove_node_with_both_children(struct bst *self, struct bst_node *no
     assert(replacement);
     assert(replacement->parent);
     struct bst_node *old_parent = replacement->parent;
-    replacement->parent->children[bst_dir_in_parent(replacement)] = NULL;
-    if (node->parent != NULL) {
+    replacement->parent->children[bst_dir_in_parent(replacement)] = nullptr;
+    if (node->parent != nullptr) {
         node->parent->children[bst_dir_in_parent(node)] = replacement;
     } else {
         self->root = replacement;
@@ -185,10 +184,10 @@ static void remove_node_with_both_children(struct bst *self, struct bst_node *no
     replacement->children[BST_DIR_LEFT] = node->children[BST_DIR_LEFT];
     replacement->children[BST_DIR_RIGHT] = node->children[BST_DIR_RIGHT];
 
-    if (replacement->children[BST_DIR_LEFT] != NULL) {
+    if (replacement->children[BST_DIR_LEFT] != nullptr) {
         replacement->children[BST_DIR_LEFT]->parent = replacement;
     }
-    if (replacement->children[BST_DIR_RIGHT] != NULL) {
+    if (replacement->children[BST_DIR_RIGHT] != nullptr) {
         replacement->children[BST_DIR_RIGHT]->parent = replacement;
     }
     /*
@@ -211,16 +210,16 @@ static void remove_node_with_both_children(struct bst *self, struct bst_node *no
 void bst_remove_node_unbalenced(struct bst *self, struct bst_node *node) {
     check_tree(self, true, 0);
     struct bst_node *parent_node = node->parent;
-    if ((node->children[BST_DIR_LEFT] == NULL) && (node->children[BST_DIR_RIGHT] == NULL)) {
+    if ((node->children[BST_DIR_LEFT] == nullptr) && (node->children[BST_DIR_RIGHT] == nullptr)) {
         remove_terminal_node(self, node);
-    } else if ((node->children[BST_DIR_LEFT] != NULL) && node->children[BST_DIR_RIGHT] == NULL) {
+    } else if ((node->children[BST_DIR_LEFT] != nullptr) && node->children[BST_DIR_RIGHT] == nullptr) {
         remove_node_with_left_child(self, node);
-    } else if ((node->children[BST_DIR_LEFT] == NULL) && (node->children[BST_DIR_RIGHT] != NULL)) {
+    } else if ((node->children[BST_DIR_LEFT] == nullptr) && (node->children[BST_DIR_RIGHT] != nullptr)) {
         remove_node_with_right_child(self, node);
     } else {
         remove_node_with_both_children(self, node);
     }
-    if (parent_node != NULL) {
+    if (parent_node != nullptr) {
         bst_recalculate_height(parent_node);
         bst_recalculate_bf(parent_node);
     }
@@ -234,7 +233,7 @@ void bst_init(struct bst *self) {
 void bst_insert_node(struct bst *self, struct bst_node *node, intmax_t key, void *data) {
     check_tree(self, true, 0);
     bst_insert_node_unbalenced(self, node, key, data);
-    if (node->parent != NULL) {
+    if (node->parent != nullptr) {
         bst_check_and_rebalence(self, node->parent);
     }
     check_tree(self, false, 0);
@@ -243,7 +242,7 @@ void bst_insert_node(struct bst *self, struct bst_node *node, intmax_t key, void
 void bst_remove_node(struct bst *self, struct bst_node *node) {
     check_tree(self, true, 0);
     bst_remove_node_unbalenced(self, node);
-    if (node->parent != NULL) {
+    if (node->parent != nullptr) {
         bst_check_and_rebalence(self, node->parent);
     }
     check_tree(self, false, 0);
@@ -252,7 +251,7 @@ void bst_remove_node(struct bst *self, struct bst_node *node) {
 struct bst_node *bst_find_node(struct bst *self, intmax_t key) {
     check_tree(self, true, 0);
     struct bst_node *current = self->root;
-    while (current != NULL) {
+    while (current != nullptr) {
         if (key < current->key) {
             current = current->children[BST_DIR_LEFT];
         } else if (key > current->key) {
@@ -263,7 +262,7 @@ struct bst_node *bst_find_node(struct bst *self, intmax_t key) {
         }
     }
     check_tree(self, false, 0);
-    return NULL;
+    return nullptr;
 }
 
 struct bst_node *bst_min_of_tree(struct bst *self) {
@@ -275,9 +274,9 @@ struct bst_node *bst_max_of_tree(struct bst *self) {
 }
 
 struct bst_node *bst_min_of(struct bst_node *subtree_root) {
-    struct bst_node *result = NULL;
+    struct bst_node *result = nullptr;
     struct bst_node *current = subtree_root;
-    while (current != NULL) {
+    while (current != nullptr) {
         result = current;
         current = current->children[BST_DIR_LEFT];
     }
@@ -285,9 +284,9 @@ struct bst_node *bst_min_of(struct bst_node *subtree_root) {
 }
 
 struct bst_node *bst_max_of(struct bst_node *subtree_root) {
-    struct bst_node *result = NULL;
+    struct bst_node *result = nullptr;
     struct bst_node *current = subtree_root;
-    while (current != NULL) {
+    while (current != nullptr) {
         result = current;
         current = current->children[BST_DIR_RIGHT];
     }
@@ -296,7 +295,7 @@ struct bst_node *bst_max_of(struct bst_node *subtree_root) {
 
 BST_DIR bst_dir_in_parent(struct bst_node *node) {
     struct bst_node *parent = node->parent;
-    if (parent == NULL) {
+    if (parent == nullptr) {
         panic("bst: attempted to child index on a node without parent");
     }
     if (parent->children[BST_DIR_LEFT] == node) {
@@ -310,9 +309,9 @@ BST_DIR bst_dir_in_parent(struct bst_node *node) {
 
 struct bst_node *bst_successor(struct bst_node *node) {
     struct bst_node *right_subtree = node->children[BST_DIR_RIGHT];
-    if (right_subtree == NULL) {
+    if (right_subtree == nullptr) {
         struct bst_node *current = node->parent;
-        while (current != NULL) {
+        while (current != nullptr) {
             if (node->key < current->key) {
                 check_subtree(node, node->parent, false, 0);
                 return current;
@@ -320,16 +319,16 @@ struct bst_node *bst_successor(struct bst_node *node) {
             current = current->parent;
         }
         check_subtree(node, node->parent, false, 0);
-        return NULL;
+        return nullptr;
     }
     return bst_min_of(right_subtree);
 }
 
 struct bst_node *bst_predecessor(struct bst_node *node) {
     struct bst_node *left_subtree = node->children[BST_DIR_LEFT];
-    if (left_subtree == NULL) {
+    if (left_subtree == nullptr) {
         struct bst_node *current = node->parent;
-        while (current != NULL) {
+        while (current != nullptr) {
             if (node->key > current->key) {
                 check_subtree(node, node->parent, false, 0);
                 return current;
@@ -357,7 +356,7 @@ void bst_rotate(struct bst *self, struct bst_node *subtree_root, BST_DIR dir) {
      */
     struct bst_node *node_a = subtree_root;
     struct bst_node *node_b = node_a->children[oppositedir];
-    if (node_b == NULL) {
+    if (node_b == nullptr) {
         // Node B needs to go to where Node A is currently at, but of course we
         // can't do anything if nothing is there.
         panic("bst: the subtree cannot be rotated");
@@ -379,11 +378,11 @@ void bst_rotate(struct bst *self, struct bst_node *subtree_root, BST_DIR dir) {
      *     /
      *  [...]
      */
-    if (node_p != NULL) {
+    if (node_p != nullptr) {
         node_p->children[bst_dir_in_parent(node_a)] = node_b;
         node_b->parent = node_p;
     } else {
-        node_b->parent = NULL;
+        node_b->parent = nullptr;
         self->root = node_b;
     }
     node_b->children[dir] = node_a;
@@ -404,7 +403,7 @@ void bst_rotate(struct bst *self, struct bst_node *subtree_root, BST_DIR dir) {
      *  [...]  [C]
      */
     node_a->children[oppositedir] = node_c;
-    if (node_c != NULL) {
+    if (node_c != nullptr) {
         node_c->parent = node_a;
     }
     // This will calculate of its parents as well(including nodeb)
@@ -417,13 +416,13 @@ void bst_recalculate_height(struct bst_node *subtree_root) {
     check_subtree(subtree_root, subtree_root->parent, true, CHECK_FLAG_NO_HEIGHT | CHECK_FLAG_NO_BF);
     struct bst_node *current = subtree_root;
 
-    while (current != NULL) {
+    while (current != nullptr) {
         int32_t lheight = 0;
         int32_t rheight = 0;
-        if (current->children[BST_DIR_LEFT] != NULL) {
+        if (current->children[BST_DIR_LEFT] != nullptr) {
             lheight = current->children[BST_DIR_LEFT]->height + 1;
         }
-        if (current->children[BST_DIR_RIGHT] != NULL) {
+        if (current->children[BST_DIR_RIGHT] != nullptr) {
             rheight = current->children[BST_DIR_RIGHT]->height + 1;
         }
         current->height = (lheight < rheight) ? rheight : lheight;
@@ -473,7 +472,7 @@ void bst_recalculate_bf(struct bst_node *subtree_root) {
     }
     // Recalculate BF of parents
     current = subtree_root->parent;
-    while (current != NULL) {
+    while (current != nullptr) {
         int32_t lheight = 0;
         int32_t rheight = 0;
         if (current->children[BST_DIR_LEFT]) {
@@ -491,7 +490,7 @@ void bst_recalculate_bf(struct bst_node *subtree_root) {
 void bst_check_and_rebalence(struct bst *self, struct bst_node *startnode) {
     check_tree(self, true, 0);
     struct bst_node *current = startnode;
-    while (current != NULL) {
+    while (current != nullptr) {
         struct bst_node *oldparent = current->parent;
         if (current->bf > 1) {
             // Left heavy

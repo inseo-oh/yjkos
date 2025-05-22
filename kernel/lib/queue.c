@@ -46,7 +46,7 @@ bool queue_is_empty(struct queue const *self) {
 [[nodiscard]] void *queue_peek(struct queue const *self, size_t itemsize) {
     assert(itemsize == self->item_size);
     if (queue_is_empty(self)) {
-        return NULL;
+        return nullptr;
     }
     return ((char *)self->buf) + (self->dequeue_index * itemsize);
 }

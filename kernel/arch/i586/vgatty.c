@@ -103,7 +103,7 @@ static struct stream_ops const OPS = {
 };
 
 void archi586_vgatty_init_early_debug(void) {
-    s_stream.data = NULL;
+    s_stream.data = nullptr;
     s_stream.ops = &OPS;
     s_totalcolumns = 80;
     s_totalrows = 25;
@@ -113,7 +113,7 @@ void archi586_vgatty_init_early_debug(void) {
 }
 
 void archi586_vgatty_init(PHYSPTR baseaddr, size_t columns, size_t rows, size_t bytes_per_row) {
-    s_stream.data = NULL;
+    s_stream.data = nullptr;
     s_stream.ops = &OPS;
     s_totalcolumns = columns;
     s_totalrows = rows;

@@ -22,5 +22,5 @@ void list_remove_node(struct list *list, struct list_node *node);
 void *list_get_data_or_null(struct list_node *node);
 
 #define LIST_FOREACH(_list, _varname) for (                             \
-    struct list_node * (_varname) = (_list)->front; (_varname) != NULL; \
+    struct list_node * (_varname) = (_list)->front; (_varname) != nullptr; \
     (_varname) = (_varname)->next)

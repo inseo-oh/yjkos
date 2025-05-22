@@ -77,7 +77,7 @@ static void to_abs_block_range(size_t *firstaddr_out, struct ldisk *self, DISK_B
 static int register_ldisk(struct pdisk *pdisk, DISK_BLOCK_ADDR startblockaddr, size_t block_count) {
     int result;
     struct ldisk *disk = heap_alloc(sizeof(*disk), HEAP_FLAG_ZEROMEMORY);
-    if (disk == NULL) {
+    if (disk == nullptr) {
         result = -ENOMEM;
         goto fail;
     }
@@ -157,17 +157,17 @@ static bool parse_mbr(struct pdisk *disk, uint8_t const *first_block, size_t blo
 
 void ldisk_discover(void) {
     struct list *devlist = iodev_get_list(IODEV_TYPE_PHYSICAL_DISK);
-    if (devlist == NULL || devlist->front == NULL) {
+    if (devlist == nullptr || devlist->front == nullptr) {
         co_printf("ldisk: no physical disks - aborting\n");
         return;
     }
     LIST_FOREACH(devlist, devnode) {
         struct iodev *device = devnode->data;
         struct pdisk *disk = device->data;
-        uint8_t *first_block = NULL;
+        uint8_t *first_block = nullptr;
         do {
             first_block = heap_alloc(disk->block_size, 0);
-            if (first_block == NULL) {
+            if (first_block == nullptr) {
                 iodev_printf(&disk->iodev, "not enough memory to read first block\n");
                 goto partition_table_fail;
             }
@@ -179,11 +179,11 @@ void ldisk_discover(void) {
             break;
         partition_table_fail:
             heap_free(first_block);
-            first_block = NULL;
+            first_block = nullptr;
         } while (0);
 
         /* Try to read MBR from it ********************************************/
-        if ((first_block != NULL) && parse_mbr(disk, first_block, disk->block_size)) {
+        if ((first_block != nullptr) && parse_mbr(disk, first_block, disk->block_size)) {
             iodev_printf(&disk->iodev, "MBR loaded\n");
         } else {
             iodev_printf(&disk->iodev, "no known partition table found.\n");

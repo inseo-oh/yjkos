@@ -44,7 +44,7 @@ static _Atomic int s_next_fd_num = 0;
 }
 
 void vfs_unregister_file(struct file *self) {
-    if (self == NULL) {
+    if (self == nullptr) {
         return;
     }
     self->fscontext->open_file_count--;
@@ -58,14 +58,14 @@ static struct list s_mounts;  /* struct vfs_fscontext items */
 /* Resolves and removes . and .. in the path. */
 [[nodiscard]] static int remove_rel_path(char **newpath_out, char const *path) {
     int ret = 0;
-    char *new_path = NULL;
-    size_t size = kstrlen(path) + 2; /* Leave room for / and NULL terminator. */
+    char *new_path = nullptr;
+    size_t size = kstrlen(path) + 2; /* Leave room for / and nullptr terminator. */
     if (size == 0) {
         ret = -ENOMEM;
         goto fail;
     }
     new_path = heap_alloc(size, 0);
-    if (new_path == NULL) {
+    if (new_path == nullptr) {
         ret = -ENOMEM;
         goto fail;
     }
@@ -86,7 +86,7 @@ static struct list s_mounts;  /* struct vfs_fscontext items */
             /* Do nothing */
         } else if (kstrcmp(name, "..") == 0) {
             char *found_pos = kstrrchr(new_path, '/');
-            if (found_pos == NULL) {
+            if (found_pos == nullptr) {
                 dest = new_path;
             } else {
                 dest = found_pos;
@@ -139,13 +139,13 @@ out:
 /* Returns ERR_INVAL if `mountpath` is not a mount point. */
 [[nodiscard]] static int findmount(struct vfs_fscontext **out, char const *mountpath) {
     int ret = 0;
-    char *newmountpath = NULL;
+    char *newmountpath = nullptr;
     ret = remove_rel_path(&newmountpath, mountpath);
     if (ret < 0) {
         goto out;
     }
-    assert(s_mounts.front != NULL);
-    struct vfs_fscontext *fscontext = NULL;
+    assert(s_mounts.front != nullptr);
+    struct vfs_fscontext *fscontext = nullptr;
     LIST_FOREACH(&s_mounts, mountnode) {
         struct vfs_fscontext *entry = mountnode->data;
         assert(entry);
@@ -154,7 +154,7 @@ out:
             break;
         }
     }
-    if (fscontext == NULL) {
+    if (fscontext == nullptr) {
         ret = -EINVAL;
         goto out;
     }
@@ -166,7 +166,7 @@ out:
 
 [[nodiscard]] int vfs_mount(char const *fstype, struct ldisk *disk, char const *mountpath) {
     int ret = -ENODEV;
-    if (fstype == NULL) {
+    if (fstype == nullptr) {
         /* Try all possible filesystems */
         LIST_FOREACH(&s_fstypes, fstypenode) {
             ret = mount(fstypenode->data, disk, mountpath);
@@ -181,14 +181,14 @@ out:
         }
     } else {
         /* Find filesystem with given name. */
-        struct vfs_fstype *fstyperesult = NULL;
+        struct vfs_fstype *fstyperesult = nullptr;
         LIST_FOREACH(&s_fstypes, fstypenode) {
             struct vfs_fstype *currentfstype = fstypenode->data;
             if (kstrcmp(currentfstype->name, fstype) == 0) {
                 fstyperesult = currentfstype;
             }
         }
-        if (fstyperesult == NULL) {
+        if (fstyperesult == nullptr) {
             ret = -ENODEV;
             goto out;
         }
@@ -228,16 +228,16 @@ void vfs_register_fstype(struct vfs_fstype *out, char const *name, struct vfs_fs
 void vfs_mount_root(void) {
     co_printf("vfs: mounting the first usable filesystem...\n");
     struct list *devlist = iodev_get_list(IODEV_TYPE_LOGICAL_DISK);
-    if (devlist == NULL || devlist->front == NULL) {
+    if (devlist == nullptr || devlist->front == nullptr) {
         co_printf("no logical disks. Mounting dummyfs as root\n");
-        int ret = vfs_mount("dummyfs", NULL, "/");
+        int ret = vfs_mount("dummyfs", nullptr, "/");
         MUST_SUCCEED(ret);
         return;
     }
     LIST_FOREACH(devlist, devnode) {
         struct iodev *iodev = devnode->data;
         struct ldisk *disk = iodev->data;
-        int status = vfs_mount(NULL, disk, "/");
+        int status = vfs_mount(nullptr, disk, "/");
         if (status < 0) {
             continue;
         }
@@ -250,15 +250,15 @@ void vfs_mount_root(void) {
     void (*callback)(struct vfs_fscontext *fscontext, char const *path, void *data),
     void *data) {
     int ret = 0;
-    char *newpath = NULL;
+    char *newpath = nullptr;
 
     ret = remove_rel_path(&newpath, path);
     if (ret < 0) {
         goto fail;
     }
     /* There should be a rootfs at very least. */
-    assert(s_mounts.front != NULL);
-    struct vfs_fscontext *result = NULL;
+    assert(s_mounts.front != nullptr);
+    struct vfs_fscontext *result = nullptr;
     size_t lastmatchlen = 0;
     LIST_FOREACH(&s_mounts, mountnode) {
         struct vfs_fscontext *entry = mountnode->data;
@@ -270,7 +270,7 @@ void vfs_mount_root(void) {
             }
         }
     }
-    assert(result != NULL);
+    assert(result != nullptr);
     callback(result, &newpath[lastmatchlen], data);
     goto out;
 fail:
@@ -287,7 +287,7 @@ struct openfilecontext {
 
 static void resolve_path_callback_open_file(struct vfs_fscontext *fscontext, char const *path, void *data) {
     struct openfilecontext *context = data;
-    if (fscontext->fstype->ops->open == NULL) {
+    if (fscontext->fstype->ops->open == nullptr) {
         context->ret = -ENOENT;
     } else {
         context->ret = fscontext->fstype->ops->open(&context->fdresult, fscontext, path, context->flags);
@@ -319,7 +319,7 @@ struct open_dir_context {
 
 static void resolve_path_callback_open_directory(struct vfs_fscontext *fs_context, char const *path, void *data) {
     struct open_dir_context *context = data;
-    if (fs_context->fstype->ops->open_directory == NULL) {
+    if (fs_context->fstype->ops->open_directory == nullptr) {
         context->ret = -ENOENT;
     } else {
         context->ret = fs_context->fstype->ops->open_directory(&context->dirresult, fs_context, path);
@@ -340,20 +340,20 @@ int vfs_open_directory(DIR **out, char const *path) {
 }
 
 [[nodiscard]] int vfs_close_directory(DIR *dir) {
-    if (dir == NULL) {
+    if (dir == nullptr) {
         return -EBADF;
     }
-    if (dir->fscontext->fstype->ops->close_directory == NULL) {
+    if (dir->fscontext->fstype->ops->close_directory == nullptr) {
         return -EBADF;
     }
     return dir->fscontext->fstype->ops->close_directory(dir);
 }
 
 [[nodiscard]] int vfs_read_directory(struct dirent *out, DIR *dir) {
-    if (dir == NULL) {
+    if (dir == nullptr) {
         return -EBADF;
     }
-    if (dir->fscontext->fstype->ops->read_directory == NULL) {
+    if (dir->fscontext->fstype->ops->read_directory == nullptr) {
         return -EBADF;
     }
     return dir->fscontext->fstype->ops->read_directory(out, dir);

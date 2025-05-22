@@ -27,7 +27,7 @@ static struct iodevtype *getiodevtypefor(char const *devtype) {
             return type;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 [[nodiscard]] int iodev_register(struct iodev *dev_out, char const *devtype, void *data) {
@@ -38,9 +38,9 @@ static struct iodevtype *getiodevtypefor(char const *devtype) {
     dev_out->data = data;
     struct iodevtype *desttype = getiodevtypefor(devtype);
     /* If there's no such type, create a new type. */
-    if (desttype == NULL) {
+    if (desttype == nullptr) {
         struct iodevtype *type = heap_alloc(sizeof(*type), HEAP_FLAG_ZEROMEMORY);
-        if (type == NULL) {
+        if (type == nullptr) {
             goto fail_oom;
         }
         type->name = devtype;
@@ -71,8 +71,8 @@ void iodev_printf(struct iodev *device, char const *fmt, ...) {
 
 struct list *iodev_get_list(char const *devtype) {
     struct iodevtype *type = getiodevtypefor(devtype);
-    if (type == NULL) {
-        return NULL;
+    if (type == nullptr) {
+        return nullptr;
     }
     return &type->devices;
 }

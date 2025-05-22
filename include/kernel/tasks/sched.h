@@ -21,7 +21,7 @@ struct sched_queue {
  */
 
 /*
- * Returns NULL if sched needs to create a new queue and there's not enough
+ * Returns nullptr if sched needs to create a new queue and there's not enough
  * memory.
  */
 void sched_print_queues(void);

@@ -29,7 +29,7 @@ static void fatal(const char *format, ...)
 
 	va_start(ap, format);
 	vsnprintf(buffer, sizeof buffer, format, ap);
-	MessageBox(NULL, buffer, FCP, MB_ICONSTOP | MB_OK);
+	MessageBox(nullptr, buffer, FCP, MB_ICONSTOP | MB_OK);
 #else
 	fprintf(stderr, "%s: ", FCP);
 	va_start(ap, format);
@@ -46,7 +46,7 @@ static void error(const char *s)
 	char buffer[640];
 
 	snprintf(buffer, sizeof buffer, "%s: %s", s, strerror(errno));
-	MessageBox(NULL, buffer, FCP, MB_ICONSTOP | MB_OK);
+	MessageBox(nullptr, buffer, FCP, MB_ICONSTOP | MB_OK);
 #else
 	fprintf(stderr, "%s: ", FCP);
 	perror(s);
@@ -98,28 +98,28 @@ int main(int argc, char **argv)
 	else if (argc != 3)
 	{
 	#ifdef FCPW
-		MessageBox(NULL, USAGE, FCP, MB_OK);
+		MessageBox(nullptr, USAGE, FCP, MB_OK);
 	#else
 		fputs(USAGE, stderr);
 	#endif
 		return 1;
 	}
-	if ((buffer = malloc(SIZE)) == NULL) error(FCP);
+	if ((buffer = malloc(SIZE)) == nullptr) error(FCP);
 	name = argv[1];
 	patch = argv[2];
 
 	if ((f = open(name, O_RDWR | O_BINARY)) == -1) error(name);
 	if ((n = read(f, buffer, SIZE)) == -1) error(name);
 	if (n == SIZE) fatal("%s: larger than %d bytes", name, SIZE - 1);
-	if ((p = fopen(patch, "r")) == NULL) error(patch);
+	if ((p = fopen(patch, "r")) == nullptr) error(patch);
 
-	while (fgets(s, sizeof s, p) != NULL)
+	while (fgets(s, sizeof s, p) != nullptr)
 	{
 		char *lf;
 		long offset;
 		unsigned orig, chng;
 
-		if ((lf = strchr(s, '\n')) != NULL) *lf = '\0';
+		if ((lf = strchr(s, '\n')) != nullptr) *lf = '\0';
 		if (sscanf(s, "%lx: %x %x%n", &offset, &orig, &chng, &n) == 3 && n == (int) strlen(s))
 		{
 			if (offset < 0 || offset >= SIZE) fatal("%s: offset out of range", s);

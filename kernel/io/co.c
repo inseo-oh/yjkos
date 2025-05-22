@@ -19,11 +19,11 @@ void co_set_debug_console(struct stream *device) {
 }
 
 void co_ask_primary_console(void) {
-    if ((s_primary_stream != NULL) && (s_debug_stream == NULL)) {
+    if ((s_primary_stream != nullptr) && (s_debug_stream == nullptr)) {
         return;
-    } else if ((s_primary_stream == NULL) && (s_debug_stream != NULL)) {
+    } else if ((s_primary_stream == nullptr) && (s_debug_stream != nullptr)) {
         s_primary_stream = s_debug_stream;
-        s_debug_stream = NULL;
+        s_debug_stream = nullptr;
         return;
     }
     int ret = stream_printf(s_primary_stream, "\n\nPress 1 to select this console.\n\n");
@@ -52,12 +52,12 @@ void co_ask_primary_console(void) {
 
 void co_put_char(char c) {
     bool prev_interrupts = arch_irq_disable();
-    if (s_primary_stream != NULL) {
+    if (s_primary_stream != nullptr) {
         int ret = stream_put_char(s_primary_stream, c);
         (void)ret;
         stream_flush(s_primary_stream);
     }
-    if (s_debug_stream != NULL && (s_primary_stream != s_debug_stream)) {
+    if (s_debug_stream != nullptr && (s_primary_stream != s_debug_stream)) {
         int ret = stream_put_char(s_debug_stream, c);
         (void)ret;
         stream_flush(s_debug_stream);
@@ -67,12 +67,12 @@ void co_put_char(char c) {
 
 void co_put_string(char const *s) {
     bool prev_interrupts = arch_irq_disable();
-    if (s_primary_stream != NULL) {
+    if (s_primary_stream != nullptr) {
         int ret = stream_put_string(s_primary_stream, s);
         (void)ret;
         stream_flush(s_primary_stream);
     }
-    if (s_debug_stream != NULL && (s_primary_stream != s_debug_stream)) {
+    if (s_debug_stream != nullptr && (s_primary_stream != s_debug_stream)) {
         int ret = stream_put_string(s_debug_stream, s);
         (void)ret;
         stream_flush(s_debug_stream);
@@ -82,12 +82,12 @@ void co_put_string(char const *s) {
 
 void co_vprintf(char const *fmt, va_list ap) {
     bool prev_interrupts = arch_irq_disable();
-    if (s_primary_stream != NULL) {
+    if (s_primary_stream != nullptr) {
         int ret = stream_vprintf(s_primary_stream, fmt, ap);
         (void)ret;
         stream_flush(s_primary_stream);
     }
-    if (s_debug_stream != NULL && (s_primary_stream != s_debug_stream)) {
+    if (s_debug_stream != nullptr && (s_primary_stream != s_debug_stream)) {
         int ret = stream_vprintf(s_debug_stream, fmt, ap);
         (void)ret;
         stream_flush(s_debug_stream);

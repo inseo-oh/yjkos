@@ -271,7 +271,7 @@ static void process_framebuffer_info(struct multiboot_info const *info) {
     co_printf("framebuffer address is %p\n", info->framebuffer_addr);
     if (info->framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_INDEXED) {
         uint8_t *colors = heap_alloc(info->framebuffer_palette_num_colors * 3, 0);
-        if (colors == NULL) {
+        if (colors == nullptr) {
             panic("not enough memory to store palette");
         }
         for (int i = 0; i < info->framebuffer_palette_num_colors; i++) {

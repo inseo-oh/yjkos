@@ -47,13 +47,13 @@ static void exitcallback(void) {
     }
     assert((stacksize % sizeof(uint32_t)) == 0);
     co_printf("creating thread with %uk stack and entry point %p\n", stacksize / 1024, init_mainfunc);
-    struct arch_thread *thread = NULL;
+    struct arch_thread *thread = nullptr;
 
     if ((SIZE_MAX - sizeof(struct arch_thread)) < stacksize) {
         goto out;
     }
     thread = heap_alloc(sizeof(*thread) + stacksize, 0);
-    if (thread == NULL) {
+    if (thread == nullptr) {
         goto out;
     }
     size_t stack_top = stacksize / sizeof(uint32_t);
@@ -88,7 +88,7 @@ void arch_thread_switch(struct arch_thread *from, struct arch_thread *to) {
         co_printf("ebx=%08lx esi=%08lx edi=%08lx\n", ebx, esi, edi);
         co_printf("ebp=%08lx eip=%08lx efl=%08lx\n", ebp, eip, eflags);
     }
-    assert(from != NULL);
+    assert(from != nullptr);
     archi586_context_switch(&from->saved_esp, to->saved_esp);
     if (CONFIG_DEBUG_CONTEXT_SWITCH) {
         co_printf("context switch returned! from=%p(esp=%p), to=%p\n", from, from->saved_esp, to);

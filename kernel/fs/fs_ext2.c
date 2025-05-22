@@ -170,11 +170,11 @@ out:
     return ret;
 }
 
-/* Returns NULL when there's not enough memory. */
+/* Returns nullptr when there's not enough memory. */
 [[nodiscard]] static uint8_t *alloc_block_buf(struct fscontext *self, blkcnt_t count, uint8_t flags) {
     uint8_t *buf = heap_calloc(count, self->blocksize, flags);
-    if (buf == NULL) {
-        return NULL;
+    if (buf == nullptr) {
+        return nullptr;
     }
     return buf;
 }
@@ -182,7 +182,7 @@ out:
 [[nodiscard]] static int readblocks_alloc(uint8_t **out, struct fscontext *self, uint32_t block_addr, blkcnt_t block_count) {
     int ret;
     uint8_t *buf = alloc_block_buf(self, block_count, 0);
-    if (buf == NULL) {
+    if (buf == nullptr) {
         ret = -ENOMEM;
         goto fail;
     }
@@ -210,7 +210,7 @@ out:
     assert(blockoffset < (SIZE_MAX - self->blk_group_descriptor_blk));
     blockoffset += self->blk_group_descriptor_blk;
 
-    uint8_t *buf = NULL;
+    uint8_t *buf = nullptr;
     ret = readblocks_alloc(&buf, self, blockoffset, 1);
     if (ret < 0) {
         goto fail;
@@ -276,12 +276,12 @@ out:
     }
     if (tableaddr == 0) {
         heap_free(self->triply_indirect_buf.buf);
-        self->triply_indirect_buf.buf = NULL;
+        self->triply_indirect_buf.buf = nullptr;
         self->triply_indirect_buf.offset_in_buf = 0;
         ret = -ENOENT;
         goto out;
     }
-    uint8_t *newtable = NULL;
+    uint8_t *newtable = nullptr;
     ret = readblocks_alloc(&newtable, self->fs, tableaddr, 1);
     if (ret < 0) {
         goto out;
@@ -298,7 +298,7 @@ out:
     uint32_t tableaddr;
     int ret = -ENOENT;
 
-    if ((self->triply_indirect_buf.buf == NULL) || (self->fs->blocksize <= self->triply_indirect_buf.offset_in_buf)) {
+    if ((self->triply_indirect_buf.buf == nullptr) || (self->fs->blocksize <= self->triply_indirect_buf.offset_in_buf)) {
         ret = next_triply_indirect_table(self);
         if (ret < 0) {
             goto out;
@@ -329,11 +329,11 @@ out:
     }
     if (ret < 0) {
         heap_free(self->doubly_indirect_buf.buf);
-        self->doubly_indirect_buf.buf = NULL;
+        self->doubly_indirect_buf.buf = nullptr;
         self->doubly_indirect_buf.offset_in_buf = 0;
         goto out;
     }
-    uint8_t *newtable = NULL;
+    uint8_t *newtable = nullptr;
     ret = readblocks_alloc(&newtable, self->fs, tableaddr, 1);
     if (ret < 0) {
         goto out;
@@ -349,7 +349,7 @@ out:
 [[nodiscard]] static int next_doubly_block_ptr(uint32_t *addr_out, struct ino_context *self) {
     uint32_t result_addr = 0;
     int ret = -ENOENT;
-    if ((self->doubly_indirect_buf.buf == NULL) || (self->fs->blocksize <= self->doubly_indirect_buf.offset_in_buf)) {
+    if ((self->doubly_indirect_buf.buf == nullptr) || (self->fs->blocksize <= self->doubly_indirect_buf.offset_in_buf)) {
         ret = next_doubly_indirect_table(self);
         if (ret < 0) {
             goto out;
@@ -381,12 +381,12 @@ out:
     }
     if (ret < 0) {
         heap_free(self->singly_indirect_buf.buf);
-        self->singly_indirect_buf.buf = NULL;
+        self->singly_indirect_buf.buf = nullptr;
         self->singly_indirect_buf.offset_in_buf = 0;
         ret = -ENOENT;
         goto out;
     }
-    uint8_t *newtable = NULL;
+    uint8_t *newtable = nullptr;
     ret = readblocks_alloc(&newtable, self->fs, tableaddr, 1);
     if (ret < 0) {
         goto out;
@@ -406,7 +406,7 @@ out:
 [[nodiscard]] static int next_singly_block_ptr(uint32_t *addr_out, struct ino_context *self) {
     int ret = -ENOENT;
     uint32_t result_addr = 0;
-    if ((self->singly_indirect_buf.buf == NULL) || (self->fs->blocksize <= self->singly_indirect_buf.offset_in_buf)) {
+    if ((self->singly_indirect_buf.buf == nullptr) || (self->fs->blocksize <= self->singly_indirect_buf.offset_in_buf)) {
         ret = next_singly_indirect_table(self);
         if (ret < 0) {
             goto out;
@@ -475,7 +475,7 @@ static void rewindinode(struct ino_context *self) {
     }
     /* Invalidate old buffer */
     heap_free(self->blockbuf.buf);
-    self->blockbuf.buf = NULL;
+    self->blockbuf.buf = nullptr;
     self->blockbuf.offset_in_buf = 0;
     return 0;
 }
@@ -511,7 +511,7 @@ static void rewindinode(struct ino_context *self) {
             size_t skip_len = self->fs->blocksize * count;
             remaining_len -= skip_len;
             heap_free(self->blockbuf.buf);
-            self->blockbuf.buf = NULL;
+            self->blockbuf.buf = nullptr;
         }
         if (remaining_len == 0) {
             break;
@@ -604,7 +604,7 @@ out:
     dest += readsize;
     remaining_len -= readsize;
     heap_free(self->blockbuf.buf);
-    self->blockbuf.buf = NULL;
+    self->blockbuf.buf = nullptr;
     ret = next_inode_block(self);
     if ((ret < 0) && ((ret != -ENOENT) || (remaining_len != 0))) {
         goto out;
@@ -645,9 +645,9 @@ out:
             break;
         }
 
-        if (self->blockbuf.buf == NULL) {
+        if (self->blockbuf.buf == nullptr) {
             /* We don't have valid block buffer - Let's buffer a block ********/
-            uint8_t *newbuf = NULL;
+            uint8_t *newbuf = nullptr;
             ret = readblocks_alloc(&newbuf, self->fs, self->current_block_addr, 1);
             if (ret < 0) {
                 goto out;
@@ -676,7 +676,7 @@ out:
     int ret = 0;
     uint32_t block_addr;
     off_t offset;
-    uint8_t *blkdata = NULL;
+    uint8_t *blkdata = nullptr;
     ret = locate_inode(&block_addr, &offset, self, inode);
     if (ret < 0) {
         goto fail;
@@ -730,7 +730,7 @@ out:
 }
 
 static void closeinode(struct ino_context *self) {
-    if (self == NULL) {
+    if (self == nullptr) {
         return;
     }
     heap_free(self->blockbuf.buf);
@@ -789,9 +789,9 @@ out:
 
 [[nodiscard]] static int open_directory(DIR **dir_out, struct fscontext *self, ino_t inode) {
     int ret = 0;
-    *dir_out = NULL;
+    *dir_out = nullptr;
     struct directory *dir = heap_alloc(sizeof(*dir), HEAP_FLAG_ZEROMEMORY);
-    if (dir == NULL) {
+    if (dir == nullptr) {
         ret = -ENOMEM;
         goto fail;
     }
@@ -817,7 +817,7 @@ out:
 }
 
 static void close_directory(DIR *self) {
-    if (self == NULL) {
+    if (self == nullptr) {
         return;
     }
     struct directory *dir = self->data;
@@ -845,7 +845,7 @@ out:
 }
 
 static void closefile(struct ino_context *self) {
-    if (self == NULL) {
+    if (self == nullptr) {
         return;
     }
     closeinode(self);

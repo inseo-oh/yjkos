@@ -487,7 +487,7 @@ int stream_get_char(struct stream *self) {
 }
 
 void stream_flush(struct stream *self) {
-    if (self->ops->flush == NULL) {
+    if (self->ops->flush == nullptr) {
         return;
     }
     self->ops->flush(self);

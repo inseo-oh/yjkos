@@ -128,8 +128,8 @@ static uint32_t proto_recv_card32(struct connection *conn) {
 
 static char *proto_recv_string8(struct connection *conn, size_t len) {
     char *str = heap_calloc(sizeof(char), len + 1, HEAP_FLAG_ZEROMEMORY);
-    if (str == NULL) {
-        return NULL;
+    if (str == nullptr) {
+        return nullptr;
     }
     for (size_t i = 0; i < len; i++) {
         str[i] = (char)proto_recv_card8(conn);
@@ -174,7 +174,7 @@ struct proto_connection_setup {
     proto_recv_unused(&conn, proto_pad(n));
     out->authorization_protocol_data = proto_recv_string8(&conn, d);
     proto_recv_unused(&conn, proto_pad(d));
-    if ((out->authorization_protocol_name == NULL) || (out->authorization_protocol_data == NULL)) {
+    if ((out->authorization_protocol_name == nullptr) || (out->authorization_protocol_data == nullptr)) {
         goto oom;
     }
     return 0;
@@ -236,7 +236,7 @@ static void tmain(void *arg) {
     (void)arg;
     arch_irq_enable();
     struct list *devlst = iodev_get_list(IODEV_TYPE_TTY);
-    if ((devlst == NULL) || (devlst->front == NULL)) {
+    if ((devlst == nullptr) || (devlst->front == nullptr)) {
         co_printf("windowd: no serial device available\n");
         return;
     }
@@ -260,8 +260,8 @@ static void tmain(void *arg) {
 
 void windowd_start(void) {
     bool thread_started = false;
-    struct thread *thread = thread_create(THREAD_STACK_SIZE, tmain, NULL);
-    if (thread == NULL) {
+    struct thread *thread = thread_create(THREAD_STACK_SIZE, tmain, nullptr);
+    if (thread == nullptr) {
         co_printf("not enough memory to create thread\n");
         goto die;
     }

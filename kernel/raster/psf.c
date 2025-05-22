@@ -10,8 +10,8 @@
 static uint16_t const PSF1_MAGIC = 0x0436;
 static uint32_t const PSF2_MAGIC = 0x864ab572;
 
-static uint16_t *s_unicodetable = NULL;
-static uint8_t *s_glyphs = NULL;
+static uint16_t *s_unicodetable = nullptr;
+static uint8_t *s_glyphs = nullptr;
 static int s_fontwidth;
 static int32_t s_fontheight;
 static size_t s_bytesperglyph;
@@ -137,7 +137,7 @@ static void init_psf1(void) {
     s_fontheight = (int)height;
     s_bytesperglyph = bytes_per_glyph;
     s_glyphcount = num_glyph;
-    if (s_unicodetable == NULL) {
+    if (s_unicodetable == nullptr) {
         co_printf("psf: not enough memory to have unicode translation table\n");
         goto unicodetabledone;
     }
@@ -243,7 +243,7 @@ static void init_psf2(void) {
         goto unicode_table_done;
     }
     s_unicodetable = heap_calloc(sizeof(*s_unicodetable), UINT16_MAX, HEAP_FLAG_ZEROMEMORY);
-    if (s_unicodetable == NULL) {
+    if (s_unicodetable == nullptr) {
         co_printf("psf: not enough memory to have unicode translation table\n");
         goto unicode_table_done;
     }
@@ -289,7 +289,7 @@ uint8_t *psf_getglyph(uint32_t chr) {
         chr = '?';
     }
     size_t glyphindex = chr;
-    if (s_unicodetable != NULL) {
+    if (s_unicodetable != nullptr) {
         glyphindex = s_unicodetable[chr];
     }
     /* Make sure we don't access outside of the font. */

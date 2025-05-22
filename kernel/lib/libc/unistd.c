@@ -1,6 +1,5 @@
 
 #include <kernel/lib/strutil.h>
-#include <stddef.h>
 #include <unistd.h>
 #ifdef YJKERNEL_SOURCE
 #include <kernel/io/co.h>
@@ -60,7 +59,7 @@ static int getopt_opt_char_skip_len(const char *argopt, const char *next_opt_cha
 
 /* https://pubs.opengroup.org/onlinepubs/9799919799/functions/getopt.html */
 int getopt(int argc, char *const argv[], const char *optstring) {
-    char const *errmsg = NULL;
+    char const *errmsg = nullptr;
     if (argc <= optind) {
         return -1;
     }
@@ -77,7 +76,7 @@ int getopt(int argc, char *const argv[], const char *optstring) {
     }
     int result_opt = '?';
     char *arg = argv[optind];
-    if ((arg == NULL) || (*arg != '-') || (kstrcmp(arg, "-") == 0)) {
+    if ((arg == nullptr) || (*arg != '-') || (kstrcmp(arg, "-") == 0)) {
         return -1;
     }
     if (kstrcmp(arg, "--") == 0) {

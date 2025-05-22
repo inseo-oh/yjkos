@@ -475,7 +475,7 @@ static bool init_busmaster(struct bus *bus) {
     assert(prdtsize < MAX_TRANSFTER_SIZE_PER_PRD);
     size_t prdt_page_count = size_to_blocks(prdtsize, ARCH_PAGESIZE);
     bool phys_alloc_ok = false;
-    struct vmm_object *prdt_vm_object = NULL;
+    struct vmm_object *prdt_vm_object = nullptr;
     size_t allocated_prdt_count = 0;
     bus->prdt_physbase = pmm_alloc(&prdt_page_count);
     if (bus->prdt_physbase == PHYSICALPTR_NULL) {
@@ -483,7 +483,7 @@ static bool init_busmaster(struct bus *bus) {
     }
     phys_alloc_ok = true;
     prdt_vm_object = vmm_map_mem(vmm_get_kernel_address_space(), bus->prdt_physbase, prdt_page_count * ARCH_PAGESIZE, MAP_PROT_READ | MAP_PROT_WRITE | MAP_PROT_NOCACHE);
-    if (prdt_vm_object == NULL) {
+    if (prdt_vm_object == nullptr) {
         bus_printf(bus, "not enough memory for busmaster PRDT\n");
         goto fail_oom;
     }
@@ -513,7 +513,7 @@ fail_oom:
     for (size_t i = 0; i < allocated_prdt_count; i++) {
         pmm_free(bus->prdt[i].buffer_physaddr, page_counts[i]);
     }
-    if (prdt_vm_object != NULL) {
+    if (prdt_vm_object != nullptr) {
         vmm_free(prdt_vm_object);
     }
     if (phys_alloc_ok) {
@@ -525,7 +525,7 @@ fail_oom:
 static int init_controller(struct shared *shared, uint16_t io_base, uint16_t ctrl_base, uint16_t busmastrer_base, PCIPATH pcipath, bool busmaster_enabled, uint8_t irq, size_t channel_index) {
     int result = 0;
     struct bus *bus = heap_alloc(sizeof(*bus), HEAP_FLAG_ZEROMEMORY);
-    if (bus == NULL) {
+    if (bus == nullptr) {
         result = -ENOMEM;
         goto fail;
     }
@@ -563,7 +563,7 @@ static int init_controller(struct shared *shared, uint16_t io_base, uint16_t ctr
     for (int8_t drive = 0; drive < 2; drive++) {
         select_drive(bus, drive);
         struct disk *disk = heap_alloc(sizeof(*disk), HEAP_FLAG_ZEROMEMORY);
-        if (disk == NULL) {
+        if (disk == nullptr) {
             continue;
         }
         disk->bus = bus;
@@ -704,7 +704,7 @@ static void pci_probe_callback(PCIPATH path, uint16_t venid, uint16_t devid, uin
         }
     }
     struct shared *shared = heap_alloc(sizeof(*shared), HEAP_FLAG_ZEROMEMORY);
-    if (shared == NULL) {
+    if (shared == nullptr) {
         pci_printf(path, "idebus: not enough memory\n");
         return;
     }
@@ -736,5 +736,5 @@ static void pci_probe_callback(PCIPATH path, uint16_t venid, uint16_t devid, uin
 }
 
 void archi586_idebus_init(void) {
-    pci_probe_bus(pci_probe_callback, NULL);
+    pci_probe_bus(pci_probe_callback, nullptr);
 }

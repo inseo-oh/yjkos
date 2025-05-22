@@ -14,7 +14,7 @@ static int program_main(int argc, char *argv[]) {
         co_printf("usage: rawvidplay <rawvideo file>\n");
         return 1;
     }
-    struct file *fd = NULL;
+    struct file *fd = nullptr;
     int ret = vfs_open_file(&fd, argv[1], 0);
     if (ret < 0) {
         co_printf("can't open file\n");

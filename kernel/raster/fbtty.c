@@ -5,7 +5,6 @@
 #include <kernel/io/vt100tty.h>
 #include <kernel/mem/heap.h>
 #include <kernel/raster/fb.h>
-#include <stddef.h>
 #include <stdint.h>
 
 static struct vt100tty s_tty;
@@ -57,7 +56,7 @@ void fbtty_init(void) {
     struct vt100tty_line_info *lineinfos = heap_calloc(sizeof(*lineinfos), rows, HEAP_FLAG_ZEROMEMORY);
     struct vt100tty_char *chars = heap_calloc(sizeof(*chars), columns * rows, HEAP_FLAG_ZEROMEMORY);
     s_linetempbuf = heap_calloc(sizeof(*s_linetempbuf), columns + 1, HEAP_FLAG_ZEROMEMORY);
-    if ((lineinfos == NULL) || (chars == NULL) || (s_linetempbuf == NULL)) {
+    if ((lineinfos == nullptr) || (chars == nullptr) || (s_linetempbuf == nullptr)) {
         goto oom;
     }
     vt100tty_init(&s_tty, lineinfos, chars, &OPS, columns, rows);

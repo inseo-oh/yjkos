@@ -3,7 +3,6 @@
 #include <kernel/io/co.h>
 #include <kernel/lib/diagnostics.h>
 #include <kernel/lib/strutil.h>
-#include <stddef.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -38,7 +37,7 @@ struct opts {
 
 static void showfile(char const *progname, char const *path, struct opts const *opts) {
     (void)opts;
-    struct file *fd = NULL;
+    struct file *fd = nullptr;
     ssize_t ret = vfs_open_file(&fd, path, 0);
     if (ret < 0) {
         co_printf("%s: failed to open directory %s (error %d)\n", progname, path, ret);

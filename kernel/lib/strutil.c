@@ -45,15 +45,15 @@ char *kstrchr(char const *s, int c) {
             return next;
         }
         if (*next == '\0') {
-            return NULL;
+            return nullptr;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 /* https://pubs.opengroup.org/onlinepubs/9799919799/functions/strrchr.html */
 char *kstrrchr(char const *s, int c) {
-    char *result = NULL;
+    char *result = nullptr;
     for (char *next = (char *)s;; next++) {
         if (*next == c) {
             result = next;
@@ -103,7 +103,7 @@ char *strdup(char const *s) {
         goto oom;
     }
     mem = (char *)heap_alloc(size, 0);
-    if (mem == NULL) {
+    if (mem == nullptr) {
         goto oom;
     }
     vmemcpy(mem, s, size - 1);
@@ -116,7 +116,7 @@ oom:
      */
     assert(!"TODO: Set errno value");
 #endif
-    return NULL;
+    return nullptr;
 }
 
 void vmemcpy32(void *restrict s1, const void *restrict s2, size_t n) {

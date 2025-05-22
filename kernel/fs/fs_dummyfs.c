@@ -10,7 +10,7 @@
 [[nodiscard]] static int vfs_op_mount(struct vfs_fscontext **out, struct ldisk *disk) {
     int ret = 0;
     struct vfs_fscontext *context = heap_alloc(sizeof(*context), HEAP_FLAG_ZEROMEMORY);
-    if (context == NULL) {
+    if (context == nullptr) {
         ret = -ENOMEM;
         goto fail;
     }

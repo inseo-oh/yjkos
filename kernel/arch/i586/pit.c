@@ -3,7 +3,6 @@
 #include "pic.h"
 #include <kernel/tasks/sched.h>
 #include <kernel/ticktime.h>
-#include <stddef.h>
 #include <stdint.h>
 
 #define PIT_CH0_DATA_PORT 0x40
@@ -51,6 +50,6 @@ void archi586_pit_init(void) {
     archi586_out8(PIT_CH0_DATA_PORT, initial_counter);
     shortinternaldelay();
     archi586_out8(PIT_CH0_DATA_PORT, initial_counter >> 8);
-    archi586_pic_register_handler(&s_irqhandler, PIT_IRQ, irqhandler, NULL);
+    archi586_pic_register_handler(&s_irqhandler, PIT_IRQ, irqhandler, nullptr);
     archi586_pic_unmask_irq(PIT_IRQ);
 }

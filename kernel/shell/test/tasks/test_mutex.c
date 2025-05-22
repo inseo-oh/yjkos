@@ -4,7 +4,6 @@
 #include <kernel/tasks/mutex.h>
 #include <kernel/tasks/sched.h>
 #include <kernel/tasks/thread.h>
-#include <stddef.h>
 
 static bool do_basic(void) {
     struct mutex mtx;
@@ -54,7 +53,7 @@ static bool do_threadsync(void) {
     }
     bool failed = false;
     for (int i = 0; i < TEST_THREADCOUNT; i++) {
-        if (threads[i] == NULL) {
+        if (threads[i] == nullptr) {
             co_printf("not enough memory to spawn threads\n");
             goto out;
         }
@@ -62,7 +61,7 @@ static bool do_threadsync(void) {
         if (ret < 0) {
             co_printf("failed to queue thread (error %d)\n", ret);
             thread_delete(threads[i]);
-            threads[i] = NULL;
+            threads[i] = nullptr;
             failed = true;
         }
     }
@@ -84,7 +83,7 @@ static bool do_threadsync(void) {
 out:
     co_printf("shutting down...\n");
     for (int i = 0; i < TEST_THREADCOUNT; i++) {
-        if (threads[i] != NULL) {
+        if (threads[i] != nullptr) {
             threads[i]->shutdown = true;
         }
     }

@@ -105,13 +105,13 @@ static void default_irq_handler(int trapnum, void *trapframe, void *data) {
     int irqnum = trapnum - PIC_VECTOR_BASE;
     assert(irqnum < IRQS_TOTAL);
     bool is_suprious_irq = checkspuriousirq(irqnum);
-    if (s_irqs[irqnum].front == NULL) {
+    if (s_irqs[irqnum].front == nullptr) {
         co_printf("no irq handler registered for irq %d\n", trapnum);
         return;
     }
     LIST_FOREACH(&s_irqs[irqnum], handlernode) {
         struct archi586_pic_irq_handler *handler = handlernode->data;
-        assert(handler != NULL);
+        assert(handler != nullptr);
         handler->callback(irqnum, handler->data);
     }
     if (!is_suprious_irq) {
@@ -134,8 +134,8 @@ void archi586_pic_init(void) {
     archi586_out8(DATAPORT_SLAVE, PIC_ICW4_FLAG_8086MODE);
     /* Setup default PIC handler **********************************************/
     for (size_t i = 0; i < 8; i++) {
-        trapmanager_register_trap(&s_traphandler[i], PIC_VECTOR_BASE + i, default_irq_handler, NULL);
-        trapmanager_register_trap(&s_traphandler[IRQS_PER_PIC + i], PIC_VECTOR_BASE + IRQS_PER_PIC + i, default_irq_handler, NULL);
+        trapmanager_register_trap(&s_traphandler[i], PIC_VECTOR_BASE + i, default_irq_handler, nullptr);
+        trapmanager_register_trap(&s_traphandler[IRQS_PER_PIC + i], PIC_VECTOR_BASE + IRQS_PER_PIC + i, default_irq_handler, nullptr);
     }
     /* Disable IRQs except for IRQ2(which is connected to slave PIC) **********/
     setirqmask(~(uint16_t)(1U << 2));

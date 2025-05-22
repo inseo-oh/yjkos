@@ -1,7 +1,6 @@
 #include "../test.h"
 #include <kernel/lib/list.h>
 #include <kernel/lib/strutil.h>
-#include <stddef.h>
 
 static bool do_insertfront(void) {
     struct list lst;
@@ -11,29 +10,29 @@ static bool do_insertfront(void) {
     vmemset(nodes, 0x55, sizeof(nodes));
     list_init(&lst);
 
-    list_insert_front(&lst, &nodes[0], NULL);
+    list_insert_front(&lst, &nodes[0], nullptr);
     TEST_EXPECT(lst.front == &nodes[0]);
     TEST_EXPECT(lst.back == &nodes[0]);
-    TEST_EXPECT(nodes[0].prev == NULL);
-    TEST_EXPECT(nodes[0].next == NULL);
+    TEST_EXPECT(nodes[0].prev == nullptr);
+    TEST_EXPECT(nodes[0].next == nullptr);
 
-    list_insert_front(&lst, &nodes[1], NULL);
+    list_insert_front(&lst, &nodes[1], nullptr);
     TEST_EXPECT(lst.front == &nodes[1]);
     TEST_EXPECT(lst.back == &nodes[0]);
-    TEST_EXPECT(nodes[1].prev == NULL);
+    TEST_EXPECT(nodes[1].prev == nullptr);
     TEST_EXPECT(nodes[1].next == &nodes[0]);
     TEST_EXPECT(nodes[0].prev == &nodes[1]);
-    TEST_EXPECT(nodes[0].next == NULL);
+    TEST_EXPECT(nodes[0].next == nullptr);
 
-    list_insert_front(&lst, &nodes[2], NULL);
+    list_insert_front(&lst, &nodes[2], nullptr);
     TEST_EXPECT(lst.front == &nodes[2]);
     TEST_EXPECT(lst.back == &nodes[0]);
-    TEST_EXPECT(nodes[2].prev == NULL);
+    TEST_EXPECT(nodes[2].prev == nullptr);
     TEST_EXPECT(nodes[2].next == &nodes[1]);
     TEST_EXPECT(nodes[1].prev == &nodes[2]);
     TEST_EXPECT(nodes[1].next == &nodes[0]);
     TEST_EXPECT(nodes[0].prev == &nodes[1]);
-    TEST_EXPECT(nodes[0].next == NULL);
+    TEST_EXPECT(nodes[0].next == nullptr);
 
     return true;
 }
@@ -45,29 +44,29 @@ static bool do_insertback(void) {
     vmemset(nodes, 0x55, sizeof(nodes));
     list_init(&lst);
 
-    list_insert_back(&lst, &nodes[0], NULL);
+    list_insert_back(&lst, &nodes[0], nullptr);
     TEST_EXPECT(lst.front == &nodes[0]);
     TEST_EXPECT(lst.back == &nodes[0]);
-    TEST_EXPECT(nodes[0].prev == NULL);
-    TEST_EXPECT(nodes[0].next == NULL);
+    TEST_EXPECT(nodes[0].prev == nullptr);
+    TEST_EXPECT(nodes[0].next == nullptr);
 
-    list_insert_back(&lst, &nodes[1], NULL);
+    list_insert_back(&lst, &nodes[1], nullptr);
     TEST_EXPECT(lst.front == &nodes[0]);
     TEST_EXPECT(lst.back == &nodes[1]);
-    TEST_EXPECT(nodes[0].prev == NULL);
+    TEST_EXPECT(nodes[0].prev == nullptr);
     TEST_EXPECT(nodes[0].next == &nodes[1]);
     TEST_EXPECT(nodes[1].prev == &nodes[0]);
-    TEST_EXPECT(nodes[1].next == NULL);
+    TEST_EXPECT(nodes[1].next == nullptr);
 
-    list_insert_back(&lst, &nodes[2], NULL);
+    list_insert_back(&lst, &nodes[2], nullptr);
     TEST_EXPECT(lst.front == &nodes[0]);
     TEST_EXPECT(lst.back == &nodes[2]);
-    TEST_EXPECT(nodes[0].prev == NULL);
+    TEST_EXPECT(nodes[0].prev == nullptr);
     TEST_EXPECT(nodes[0].next == &nodes[1]);
     TEST_EXPECT(nodes[1].prev == &nodes[0]);
     TEST_EXPECT(nodes[1].next == &nodes[2]);
     TEST_EXPECT(nodes[2].prev == &nodes[1]);
-    TEST_EXPECT(nodes[2].next == NULL);
+    TEST_EXPECT(nodes[2].next == nullptr);
 
     return true;
 }
@@ -79,11 +78,11 @@ static bool do_insertafter(void) {
     vmemset(nodes, 0x55, sizeof(nodes));
     list_init(&lst);
 
-    list_insert_back(&lst, &nodes[0], NULL);
-    list_insert_back(&lst, &nodes[1], NULL);
-    list_insert_back(&lst, &nodes[2], NULL);
+    list_insert_back(&lst, &nodes[0], nullptr);
+    list_insert_back(&lst, &nodes[1], nullptr);
+    list_insert_back(&lst, &nodes[2], nullptr);
 
-    list_insert_after(&lst, &nodes[1], &nodes[3], NULL);
+    list_insert_after(&lst, &nodes[1], &nodes[3], nullptr);
     TEST_EXPECT(lst.front == &nodes[0]);
     TEST_EXPECT(lst.back == &nodes[2]);
     TEST_EXPECT(nodes[1].prev == &nodes[0]);
@@ -91,15 +90,15 @@ static bool do_insertafter(void) {
     TEST_EXPECT(nodes[3].prev == &nodes[1]);
     TEST_EXPECT(nodes[3].next == &nodes[2]);
     TEST_EXPECT(nodes[2].prev == &nodes[3]);
-    TEST_EXPECT(nodes[2].next == NULL);
+    TEST_EXPECT(nodes[2].next == nullptr);
 
-    list_insert_after(&lst, &nodes[2], &nodes[4], NULL);
+    list_insert_after(&lst, &nodes[2], &nodes[4], nullptr);
     TEST_EXPECT(lst.front == &nodes[0]);
     TEST_EXPECT(lst.back == &nodes[4]);
     TEST_EXPECT(nodes[2].prev == &nodes[3]);
     TEST_EXPECT(nodes[2].next == &nodes[4]);
     TEST_EXPECT(nodes[4].prev == &nodes[2]);
-    TEST_EXPECT(nodes[4].next == NULL);
+    TEST_EXPECT(nodes[4].next == nullptr);
 
     return true;
 }
@@ -111,24 +110,24 @@ static bool do_insertbefore(void) {
     vmemset(nodes, 0x55, sizeof(nodes));
     list_init(&lst);
 
-    list_insert_back(&lst, &nodes[0], NULL);
-    list_insert_back(&lst, &nodes[1], NULL);
-    list_insert_back(&lst, &nodes[2], NULL);
+    list_insert_back(&lst, &nodes[0], nullptr);
+    list_insert_back(&lst, &nodes[1], nullptr);
+    list_insert_back(&lst, &nodes[2], nullptr);
 
-    list_insert_before(&lst, &nodes[1], &nodes[3], NULL);
+    list_insert_before(&lst, &nodes[1], &nodes[3], nullptr);
     TEST_EXPECT(lst.front == &nodes[0]);
     TEST_EXPECT(lst.back == &nodes[2]);
-    TEST_EXPECT(nodes[0].prev == NULL);
+    TEST_EXPECT(nodes[0].prev == nullptr);
     TEST_EXPECT(nodes[0].next == &nodes[3]);
     TEST_EXPECT(nodes[3].prev == &nodes[0]);
     TEST_EXPECT(nodes[3].next == &nodes[1]);
     TEST_EXPECT(nodes[1].prev == &nodes[3]);
     TEST_EXPECT(nodes[1].next == &nodes[2]);
 
-    list_insert_before(&lst, &nodes[0], &nodes[4], NULL);
+    list_insert_before(&lst, &nodes[0], &nodes[4], nullptr);
     TEST_EXPECT(lst.front == &nodes[4]);
     TEST_EXPECT(lst.back == &nodes[2]);
-    TEST_EXPECT(nodes[4].prev == NULL);
+    TEST_EXPECT(nodes[4].prev == nullptr);
     TEST_EXPECT(nodes[4].next == &nodes[0]);
     TEST_EXPECT(nodes[0].prev == &nodes[4]);
     TEST_EXPECT(nodes[0].next == &nodes[3]);
@@ -139,76 +138,76 @@ static bool do_insertbefore(void) {
 static bool do_removefront(void) {
     struct list lst;
     struct list_node nodes[3];
-    struct list_node *removednode = NULL;
+    struct list_node *removednode = nullptr;
 
     vmemset(nodes, 0x55, sizeof(nodes));
     list_init(&lst);
 
-    list_insert_back(&lst, &nodes[0], NULL);
-    list_insert_back(&lst, &nodes[1], NULL);
-    list_insert_back(&lst, &nodes[2], NULL);
+    list_insert_back(&lst, &nodes[0], nullptr);
+    list_insert_back(&lst, &nodes[1], nullptr);
+    list_insert_back(&lst, &nodes[2], nullptr);
 
     removednode = list_remove_front(&lst);
     TEST_EXPECT(removednode == &nodes[0]);
     TEST_EXPECT(lst.front == &nodes[1]);
     TEST_EXPECT(lst.back == &nodes[2]);
-    TEST_EXPECT(nodes[1].prev == NULL);
+    TEST_EXPECT(nodes[1].prev == nullptr);
     TEST_EXPECT(nodes[1].next == &nodes[2]);
     TEST_EXPECT(nodes[2].prev == &nodes[1]);
-    TEST_EXPECT(nodes[2].next == NULL);
+    TEST_EXPECT(nodes[2].next == nullptr);
 
     removednode = list_remove_front(&lst);
     TEST_EXPECT(removednode == &nodes[1]);
     TEST_EXPECT(lst.front == &nodes[2]);
     TEST_EXPECT(lst.back == &nodes[2]);
-    TEST_EXPECT(nodes[2].prev == NULL);
-    TEST_EXPECT(nodes[2].next == NULL);
+    TEST_EXPECT(nodes[2].prev == nullptr);
+    TEST_EXPECT(nodes[2].next == nullptr);
 
     removednode = list_remove_front(&lst);
     TEST_EXPECT(removednode == &nodes[2]);
-    TEST_EXPECT(lst.front == NULL);
-    TEST_EXPECT(lst.back == NULL);
+    TEST_EXPECT(lst.front == nullptr);
+    TEST_EXPECT(lst.back == nullptr);
 
     removednode = list_remove_front(&lst);
-    TEST_EXPECT(removednode == NULL);
+    TEST_EXPECT(removednode == nullptr);
     return true;
 }
 
 static bool do_removeback(void) {
     struct list lst;
     struct list_node nodes[3];
-    struct list_node *removednode = NULL;
+    struct list_node *removednode = nullptr;
 
     vmemset(nodes, 0x55, sizeof(nodes));
     list_init(&lst);
 
-    list_insert_back(&lst, &nodes[0], NULL);
-    list_insert_back(&lst, &nodes[1], NULL);
-    list_insert_back(&lst, &nodes[2], NULL);
+    list_insert_back(&lst, &nodes[0], nullptr);
+    list_insert_back(&lst, &nodes[1], nullptr);
+    list_insert_back(&lst, &nodes[2], nullptr);
 
     removednode = list_remove_back(&lst);
     TEST_EXPECT(removednode == &nodes[2]);
     TEST_EXPECT(lst.front == &nodes[0]);
     TEST_EXPECT(lst.back == &nodes[1]);
-    TEST_EXPECT(nodes[0].prev == NULL);
+    TEST_EXPECT(nodes[0].prev == nullptr);
     TEST_EXPECT(nodes[0].next == &nodes[1]);
     TEST_EXPECT(nodes[1].prev == &nodes[0]);
-    TEST_EXPECT(nodes[1].next == NULL);
+    TEST_EXPECT(nodes[1].next == nullptr);
 
     removednode = list_remove_back(&lst);
     TEST_EXPECT(removednode == &nodes[1]);
     TEST_EXPECT(lst.front == &nodes[0]);
     TEST_EXPECT(lst.back == &nodes[0]);
-    TEST_EXPECT(nodes[0].prev == NULL);
-    TEST_EXPECT(nodes[0].next == NULL);
+    TEST_EXPECT(nodes[0].prev == nullptr);
+    TEST_EXPECT(nodes[0].next == nullptr);
 
     removednode = list_remove_back(&lst);
     TEST_EXPECT(removednode == &nodes[0]);
-    TEST_EXPECT(lst.front == NULL);
-    TEST_EXPECT(lst.back == NULL);
+    TEST_EXPECT(lst.front == nullptr);
+    TEST_EXPECT(lst.back == nullptr);
 
     removednode = list_remove_back(&lst);
-    TEST_EXPECT(removednode == NULL);
+    TEST_EXPECT(removednode == nullptr);
     return true;
 }
 
@@ -219,27 +218,27 @@ static bool do_removenode(void) {
     vmemset(nodes, 0x55, sizeof(nodes));
     list_init(&lst);
 
-    list_insert_back(&lst, &nodes[0], NULL);
-    list_insert_back(&lst, &nodes[1], NULL);
-    list_insert_back(&lst, &nodes[2], NULL);
+    list_insert_back(&lst, &nodes[0], nullptr);
+    list_insert_back(&lst, &nodes[1], nullptr);
+    list_insert_back(&lst, &nodes[2], nullptr);
 
     list_remove_node(&lst, &nodes[1]);
     TEST_EXPECT(lst.front == &nodes[0]);
     TEST_EXPECT(lst.back == &nodes[2]);
-    TEST_EXPECT(nodes[0].prev == NULL);
+    TEST_EXPECT(nodes[0].prev == nullptr);
     TEST_EXPECT(nodes[0].next == &nodes[2]);
     TEST_EXPECT(nodes[2].prev == &nodes[0]);
-    TEST_EXPECT(nodes[2].next == NULL);
+    TEST_EXPECT(nodes[2].next == nullptr);
 
     list_remove_node(&lst, &nodes[0]);
     TEST_EXPECT(lst.front == &nodes[2]);
     TEST_EXPECT(lst.back == &nodes[2]);
-    TEST_EXPECT(nodes[2].prev == NULL);
-    TEST_EXPECT(nodes[2].next == NULL);
+    TEST_EXPECT(nodes[2].prev == nullptr);
+    TEST_EXPECT(nodes[2].next == nullptr);
 
     list_remove_node(&lst, &nodes[2]);
-    TEST_EXPECT(lst.front == NULL);
-    TEST_EXPECT(lst.back == NULL);
+    TEST_EXPECT(lst.front == nullptr);
+    TEST_EXPECT(lst.back == nullptr);
 
     return true;
 }

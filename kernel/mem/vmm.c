@@ -47,7 +47,7 @@ struct objectgroup {
 
 static struct vm_object *take_object(struct address_space *self, struct objectgroup *group, struct vm_object *object) {
     list_remove_node(&group->objectlist, &object->node);
-    if (group->objectlist.front == NULL) {
+    if (group->objectlist.front == nullptr) {
         /* list is empty -> Remove the node */
         bst_remove_node(&self->object_group_tree, &group->node);
         heap_free(group);
@@ -63,8 +63,8 @@ static struct vm_object *take_object(struct address_space *self, struct objectgr
 #ifdef NEW_VMM
 static struct vmm_object *take_object_with_min_size(struct vmm_address_space *self, size_t page_count) {
     assert(page_count != 0);
-    assert(self->object_list.front != NULL);
-    struct vmm_object *result = NULL;
+    assert(self->object_list.front != nullptr);
+    struct vmm_object *result = nullptr;
     LIST_FOREACH(&self->object_list, object_node) {
         assert(object_node->data);
         struct vmm_object *object = object_node->data;
@@ -86,7 +86,7 @@ static struct vmm_object *take_object_with_min_size(struct vmm_address_space *se
 static struct vmm_object *take_object_including(struct vmm_address_space *self, void *start, void *end) {
     size_t page_count = size_to_blocks((uintptr_t)end - (uintptr_t)start + 1, ARCH_PAGESIZE);
     assert(page_count != 0);
-    struct vmm_object *result = NULL;
+    struct vmm_object *result = nullptr;
     if ((UINTPTR_MAX - (uintptr_t)start) < (page_count * ARCH_PAGESIZE)) {
         /* Too large */
         goto out;
@@ -109,7 +109,7 @@ out:
     assert(is_aligned(vmm_get_object_size(object), ARCH_PAGESIZE));
 
     /* Find where we want to insert to ****************************************/
-    struct vmm_object *insert_after = NULL;
+    struct vmm_object *insert_after = nullptr;
     LIST_FOREACH(&self->object_list, object_node) {
         struct vmm_object *old_object = list_get_data_or_null(object_node->data);
         if ((uintptr_t)old_object->end < (uintptr_t)object->start) {
@@ -117,11 +117,11 @@ out:
         }
     }
     /* Insert the object *****************************************************/
-    if (insert_after == NULL) {
+    if (insert_after == nullptr) {
         list_insert_back(&self->object_list, &object->node, object);
     } else {
         struct vmm_object *next_object = list_get_data_or_null(insert_after->node.next);
-        if (next_object != NULL) {
+        if (next_object != nullptr) {
             if (next_object->start < object->end) {
                 co_printf(
                     "Bad VM object insertion! Attempted to insert [%p, %p] between [%p, %p] and [%p, %p]",
@@ -141,13 +141,13 @@ out:
  */
 static struct vm_object *take_object_with_min_size(struct address_space *self, size_t page_count) {
     assert(page_count != 0);
-    struct vm_object *result = NULL;
-    if (self->object_group_tree.root == NULL) {
+    struct vm_object *result = nullptr;
+    if (self->object_group_tree.root == nullptr) {
         /* Tree is empty */
         goto out;
     }
-    struct bst_node *nextnode = NULL;
-    for (struct bst_node *currentnode = bst_min_of_tree(&self->object_group_tree); currentnode != NULL; currentnode = nextnode) {
+    struct bst_node *nextnode = nullptr;
+    for (struct bst_node *currentnode = bst_min_of_tree(&self->object_group_tree); currentnode != nullptr; currentnode = nextnode) {
         nextnode = bst_successor(currentnode);
         struct objectgroup *currentgroup = currentnode->data;
         assert(currentgroup);
@@ -173,18 +173,18 @@ out:
 static struct vm_object *take_object_including(struct address_space *self, void *start, void *end) {
     size_t page_count = size_to_blocks((uintptr_t)end - (uintptr_t)start + 1, ARCH_PAGESIZE);
     assert(page_count != 0);
-    struct vm_object *result = NULL;
+    struct vm_object *result = nullptr;
     if ((UINTPTR_MAX - (uintptr_t)start) < (page_count * ARCH_PAGESIZE)) {
         /* Too large */
         goto out;
     }
     end = (char *)start + (page_count * ARCH_PAGESIZE - 1);
-    if (self->object_group_tree.root == NULL) {
+    if (self->object_group_tree.root == nullptr) {
         /* Tree is empty */
         goto out;
     }
-    struct bst_node *nextnode = NULL;
-    for (struct bst_node *currentnode = bst_min_of_tree(&self->object_group_tree); currentnode != NULL; currentnode = nextnode) {
+    struct bst_node *nextnode = nullptr;
+    for (struct bst_node *currentnode = bst_min_of_tree(&self->object_group_tree); currentnode != nullptr; currentnode = nextnode) {
         nextnode = bst_successor(currentnode);
         struct objectgroup *currentgroup = currentnode->data;
         assert(currentgroup);
@@ -195,7 +195,7 @@ static struct vm_object *take_object_including(struct address_space *self, void 
             continue;
         }
 
-        struct vm_object *resultobject = NULL;
+        struct vm_object *resultobject = nullptr;
         LIST_FOREACH(&currentgroup->objectlist, object_node) {
             struct vm_object *object = object_node->data;
             assert(object);
@@ -206,7 +206,7 @@ static struct vm_object *take_object_including(struct address_space *self, void 
             resultobject = object;
             break;
         }
-        if (resultobject == NULL) {
+        if (resultobject == nullptr) {
             continue;
         }
         result = take_object(self, currentgroup, resultobject);
@@ -220,10 +220,10 @@ out:
         assert(is_aligned(vmm_get_object_size(object), ARCH_PAGESIZE));
         size_t page_count = vmm_get_object_size(object) / ARCH_PAGESIZE;
         struct bst_node *groupnode = bst_find_node(&self->object_group_tree, page_count);
-        if (groupnode == NULL) {
+        if (groupnode == nullptr) {
             /* Create a new object group */
             struct objectgroup *group = heap_alloc(sizeof(*group), HEAP_FLAG_ZEROMEMORY);
-            if (group == NULL) {
+            if (group == nullptr) {
                 goto oom;
             }
             list_init(&group->objectlist);
@@ -235,7 +235,7 @@ out:
         /*
          * Insert the object into object group. Note that we keep the list sorted by address.
          */
-        struct list_node *insertafter = NULL;
+        struct list_node *insertafter = nullptr;
         LIST_FOREACH(&group->objectlist, currentnode) {
             struct vm_object *currentobject = currentnode->data;
             if (currentobject->end < object->start) {
@@ -244,7 +244,7 @@ out:
                 break;
             }
         }
-        if (insertafter == NULL) {
+        if (insertafter == nullptr) {
             list_insert_front(&group->objectlist, &object->node, object);
         } else {
             list_insert_after(&group->objectlist, insertafter, &object->node, object);
@@ -254,7 +254,7 @@ out:
          * If so, remove that region, and make the current object larger to include it.
          */
         bool sizechanged = false;
-        if (object->node.prev != NULL) {
+        if (object->node.prev != nullptr) {
             struct vm_object *prevobject = object->node.prev->data;
             if (((uintptr_t)prevobject->end + 1) == (uintptr_t)object->start) {
                 object->start = prevobject->start;
@@ -263,7 +263,7 @@ out:
                 sizechanged = true;
             }
         }
-        if (object->node.next != NULL) {
+        if (object->node.next != nullptr) {
             struct vm_object *nextobject = object->node.next->data;
             assert(nextobject->start != 0);
             if (((uintptr_t)nextobject->start - 1) == (uintptr_t)object->end) {
@@ -281,7 +281,7 @@ out:
          * Remove the object from group and go back to beginning.
          */
         list_remove_node(&group->objectlist, &object->node);
-        if (group->objectlist.front == NULL) {
+        if (group->objectlist.front == nullptr) {
             /* list is empty -> Remove the group. */
             bst_remove_node(&self->object_group_tree, &group->node);
             heap_free(group);
@@ -294,12 +294,12 @@ oom:
 #endif
 
 /*
- * Returns NULL on allocation failure.
+ * Returns nullptr on allocation failure.
  */
 static struct vmm_object *create_object(struct vmm_address_space *self, void *start, void *end, PHYSPTR phys_base, uint8_t mapflags) {
     struct vmm_object *object = heap_alloc(sizeof(*object), HEAP_FLAG_ZEROMEMORY);
-    if (object == NULL) {
-        return NULL;
+    if (object == nullptr) {
+        return nullptr;
     }
     object->start = start;
     object->end = end;
@@ -312,14 +312,14 @@ static struct vmm_object *create_object(struct vmm_address_space *self, void *st
 /*
  * `object` is only used to store pointer to the uncommitedobject, so it doesn't have to be initialized.
  *
- * Returns NULL on allocation failure.
+ * Returns nullptr on allocation failure.
  */
 static struct uncommited_object *create_uncommited_object(struct vmm_object *object, size_t page_count) {
     size_t wordcount = bitmap_needed_word_count(page_count);
     size_t size = sizeof(struct uncommited_object) + (wordcount * sizeof(UINT));
     struct uncommited_object *uobject = heap_alloc(size, HEAP_FLAG_ZEROMEMORY);
-    if (uobject == NULL) {
-        return NULL;
+    if (uobject == nullptr) {
+        return nullptr;
     }
     uobject->object = object;
     uobject->bitmap.words = uobject->bitmap_data;
@@ -329,19 +329,19 @@ static struct uncommited_object *create_uncommited_object(struct vmm_object *obj
 }
 
 /*
- * Returns NULL if not found.
+ * Returns nullptr if not found.
  */
 static struct uncommited_object *find_object_in_uncommited(struct vmm_address_space *self, void *ptr) {
     void *page_base = align_ptr_down(ptr, ARCH_PAGESIZE);
     LIST_FOREACH(&self->uncommited_objects, object_node) {
         struct uncommited_object *uobject = object_node->data;
-        assert(uobject != NULL);
+        assert(uobject != nullptr);
         if (((uintptr_t)uobject->object->start <= (uintptr_t)page_base) &&
             ((uintptr_t)page_base <= (uintptr_t)uobject->object->end)) {
             return uobject;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 [[nodiscard]] size_t vmm_get_object_size(struct vmm_object *object) {
@@ -352,7 +352,7 @@ static struct uncommited_object *find_object_in_uncommited(struct vmm_address_sp
     vmemset(out, 0, sizeof(*out));
     out->is_user = is_user;
     struct vmm_object *object = create_object(out, start, end, VMM_PHYSADDR_NOMAP, 0);
-    if (object == NULL) {
+    if (object == nullptr) {
         goto fail_oom;
     }
     if (!add_object_to_address_space(out, object)) {
@@ -368,7 +368,7 @@ fail_oom:
 void vmm_deinit_address_space(struct vmm_address_space *self) {
     while (1) {
         struct list_node *object_node = list_remove_front(&self->object_list);
-        if (object_node == NULL) {
+        if (object_node == nullptr) {
             break;
         }
         heap_free(object_node->data);
@@ -376,11 +376,11 @@ void vmm_deinit_address_space(struct vmm_address_space *self) {
 }
 #else
 void vmm_deinit_address_space(struct address_space *self) {
-    for (struct bst_node *currentnode = bst_min_of_tree(&self->object_group_tree); currentnode != NULL; currentnode = bst_successor(currentnode)) {
+    for (struct bst_node *currentnode = bst_min_of_tree(&self->object_group_tree); currentnode != nullptr; currentnode = bst_successor(currentnode)) {
         struct objectgroup *group = currentnode->data;
         while (1) {
             struct list_node *object_node = list_remove_front(&group->objectlist);
-            if (object_node == NULL) {
+            if (object_node == nullptr) {
                 break;
             }
             heap_free(object_node->data);
@@ -391,7 +391,7 @@ void vmm_deinit_address_space(struct address_space *self) {
 #endif
 
 [[nodiscard]] struct vmm_object *vmm_alloc_object(struct vmm_address_space *self, PHYSPTR phys_base, size_t size, uint8_t mapflags) {
-    struct vmm_object *oldobject = NULL;
+    struct vmm_object *oldobject = nullptr;
 
     size_t page_count = size_to_blocks(size, ARCH_PAGESIZE);
     if (phys_base != VMM_PHYSADDR_NOMAP) {
@@ -405,7 +405,7 @@ void vmm_deinit_address_space(struct address_space *self) {
     struct vmm_object *newobject = create_object(self, 0, 0, phys_base, mapflags);
     struct uncommited_object *uobject = create_uncommited_object(newobject, page_count);
     oldobject = take_object_with_min_size(self, page_count);
-    if ((newobject == NULL) || (oldobject == NULL)) {
+    if ((newobject == nullptr) || (oldobject == nullptr)) {
         goto fail_oom;
     }
     size_t newsize = page_count * ARCH_PAGESIZE;
@@ -423,7 +423,7 @@ void vmm_deinit_address_space(struct address_space *self) {
             co_printf("vmm: could not add modified vm object back to vmm(error %d)\n", ret);
         }
     }
-    oldobject = NULL;
+    oldobject = nullptr;
     list_insert_back(&self->uncommited_objects, &uobject->node, uobject);
     goto out;
 fail_oom:
@@ -456,16 +456,16 @@ out:
      * We create objects first with dummy values, so that we just have to free those objects on failure.
      * (It's a good idea to avoid undoing takeobject~, because that undo operation can technically also fail)
      */
-    struct vmm_object *lobject = NULL;
+    struct vmm_object *lobject = nullptr;
     struct vmm_object *newobject = create_object(self, 0, 0, phys_base, mapflags);
     struct vmm_object *rightobject = create_object(self, 0, 0, VMM_PHYSADDR_NOMAP, 0);
     struct uncommited_object *uobject = create_uncommited_object(newobject, page_count);
-    if ((newobject == NULL) || (rightobject == NULL) || (uobject == NULL)) {
+    if ((newobject == nullptr) || (rightobject == nullptr) || (uobject == nullptr)) {
         goto fail_oom;
     }
 
     lobject = take_object_including(self, virt_base, end);
-    if (lobject == NULL) {
+    if (lobject == nullptr) {
         goto fail_oom;
     }
     void *old_end = lobject->end;
@@ -488,7 +488,7 @@ out:
             co_printf("vmm: could not add modified vm object back to vmm(error %d)\n", ret);
         }
     }
-    lobject = NULL;
+    lobject = nullptr;
     if (rightobject->end < rightobject->start) {
         heap_free(rightobject);
     } else {
@@ -498,7 +498,7 @@ out:
             co_printf("vmm: could not add modified vm object back to vmm(error %d)\n", ret);
         }
     }
-    rightobject = NULL;
+    rightobject = nullptr;
     list_insert_back(&self->uncommited_objects, &uobject->node, uobject);
     goto out;
 fail_oom:
@@ -507,7 +507,7 @@ fail_oom:
     heap_free(lobject);
     heap_free(rightobject);
 fail_badsize:
-    newobject = NULL;
+    newobject = nullptr;
 out:
     arch_irq_restore(prev_interrupts);
     return newobject;
@@ -517,7 +517,7 @@ void vmm_free(struct vmm_object *object) {
     bool prev_interrupts = arch_irq_disable();
     /* Remove from uncommited memory list *************************************/
     struct uncommited_object *uobject = find_object_in_uncommited(object->address_space, object->start);
-    if (uobject != NULL) {
+    if (uobject != nullptr) {
         list_remove_node(&object->address_space->uncommited_objects, &uobject->node);
         heap_free(uobject);
     }
@@ -563,7 +563,7 @@ void *vmm_ezmap(PHYSPTR base, size_t size) {
     PHYSPTR pagebase = base - offset;
     size_t actualsize = size + offset;
     struct vmm_object *object = vmm_map_mem(vmm_get_kernel_address_space(), pagebase, actualsize, MAP_PROT_READ | MAP_PROT_WRITE);
-    if (object == NULL) {
+    if (object == nullptr) {
         panic("vmm: failed to ezmap virtual memory");
     }
     return (char *)object->start + offset;
@@ -590,10 +590,10 @@ struct vmm_address_space *vmm_get_address_space_of(void *ptr) {
     if ((uintptr_t)ptr < (uintptr_t)ARCH_KERNEL_SPACE_BASE) {
         /* Userspace address */
         co_printf("vmm_get_address_space_of: userspace addresses are not supported yet\n");
-        return NULL;
+        return nullptr;
     }
     /* Kernel image, scratch page, etc... */
-    return NULL;
+    return nullptr;
 }
 
 void vmm_page_fault(void *ptr, bool was_present, bool was_write, bool was_user, void *trapframe) {
@@ -615,19 +615,19 @@ void vmm_page_fault(void *ptr, bool was_present, bool was_write, bool was_user, 
         goto realfault;
     }
     if (page_base == 0) {
-        co_printf("NULL dereference: attempted to %s on page at %p\n", was_write ? "read" : "write", ptr);
+        co_printf("nullptr dereference: attempted to %s on page at %p\n", was_write ? "read" : "write", ptr);
         goto realfault;
     }
 
     /* See if it's uncommited object *****************************************/
     struct vmm_address_space *address_space = vmm_get_address_space_of(page_base);
-    if (address_space == NULL) {
+    if (address_space == nullptr) {
         /* We don't know what this address is. */
         goto nonpresent;
     }
 
     struct uncommited_object *uobject = find_object_in_uncommited(address_space, ptr);
-    if (uobject == NULL) {
+    if (uobject == nullptr) {
         /* Not part of an uncommited object. */
         goto nonpresent;
     }
@@ -680,7 +680,7 @@ bool vmm_random_test(void) {
             allocsizes[i] = (size_t)rand() % MAX_ALLOC_SIZE;
             allocsizes[i] = MAX_ALLOC_SIZE;
             alloc_objects[i] = vmm_alloc(vmm_get_kernel_address_space(), allocsizes[i], MAP_PROT_READ | MAP_PROT_WRITE);
-            if (alloc_objects[i] != NULL) {
+            if (alloc_objects[i] != nullptr) {
                 break;
             }
         }

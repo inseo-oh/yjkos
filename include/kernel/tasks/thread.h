@@ -26,7 +26,7 @@ struct thread {
  * Those init_ parameters are only valid for initial setup.
  * This of course applies to any new thread, but the boot thread is exception: It's thread for already running code.
  *
- * Returns NULL if there's not enough memory.
+ * Returns nullptr if there's not enough memory.
  */
 [[nodiscard]] struct thread *thread_create(size_t init_stacksize, void (*init_mainfunc)(void *), void *init_data);
 void thread_delete(struct thread *thread);

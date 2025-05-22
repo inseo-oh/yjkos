@@ -29,11 +29,11 @@ void trapmanager_register_trap(struct trap_handler *out, int trapnum, void (*cal
     out->data = data;
     list_insert_back(&s_traps[trapnum], &out->node, out);
     out->checksum = calculate_checksum(out);
-    if (out->node.prev != NULL) {
+    if (out->node.prev != nullptr) {
         struct trap_handler *handler = out->node.prev->data;
         handler->checksum = calculate_checksum(handler);
     }
-    if (out->node.next != NULL) {
+    if (out->node.next != nullptr) {
         struct trap_handler *handler = out->node.next->data;
         handler->checksum = calculate_checksum(handler);
     }

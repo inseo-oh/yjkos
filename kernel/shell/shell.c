@@ -42,14 +42,14 @@ static struct list s_programs;
 static int parse_cmd_runprogram(union shellcmd *out, struct smatcher *cmdstr) {
     size_t old_current_index = cmdstr->currentindex;
     int ret = SHELL_EXITCODE_OK;
-    char **argv = NULL;
+    char **argv = nullptr;
     int argc = 0;
     while (1) {
         smatcher_skip_whitespaces(cmdstr);
         if ((cmdstr->currentindex == cmdstr->len) || (smatcher_consume_str_if_match(cmdstr, ";"))) {
             break;
         }
-        char const *str = NULL;
+        char const *str = nullptr;
         size_t len = 0;
         bool matchok = smatcher_consume_word(&str, &len, cmdstr);
         (void)matchok;
@@ -63,11 +63,11 @@ static int parse_cmd_runprogram(union shellcmd *out, struct smatcher *cmdstr) {
         }
         size_t newargvsize = newargc * sizeof(void *);
         argv = heap_realloc(argv, newargvsize, 0);
-        if (argv == NULL) {
+        if (argv == nullptr) {
             goto fail_alloc;
         }
         argv[newargc - 1] = heap_alloc(len + 1, 0);
-        if (argv[newargc - 1] == NULL) {
+        if (argv[newargc - 1] == nullptr) {
             goto fail_alloc;
         }
         vmemcpy(argv[newargc - 1], str, len);
@@ -79,7 +79,7 @@ static int parse_cmd_runprogram(union shellcmd *out, struct smatcher *cmdstr) {
     out->runprogram.argv = argv;
     goto out;
 fail_alloc:
-    if (argv != NULL) {
+    if (argv != nullptr) {
         for (int i = 0; i < argc; i++) {
             heap_free(argv[i]);
         }
@@ -140,8 +140,8 @@ static int cmd_exec(union shellcmd const *cmd) {
     switch (cmd->kind) {
     case CMDKIND_RUNPROGRAM: {
         assert(cmd->runprogram.argc != 0);
-        assert(cmd->runprogram.argv != NULL);
-        struct shell_program *program_to_run = NULL;
+        assert(cmd->runprogram.argv != nullptr);
+        struct shell_program *program_to_run = nullptr;
         LIST_FOREACH(&s_programs, programnode) {
             struct shell_program *program = programnode->data;
             if (kstrcmp(program->name, cmd->runprogram.argv[0]) == 0) {
@@ -149,7 +149,7 @@ static int cmd_exec(union shellcmd const *cmd) {
                 break;
             }
         }
-        if (program_to_run == NULL) {
+        if (program_to_run == nullptr) {
             co_printf("%s: command not found\n", cmd->runprogram.argv[0]);
             return 127;
         }

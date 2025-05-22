@@ -1,7 +1,6 @@
 #include <assert.h>
 #include <kernel/lib/list.h>
 #include <kernel/lib/strutil.h>
-#include <stddef.h>
 
 void list_init(struct list *self) {
     vmemset(self, 0, sizeof(*self));
@@ -11,7 +10,7 @@ void list_insert_front(struct list *list, struct list_node *node, void *data) {
     if (list->front) {
         list->front->prev = node;
     }
-    node->prev = NULL;
+    node->prev = nullptr;
     node->next = list->front;
     node->data = data;
     list->front = node;
@@ -24,7 +23,7 @@ void list_insert_back(struct list *list, struct list_node *node, void *data) {
     if (list->back) {
         list->back->next = node;
     }
-    node->next = NULL;
+    node->next = nullptr;
     node->prev = list->back;
     node->data = data;
     list->back = node;
@@ -62,13 +61,13 @@ void list_insert_before(struct list *list, struct list_node *before, struct list
 struct list_node *list_remove_front(struct list *list) {
     struct list_node *removed = list->front;
     if (!removed) {
-        return NULL;
+        return nullptr;
     }
     list->front = removed->next;
     if (list->front) {
-        list->front->prev = NULL;
+        list->front->prev = nullptr;
     } else {
-        list->back = NULL;
+        list->back = nullptr;
     }
     return removed;
 }
@@ -76,13 +75,13 @@ struct list_node *list_remove_front(struct list *list) {
 struct list_node *list_remove_back(struct list *list) {
     struct list_node *removed = list->back;
     if (!removed) {
-        return NULL;
+        return nullptr;
     }
     list->back = removed->prev;
     if (list->back) {
-        list->back->next = NULL;
+        list->back->next = nullptr;
     } else {
-        list->front = NULL;
+        list->front = nullptr;
     }
     return removed;
 }
@@ -100,15 +99,15 @@ void list_remove_node(struct list *list, struct list_node *node) {
     if (node == list->back) {
         list->back = node->prev;
     }
-    if ((list->front == NULL) || (list->back == NULL)) {
-        list->front = NULL;
-        list->back = NULL;
+    if ((list->front == nullptr) || (list->back == nullptr)) {
+        list->front = nullptr;
+        list->back = nullptr;
     }
 }
 
 void *list_get_data_or_null(struct list_node *node) {
-    if (node == NULL) {
-        return NULL;
+    if (node == nullptr) {
+        return nullptr;
     }
     assert(node->data);
     return node->data;

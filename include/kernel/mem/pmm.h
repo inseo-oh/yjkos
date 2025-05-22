@@ -6,7 +6,7 @@
 
 void pmm_register_mem(PHYSPTR base, size_t page_count);
 /*
- * Returns NULL on failure
+ * Returns nullptr on failure
  */
 PHYSPTR pmm_alloc(size_t *pagecount_inout);
 void pmm_free(PHYSPTR ptr, size_t page_count);

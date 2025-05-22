@@ -14,7 +14,7 @@ void pathreader_init(struct path_reader *out, char const *path) {
         char *nextslash = kstrchr(self->remaining_path, '/');
         char const *name;
         char const *new_remaining_path;
-        if (nextslash == NULL) {
+        if (nextslash == nullptr) {
             name = self->remaining_path;
             new_remaining_path = kstrchr(self->remaining_path, '\0');
         } else {

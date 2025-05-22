@@ -2,10 +2,9 @@
 #include <errno.h>
 #include <kernel/lib/pathreader.h>
 #include <kernel/lib/strutil.h>
-#include <stddef.h>
 
 static bool do_simple(void) {
-    char const *str = NULL;
+    char const *str = nullptr;
     struct path_reader reader;
 
     pathreader_init(&reader, "hello/world");
@@ -19,7 +18,7 @@ static bool do_simple(void) {
 }
 
 static bool do_empty(void) {
-    char const *str = NULL;
+    char const *str = nullptr;
     struct path_reader reader;
 
     pathreader_init(&reader, "");
@@ -29,7 +28,7 @@ static bool do_empty(void) {
 }
 
 static bool do_empty_segments(void) {
-    char const *str = NULL;
+    char const *str = nullptr;
     struct path_reader reader;
 
     pathreader_init(&reader, "hello//world");
@@ -43,7 +42,7 @@ static bool do_empty_segments(void) {
 }
 
 static bool do_trailing_slash(void) {
-    char const *str = NULL;
+    char const *str = nullptr;
     struct path_reader reader;
 
     pathreader_init(&reader, "hello/world/");

@@ -209,7 +209,7 @@ out:
 }
 
 [[nodiscard]] int ps2port_register(struct ps2port *port_out, struct stream_ops const *ops, void *data) {
-    port_out->ops = NULL;
+    port_out->ops = nullptr;
     port_out->stream.ops = ops;
     port_out->stream.data = data;
     assert(port_out->stream.ops->read == ps2port_stream_op_read);
@@ -230,7 +230,7 @@ void ps2_init_devices(void) {
 }
 
 void ps2port_received_byte(struct ps2port *port, uint8_t byte) {
-    if (port->ops == NULL) {
+    if (port->ops == nullptr) {
         int ret = QUEUE_ENQUEUE(&port->recvqueue, &byte);
         if (ret < 0) {
             iodev_printf(&port->device, "failed to enqueue data from the device (error %d)\n", ret);

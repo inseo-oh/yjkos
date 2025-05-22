@@ -22,13 +22,13 @@ const struct kobject_ops KOBJECT_OPS_EMPTY;
 
 int kobject_create(struct kobject **obj_out, char const *id, size_t data_size, struct kobject_ops const *ops) {
     struct kobject *obj = heap_alloc(sizeof(*obj) + data_size, HEAP_FLAG_ZEROMEMORY);
-    if (obj == NULL) {
+    if (obj == nullptr) {
         goto fail;
     }
-    if (id != NULL) {
+    if (id != nullptr) {
         /* Use provided ID. In this case, ID cannot start with 0(reserved for numeric IDs) */
         obj->id = strdup(id);
-        if (obj->id == NULL) {
+        if (obj->id == nullptr) {
             goto fail;
         }
         if ((obj->id[0] == '\0') || (('0' <= obj->id[0]) && (obj->id[0] <= '9'))) {
@@ -41,7 +41,7 @@ int kobject_create(struct kobject **obj_out, char const *id, size_t data_size, s
          */
         uint32_t id = (uintptr_t)obj;
         obj->id = heap_calloc(sizeof(char), 11, HEAP_FLAG_ZEROMEMORY);
-        if (obj->id == NULL) {
+        if (obj->id == nullptr) {
             goto fail;
         }
         obj->id[0] = '0' + ((id / 1'000'000'000) % 10);
@@ -60,7 +60,7 @@ int kobject_create(struct kobject **obj_out, char const *id, size_t data_size, s
     obj->ref_count = 1;
     goto out;
 fail:
-    if (obj != NULL) {
+    if (obj != nullptr) {
         heap_free(obj->id);
     }
     heap_free(obj);
@@ -69,8 +69,8 @@ out:
     return 0;
 }
 struct kobject *kobject_find_direct_child(struct kobject *obj, char const *id) {
-    if (obj == NULL) {
-        return NULL;
+    if (obj == nullptr) {
+        return nullptr;
     }
     LIST_FOREACH(&obj->child_list, child_node) {
         if (child_node == &obj->list_node) {
@@ -80,32 +80,32 @@ struct kobject *kobject_find_direct_child(struct kobject *obj, char const *id) {
             }
         }
     };
-    return NULL;
+    return nullptr;
 }
 int kobject_set_parent(struct kobject *obj, struct kobject *parent) {
-    if ((obj == NULL) || (obj->parent == parent)) {
+    if ((obj == nullptr) || (obj->parent == parent)) {
         return 0;
     }
     /* Remove from old parent *************************************************/
-    if (obj->parent != NULL) {
+    if (obj->parent != nullptr) {
         LIST_FOREACH(&obj->parent->child_list, child_node) {
             if (child_node == &obj->list_node) {
                 list_remove_node(&obj->parent->child_list, &obj->list_node);
             }
         };
     }
-    if (parent == NULL) {
-        obj->parent = NULL;
+    if (parent == nullptr) {
+        obj->parent = nullptr;
         return 0;
     }
     /* Make sure the ID is unique within the parent ***************************/
-    if (kobject_find_direct_child(parent, obj->id) != NULL) {
+    if (kobject_find_direct_child(parent, obj->id) != nullptr) {
         return -EEXIST;
     }
     /* Check if parent is child of the object *********************************/
     {
         struct kobject *curr_parent = parent->parent;
-        while (curr_parent != NULL) {
+        while (curr_parent != nullptr) {
             if (curr_parent == obj) {
                 return -EEXIST;
             }
@@ -122,7 +122,7 @@ struct kobject *kobject_get_parent(struct kobject *obj) {
     return obj->parent;
 }
 void kobject_ref(struct kobject *obj) {
-    if (obj == NULL) {
+    if (obj == nullptr) {
         return;
     }
     obj->ref_count++;
@@ -130,7 +130,7 @@ void kobject_ref(struct kobject *obj) {
 void kobject_unref(struct kobject *obj) {
     [[maybe_unused]] int ret_unused;
 
-    if (obj == NULL) {
+    if (obj == nullptr) {
         return;
     }
     obj->ref_count--;
@@ -142,8 +142,8 @@ void kobject_unref(struct kobject *obj) {
         struct kobject *child = list_get_data_or_null(child_node);
         kobject_unref(child);
     }
-    ret_unused = kobject_set_parent(obj, NULL);
-    if (obj->ops->deinit != NULL) {
+    ret_unused = kobject_set_parent(obj, nullptr);
+    if (obj->ops->deinit != nullptr) {
         obj->ops->deinit(obj);
     }
 
@@ -157,14 +157,14 @@ char const *kobject_get_id(struct kobject *obj) {
 }
 
 static void print_tree(struct kobject *obj, int indent) {
-    if (obj == NULL) {
+    if (obj == nullptr) {
         return;
     }
     for (int i = 0; i < indent; i++) {
         co_put_char(' ');
     }
     co_printf("%s:", obj->id);
-    if (obj->child_list.front == NULL) {
+    if (obj->child_list.front == nullptr) {
         co_printf(" No children objects", obj->id);
     }
     co_printf("\n");

@@ -127,7 +127,7 @@ static size_t block_size_to_pagepool_level(struct pagepool const *pool, size_t s
 }
 
 /*
- * Returns NULL on allocation failure
+ * Returns nullptr on allocation failure
  */
 static PHYSPTR alloc_from_pool(struct pagepool *pool, size_t *page_count_inout) {
     assert(*page_count_inout != 0);
@@ -332,7 +332,7 @@ static bool test_pagepool(struct pagepool *pool) {
 
 /* TODO: Add this to the PMM test code */
 void pmm_test_pagepools(void) {
-    for (struct pagepool *pool = s_firstpool; pool != NULL; pool = pool->nextpool) {
+    for (struct pagepool *pool = s_firstpool; pool != nullptr; pool = pool->nextpool) {
         test_pagepool(pool);
     }
 }
@@ -351,7 +351,7 @@ void pmm_register_mem(PHYSPTR base, size_t page_count) {
         size_t bitmapsize = word_count * sizeof(UINT);
         size_t metadatasize = bitmapsize + sizeof(struct pagepool);
         struct pagepool *pool = heap_alloc(metadatasize, HEAP_FLAG_ZEROMEMORY);
-        if (pool == NULL) {
+        if (pool == nullptr) {
             co_printf("pmm: unable to alloate metadata memory for managing %d pages\n", poolpage_count);
             continue;
         }
@@ -382,7 +382,7 @@ PHYSPTR pmm_alloc(size_t *page_count_inout) {
     assert(*page_count_inout != 0);
     bool prev_interrupts = arch_irq_disable();
     PHYSPTR result = PHYSICALPTR_NULL;
-    for (struct pagepool *pool = s_firstpool; pool != NULL; pool = pool->nextpool) {
+    for (struct pagepool *pool = s_firstpool; pool != nullptr; pool = pool->nextpool) {
         size_t newpage_count = *page_count_inout;
         result = alloc_from_pool(pool, &newpage_count);
         if (result != PHYSICALPTR_NULL) {
@@ -399,7 +399,7 @@ void pmm_free(PHYSPTR ptr, size_t page_count) {
         return;
     }
     bool prev_interrupts = arch_irq_disable();
-    for (struct pagepool *pool = s_firstpool; pool != NULL; pool = pool->nextpool) {
+    for (struct pagepool *pool = s_firstpool; pool != nullptr; pool = pool->nextpool) {
         uintptr_t pool_data_start = pool->base_addr;
         uintptr_t pool_data_end = pool_data_start + (ARCH_PAGESIZE * pool->page_count - 1);
         if ((ptr < pool_data_start) || (pool_data_end < ptr)) {
@@ -419,7 +419,7 @@ badptr:
 
 size_t pmm_get_total_mem_size(void) {
     size_t page_count = 0;
-    for (struct pagepool *pool = s_firstpool; pool != NULL; pool = pool->nextpool) {
+    for (struct pagepool *pool = s_firstpool; pool != nullptr; pool = pool->nextpool) {
         page_count += pool->page_count;
     }
     assert(page_count <= (SIZE_MAX / ARCH_PAGESIZE));
@@ -435,7 +435,7 @@ bool pmm_page_pool_test_random(void) {
     PHYSPTR allocptrs[RAND_TEST_ALLOC_COUNT];
 
     size_t maxpage_count = 0;
-    for (struct pagepool *pool = s_firstpool; pool != NULL; pool = pool->nextpool) {
+    for (struct pagepool *pool = s_firstpool; pool != nullptr; pool = pool->nextpool) {
         if (maxpage_count < pool->page_count) {
             maxpage_count = pool->page_count;
         }

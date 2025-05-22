@@ -5,7 +5,6 @@
 #include <kernel/io/co.h>
 #include <kernel/mem/vmm.h>
 #include <kernel/trapmanager.h>
-#include <stddef.h>
 #include <stdint.h>
 
 static void dump_trapframe(struct trap_frame *self) {
@@ -46,10 +45,10 @@ void archi586_exceptions_init(void) {
     for (int i = 0; i < 32; i++) {
         switch (i) {
         case 14:
-            trapmanager_register_trap(&s_traphandler[i], i, pagefaulthandler, NULL);
+            trapmanager_register_trap(&s_traphandler[i], i, pagefaulthandler, nullptr);
             break;
         default:
-            trapmanager_register_trap(&s_traphandler[i], i, defaulthandler, NULL);
+            trapmanager_register_trap(&s_traphandler[i], i, defaulthandler, nullptr);
         }
     }
 }

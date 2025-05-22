@@ -84,13 +84,13 @@ static int program_main(int argc, char *argv[]) {
     bool notests = true;
     for (int i = optind; i < argc; i++) {
         notests = false;
-        struct test_group const *group = NULL;
+        struct test_group const *group = nullptr;
         for (size_t j = 0; j < sizeof(TEST_GROUPS) / sizeof(void *); j++) {
             if (kstrcmp(argv[i], TEST_GROUPS[j]->name) == 0) {
                 group = TEST_GROUPS[j];
             }
         }
-        if (group == NULL) {
+        if (group == nullptr) {
             co_printf("No testgroup named %s exists - Run `runtest -l` for testgroup list\n", argv[i]);
             return 1;
         }

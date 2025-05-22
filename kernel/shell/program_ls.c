@@ -92,12 +92,12 @@ static bool should_hide_dirent(struct dirent *ent, struct opts const *opts) {
 }
 
 static int collect_entries(struct entry **entries_out, size_t *entries_len_out, char const *path, struct opts const *opts) {
-    DIR *dir = NULL;
+    DIR *dir = nullptr;
     int ret = vfs_open_directory(&dir, path);
     if (ret < 0) {
         return ret;
     }
-    struct entry *entries = NULL;
+    struct entry *entries = nullptr;
     size_t entries_len = 0;
     while (1) {
         struct dirent ent;
@@ -112,7 +112,7 @@ static int collect_entries(struct entry **entries_out, size_t *entries_len_out, 
             goto oom;
         }
         void *new_entries = heap_realloc_array(entries, sizeof(*entries), entries_len + 1, 0);
-        if (new_entries == NULL) {
+        if (new_entries == nullptr) {
             goto oom;
         }
         entries = new_entries;
@@ -120,7 +120,7 @@ static int collect_entries(struct entry **entries_out, size_t *entries_len_out, 
         struct entry *dest = &entries[entries_len - 1];
         vmemset(dest, 0, sizeof(*dest));
         dest->name = strdup(ent.d_name);
-        if (dest->name == NULL) {
+        if (dest->name == nullptr) {
             goto oom;
         }
     }
@@ -141,7 +141,7 @@ out:
 }
 
 static void show_dir(char const *progname, char const *path, struct opts const *opts) {
-    struct entry *entries = NULL;
+    struct entry *entries = nullptr;
     size_t entries_len = 0;
     int ret = collect_entries(&entries, &entries_len, path, opts);
     if (ret < 0) {

@@ -8,7 +8,7 @@ struct stream;
 #define CON_BACKSPACE   '\x7f'
 #define CON_DELETE      '\x08'
 
-/* For Co~Set~Console functions, pass NULL to disable the console. */
+/* For Co~Set~Console functions, pass nullptr to disable the console. */
 void co_set_primary_console(struct stream *device);
 void co_set_debug_console(struct stream *device);
 void co_ask_primary_console(void);

@@ -49,7 +49,7 @@ struct type_descriptor {
 #define UBSAN_KIND_UNKNOWN 0xffff
 
 static void print_type_descriptor(struct type_descriptor const *desc) {
-    if (desc == NULL) {
+    if (desc == nullptr) {
         co_printf("<no info>");
         return;
     }

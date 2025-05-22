@@ -20,7 +20,7 @@ static struct vt100tty_char *char_at(struct vt100tty *self, int row, int column)
 static void advanceline(struct vt100tty *self, bool wastextoverflow) {
     self->currentcolumn = 0;
     self->currentrow++;
-    bool hasscroll = self->ops->scroll != NULL;
+    bool hasscroll = self->ops->scroll != nullptr;
     while (self->rows <= self->currentrow) {
         for (int srcline = 1; srcline < self->rows; srcline++) {
             int destline = srcline - 1;

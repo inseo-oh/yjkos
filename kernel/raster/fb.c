@@ -52,7 +52,7 @@ static void include_damage(int from, int to) {
 }
 
 void fb_draw_pixel(int x, int y, FB_COLOR color) {
-    if (s_backbuffer == NULL) {
+    if (s_backbuffer == nullptr) {
         return;
     }
     size_t baseoffset = (y * s_width) + x;
@@ -188,7 +188,7 @@ static void update_null(void) {}
 void (*fb_update)(void) = update_null;
 
 static void update32(void) {
-    if ((s_backbuffer == NULL) || (s_damage_first_y < 0)) {
+    if ((s_backbuffer == nullptr) || (s_damage_first_y < 0)) {
         return;
     }
     if (CONFIG_SHOW_DAMAGE) {
@@ -224,7 +224,7 @@ static void update32(void) {
 }
 
 static void update24(void) {
-    if ((s_backbuffer == NULL) || (s_damage_first_y < 0)) {
+    if ((s_backbuffer == nullptr) || (s_damage_first_y < 0)) {
         return;
     }
     if (CONFIG_SHOW_DAMAGE) {
@@ -268,7 +268,7 @@ static void update24(void) {
 }
 
 static void update16(void) {
-    if ((s_backbuffer == NULL) || (s_damage_first_y < 0)) {
+    if ((s_backbuffer == nullptr) || (s_damage_first_y < 0)) {
         return;
     }
     if (CONFIG_SHOW_DAMAGE) {
@@ -306,7 +306,7 @@ static void update16(void) {
 }
 
 static void update8(void) {
-    if ((s_backbuffer == NULL) || (s_damage_first_y < 0)) {
+    if ((s_backbuffer == nullptr) || (s_damage_first_y < 0)) {
         return;
     }
     FB_COLOR *srcpixel = &s_backbuffer[s_damage_first_y * s_width];
@@ -342,7 +342,7 @@ static void update8(void) {
 }
 
 static void update1(void) {
-    if ((s_backbuffer == NULL) || (s_damage_first_y < 0)) {
+    if ((s_backbuffer == nullptr) || (s_damage_first_y < 0)) {
         return;
     }
     FB_COLOR *srcpixel = &s_backbuffer[s_damage_first_y * s_width];
@@ -393,7 +393,7 @@ static void update1(void) {
 
 void fb_scroll(int scrolllen) {
     assert(0 < scrolllen);
-    if (s_backbuffer == NULL) {
+    if (s_backbuffer == nullptr) {
         return;
     }
     {
@@ -442,7 +442,7 @@ void fb_init_rgb(
     s_height = height;
     s_fbpitch = pitch;
     s_backbuffer = heap_alloc(width * height * sizeof(*s_backbuffer), 0);
-    if (s_backbuffer == NULL) {
+    if (s_backbuffer == nullptr) {
         co_printf("fb: not enough memory to allocate buffer\n");
         goto fail;
     }
@@ -478,7 +478,7 @@ void fb_init_indexed(uint8_t *palette, int colorcount, PHYSPTR framebufferbase, 
     s_height = height;
     s_fbpitch = pitch;
     s_backbuffer = heap_alloc(width * height * sizeof(*s_backbuffer), 0);
-    if (s_backbuffer == NULL) {
+    if (s_backbuffer == nullptr) {
         co_printf("fb: not enough memory to allocate buffer\n");
         goto fail;
     }

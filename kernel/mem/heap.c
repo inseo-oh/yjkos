@@ -78,7 +78,7 @@ void __heap_check_overflow(struct source_location srcloc) {
     LIST_FOREACH(&s_alloc_list, allocnode) {
         bool corrupted = false;
         struct alloc_header *alloc = allocnode->data;
-        if (alloc == NULL) {
+        if (alloc == nullptr) {
             co_printf("heap: list node pointer is null\n");
             corrupted = true;
             goto checkend;
@@ -113,11 +113,11 @@ void __heap_check_overflow(struct source_location srcloc) {
 static void *alloc_from_pool(struct pool_header *self, size_t size) {
     ASSERT_IRQ_DISABLED();
     if (size == 0) {
-        return NULL;
+        return nullptr;
     }
-    struct alloc_header *alloc = NULL;
+    struct alloc_header *alloc = nullptr;
     if ((SIZE_MAX - sizeof(struct alloc_header)) < size) {
-        return NULL;
+        return nullptr;
     }
     size_t actual_size = actual_alloc_size(size);
     size_t block_count = size_to_blocks(actual_size, BLOCK_SIZE);
@@ -137,8 +137,8 @@ static void *alloc_from_pool(struct pool_header *self, size_t size) {
     alloc = (struct alloc_header *)((char *)self->blockpool + alloc_off);
     self->usedblock_count += block_count;
 out:
-    if (alloc == NULL) {
-        return NULL;
+    if (alloc == nullptr) {
+        return nullptr;
     }
     alloc->pool = self;
     alloc->block_count = block_count;
@@ -157,8 +157,8 @@ out:
 }
 
 static struct alloc_header *alloc_header_of(void *ptr) {
-    if ((ptr == NULL) || (!is_aligned((uintptr_t)ptr, alignof(max_align_t))) || ((uintptr_t)ptr < offsetof(struct alloc_header, data))) {
-        return NULL;
+    if ((ptr == nullptr) || (!is_aligned((uintptr_t)ptr, alignof(max_align_t))) || ((uintptr_t)ptr < offsetof(struct alloc_header, data))) {
+        return nullptr;
     }
     return (struct alloc_header *)(void *)((char *)ptr - offsetof(struct alloc_header, data));
 }
@@ -167,7 +167,7 @@ static struct alloc_header *alloc_header_of(void *ptr) {
     uintptr_t pool_start_addr = (uintptr_t)self->blockpool;
     uintptr_t pool_end_addr = pool_start_addr + ((BLOCK_SIZE * self->block_count) - 1);
     size_t byte_count = byte_count_for_block_count(alloc_block_count);
-    char *alloc = NULL;
+    char *alloc = nullptr;
     if (type == 0) {
         alloc = alloc_from_pool(self, byte_count);
         if (expected_ptr != alloc) {
@@ -219,7 +219,7 @@ failed_with_alloc_header:
     co_printf(" +-- data start:     %p\n", alloc_header->data);
 failed:
     heap_free(alloc);
-    return NULL;
+    return nullptr;
 }
 
 [[nodiscard]] static bool test_heap_alloc_and_fill(struct pool_header *self, size_t alloc_count, size_t alloc_block_count) {
@@ -242,7 +242,7 @@ failed:
         }
         for (size_t i = 0; i < alloc_count; i++) {
             char *alloc = test_heap_alloc(self, alloc_block_count, type, expected_bptr);
-            if (alloc == NULL) {
+            if (alloc == nullptr) {
                 goto failed;
             }
             if (type == 0) {
@@ -386,7 +386,7 @@ static pool_header_t *createpool(size_t minmemsize) {
         } else {
             pool = pmalloc_alloc(&page_count);
             if (!pool) {
-                return NULL;
+                return nullptr;
             }
         }
  
@@ -409,9 +409,9 @@ static pool_header_t *createpool(size_t minmemsize) {
         pmalloc_free(pool, page_count);
         page_count++;
     }
-    /* If it is initial pool, and resulting pool block count is not enough, return NULL; */
+    /* If it is initial pool, and resulting pool block count is not enough, return nullptr; */
     if (!s_initialheapinitialized && (poolblock_count < size_to_blocks(minmemsize, BLOCK_SIZE))) {
-        return NULL;
+        return nullptr;
     }
 
 
@@ -511,23 +511,23 @@ void *heap_alloc(size_t size, uint8_t flags) {
     size_t actualblock_count = size_to_blocks(actualsize, BLOCK_SIZE);
 
     if (size == 0) {
-        return NULL;
+        return nullptr;
     }
     if ((SIZE_MAX - sizeof(struct alloc_header)) < size) {
-        return NULL;
+        return nullptr;
     }
     bool prev_interrupts = arch_irq_disable();
     HEAP_CHECKOVERFLOW();
     if (!s_initial_heap_initialized) {
         add_mem(s_initial_heap_memory, sizeof(s_initial_heap_memory));
     }
-    void *result = NULL;
+    void *result = nullptr;
     if (actualblock_count < s_free_block_count) {
         LIST_FOREACH(&s_heap_pool_list, poolnode) {
             struct pool_header *pool = poolnode->data;
-            assert(pool != NULL);
+            assert(pool != nullptr);
             result = alloc_from_pool(pool, size);
-            if (result != NULL) {
+            if (result != nullptr) {
                 break;
             }
         }
@@ -541,14 +541,14 @@ void *heap_alloc(size_t size, uint8_t flags) {
 }
 
 void heap_free(void *ptr) {
-    if (ptr == NULL) {
+    if (ptr == nullptr) {
         return;
     }
     bool prev_interrupts = arch_irq_disable();
     struct alloc_header *alloc = alloc_header_of(ptr);
     HEAP_CHECKOVERFLOW();
     list_remove_node(&s_alloc_list, &alloc->node);
-    if (alloc == NULL) {
+    if (alloc == nullptr) {
         goto die;
     }
     if (!alloc->pool) {
@@ -581,13 +581,13 @@ die:
 }
 
 void *heap_realloc(void *ptr, size_t newsize, uint8_t flags) {
-    if (ptr == NULL) {
+    if (ptr == nullptr) {
         return heap_alloc(newsize, flags);
     }
     bool prev_interrupts = arch_irq_disable();
     struct alloc_header *alloc = alloc_header_of(ptr);
     HEAP_CHECKOVERFLOW();
-    if (alloc == NULL) {
+    if (alloc == nullptr) {
         goto die;
     }
     size_t copysize = 0;
@@ -597,7 +597,7 @@ void *heap_realloc(void *ptr, size_t newsize, uint8_t flags) {
         copysize = alloc->size;
     }
     void *newmem = heap_alloc(newsize, flags);
-    if (newmem == NULL) {
+    if (newmem == nullptr) {
         goto out;
     }
     vmemcpy(newmem, ptr, copysize);
@@ -611,14 +611,14 @@ die:
 
 void *heap_calloc(size_t size, size_t elements, uint8_t flags) {
     if ((SIZE_MAX / size) < elements) {
-        return NULL;
+        return nullptr;
     }
     return heap_alloc(size * elements, flags);
 }
 
 void *heap_realloc_array(void *ptr, size_t newsize, size_t newelements, uint8_t flags) {
     if ((SIZE_MAX / newsize) < newelements) {
-        return NULL;
+        return nullptr;
     }
     return heap_realloc(ptr, newsize * newelements, flags);
 }
@@ -627,13 +627,13 @@ static size_t const MAXEXPANDSIZE = 16 * 1024 * 1024;
 
 void heap_expand(void) {
     bool prev_interrupts = arch_irq_disable();
-    struct vmm_object *object = NULL;
+    struct vmm_object *object = nullptr;
     size_t heapsize = pmm_get_total_mem_size();
     if (MAXEXPANDSIZE < heapsize) {
         heapsize = MAXEXPANDSIZE;
     }
     object = vmm_alloc(vmm_get_kernel_address_space(), heapsize, MAP_PROT_READ | MAP_PROT_WRITE);
-    if (object == NULL) {
+    if (object == nullptr) {
         co_printf("not enough memory to expand heap\n");
         goto out;
     }

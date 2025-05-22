@@ -201,7 +201,7 @@ static void release_all_keys_except(KBD_KEY except) {
 }
 
 static struct queue *event_queue(void) {
-    if (s_event_queue.buf == NULL) {
+    if (s_event_queue.buf == nullptr) {
         QUEUE_INIT_FOR_ARRAY(&s_event_queue, s_event_queue_buf);
     }
     return &s_event_queue;

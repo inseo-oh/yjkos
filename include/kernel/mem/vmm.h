@@ -38,7 +38,7 @@ static PHYSPTR const VMM_PHYSADDR_NOMAP = ~0;
 [[nodiscard]] size_t vmm_get_object_size(struct vmm_object *object);
 
 /*
- * Returns NULL on allocation failure
+ * Returns nullptr on allocation failure
  */
 [[nodiscard]] bool vmm_init_address_space(struct vmm_address_space *out, void *start, void *end, bool is_user);
 void vmm_deinit_address_space(struct vmm_address_space *self);
@@ -71,7 +71,7 @@ void *vmm_ezmap(PHYSPTR base, size_t size);
 void vmm_free(struct vmm_object *object);
 struct vmm_address_space *vmm_get_kernel_address_space(void);
 /*
- * Note that this will return NULL if it points to kernel area but outside of kernel VM.
+ * Note that this will return nullptr if it points to kernel area but outside of kernel VM.
  * Those areas include kernel .text and .data, since those areas are never meant to be touched by VM code.
  */
 struct vmm_address_space *vmm_get_address_space_of(void *ptr);

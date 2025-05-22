@@ -57,7 +57,7 @@ static bool do_skip_whitespaces(void) {
 }
 
 static bool do_consume_word(void) {
-    char const *str = NULL;
+    char const *str = nullptr;
     size_t len = 0;
     struct smatcher smatcher;
     smatcher_init_with_len(&smatcher, "hello worldpeopleguy", 17);

@@ -4,7 +4,6 @@
 #include <kernel/tasks/mutex.h>
 #include <kernel/tasks/sched.h>
 #include <stdatomic.h>
-#include <stddef.h>
 
 void mutex_init(struct mutex *out) {
     vmemset(out, 0, sizeof(*out));
@@ -30,8 +29,8 @@ void __mutex_lock(struct mutex *self, struct source_location loc) {
 }
 
 void mutex_unlock(struct mutex *self) {
-    self->locksource.filename = NULL;
-    self->locksource.function = NULL;
+    self->locksource.filename = nullptr;
+    self->locksource.function = nullptr;
     self->locksource.line = 0;
     atomic_store_explicit(&self->locked, false, memory_order_release);
 }

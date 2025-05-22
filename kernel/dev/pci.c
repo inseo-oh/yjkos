@@ -255,5 +255,5 @@ static void print_callback(PCIPATH path, uint16_t venid, uint16_t devid, uint8_t
 }
 
 void pci_print_bus(void) {
-    pci_probe_bus(print_callback, NULL);
+    pci_probe_bus(print_callback, nullptr);
 }

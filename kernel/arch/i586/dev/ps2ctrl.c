@@ -176,7 +176,7 @@ static struct stream_ops const OPS = {
     assert(port_index < 2);
     int ret = 0;
     struct portcontext *port = heap_alloc(sizeof(*port), HEAP_FLAG_ZEROMEMORY);
-    if (port == NULL) {
+    if (port == nullptr) {
         goto fail;
     }
     port->portidx = port_index;

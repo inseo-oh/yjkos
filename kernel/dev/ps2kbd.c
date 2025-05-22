@@ -314,7 +314,7 @@ static void check_pause_release(struct ps2port *port) {
 static void ack_received(struct ps2port *port) {
     struct kbdcontext *ctx = port->device_data;
     struct list_node *cmd_node = ctx->cmd_queue.back;
-    if (cmd_node == NULL) {
+    if (cmd_node == nullptr) {
         iodev_printf(&ctx->device.iodev, "received ACK, but there are no commands\n");
         return;
     }
@@ -339,7 +339,7 @@ static void ack_received(struct ps2port *port) {
 static void resend_received(struct ps2port *port) {
     struct kbdcontext *ctx = port->device_data;
     struct list_node *cmd_node = ctx->cmd_queue.back;
-    if (cmd_node == NULL) {
+    if (cmd_node == nullptr) {
         iodev_printf(&ctx->device.iodev, "received RESEND, but there are no commands\n");
         return;
     }
@@ -365,7 +365,7 @@ static void resend_received(struct ps2port *port) {
 static void echo_received(struct ps2port *port) {
     struct kbdcontext *ctx = port->device_data;
     struct list_node *cmd_node = ctx->cmd_queue.back;
-    if (cmd_node == NULL) {
+    if (cmd_node == nullptr) {
         iodev_printf(&ctx->device.iodev, "received ECHO, but there are no commands\n");
         return;
     }
@@ -598,7 +598,7 @@ out:
 }
 
 /*
- * If the command sends back additional result bytes, set `result_out` non-NULL
+ * If the command sends back additional result bytes, set `result_out` non-nullptr
  * value where the result will be stored.
  */
 [[nodiscard]] static int request_cmd(uint8_t *result_out, struct ps2port *port, uint8_t cmdbyte, bool noretry, bool async) {
@@ -608,7 +608,7 @@ out:
     /* async mode cannot be used to receive values */
     assert(!async || (async && !result_out));
     struct cmd_context *cmd = heap_alloc(sizeof(*cmd), HEAP_FLAG_ZEROMEMORY);
-    if (cmd == NULL) {
+    if (cmd == nullptr) {
         ret = -ENOMEM;
         goto fail;
     }
@@ -616,7 +616,7 @@ out:
     cmd->resendcount = MAX_RESEND_COUNT;
     cmd->noretry = noretry;
     cmd->async = async;
-    bool isqueueempty = ctx->cmd_queue.front == NULL;
+    bool isqueueempty = ctx->cmd_queue.front == nullptr;
     cmd->state = CMDSTATE_QUEUED;
     if (result_out) {
         cmd->needdata = true;
@@ -651,7 +651,7 @@ out:
             goto fail;
         }
         if (cmd->needdata) {
-            assert(result_out != NULL);
+            assert(result_out != nullptr);
             *result_out = cmd->responsedata;
         }
         heap_free(cmd);
@@ -664,7 +664,7 @@ out:
 }
 
 [[nodiscard]] static int echo(struct ps2port *port, bool async) {
-    return request_cmd(NULL, port, CMD_ECHO, false, async);
+    return request_cmd(nullptr, port, CMD_ECHO, false, async);
 }
 
 static uint8_t const LED_SCROLL = 1 << 0;
@@ -673,11 +673,11 @@ static uint8_t const LED_CAPS = 1 << 2;
 
 [[nodiscard]] static int setledstate(struct ps2port *port, uint8_t leds, bool async) {
     int ret = 0;
-    ret = request_cmd(NULL, port, CMD_SETLEDS, false, async);
+    ret = request_cmd(nullptr, port, CMD_SETLEDS, false, async);
     if (ret < 0) {
         goto fail;
     }
-    ret = request_cmd(NULL, port, leds, true, async);
+    ret = request_cmd(nullptr, port, leds, true, async);
     if (ret < 0) {
         goto fail;
     }
@@ -688,9 +688,9 @@ out:
 }
 
 [[nodiscard]] static int get_scancode_set(uint8_t *result_out, struct ps2port *port) {
-    assert(result_out != NULL);
+    assert(result_out != nullptr);
     int ret = 0;
-    ret = request_cmd(NULL, port, CMD_SCANCODESET, false, false);
+    ret = request_cmd(nullptr, port, CMD_SCANCODESET, false, false);
     if (ret < 0) {
         goto fail;
     }
@@ -707,11 +707,11 @@ out:
 [[nodiscard]] static int set_scancode_set(struct ps2port *port, uint8_t set, bool async) {
     assert(set != 0);
     int ret = 0;
-    ret = request_cmd(NULL, port, CMD_SCANCODESET, false, async);
+    ret = request_cmd(nullptr, port, CMD_SCANCODESET, false, async);
     if (ret < 0) {
         goto fail;
     }
-    ret = request_cmd(NULL, port, set, true, async);
+    ret = request_cmd(nullptr, port, set, true, async);
     if (ret < 0) {
         goto fail;
     }
@@ -747,7 +747,7 @@ static struct ps2port_ops const PS2_OPS = {
 [[nodiscard]] int ps2kbd_init(struct ps2port *port) {
     int ret = 0;
     struct kbdcontext *ctx = heap_alloc(sizeof(*ctx), HEAP_FLAG_ZEROMEMORY);
-    if (ctx == NULL) {
+    if (ctx == nullptr) {
         ret = -ENOMEM;
         goto fail;
     }

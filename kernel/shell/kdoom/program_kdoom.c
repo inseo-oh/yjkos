@@ -50,7 +50,7 @@ void __fixdfsi(void) {
 static void *dmalloc(int size) {
     size_t finalsize = size * 2;
     void *ptr = heap_alloc(finalsize, 0);
-    if (ptr == NULL) {
+    if (ptr == nullptr) {
         co_printf("[kdoom] not enough memory (Requested %d bytes)\n", size);
     }
     return ptr;
@@ -77,18 +77,18 @@ static char *dgetenv(char const *env) {
     if (strcmp(env, "HOME") == 0) {
         return "/";
     }
-    return NULL;
+    return nullptr;
 }
 
 static void *dopen(const char *filename, const char *mode) {
     if (mode[0] == 'w') {
-        return NULL;
+        return nullptr;
     }
     struct file *fd;
     int ret = vfs_open_file(&fd, filename, 0);
     if (ret < 0) {
         co_printf("[kdoom] failed to open file %s (error %d)\n", filename, ret);
-        return NULL;
+        return nullptr;
     }
     co_printf("[kdoom] opened file %s (fd %p)\n", filename, fd);
     (void)mode;
@@ -96,7 +96,7 @@ static void *dopen(const char *filename, const char *mode) {
 }
 
 static void dclose(void *handle) {
-    if (handle == NULL) {
+    if (handle == nullptr) {
         return;
     }
     vfs_close_file(handle);
