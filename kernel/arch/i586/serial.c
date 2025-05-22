@@ -1,6 +1,8 @@
 #include "serial.h"
 #include "ioport.h"
+#include "kernel/lib/queue.h"
 #include "pic.h"
+#include <assert.h>
 #include <errno.h>
 #include <kernel/arch/interrupts.h>
 #include <kernel/arch/iodelay.h>
@@ -123,35 +125,65 @@ static void write_dl(struct archi586_serial *self, uint16_t dl) {
     write_reg(self, REG_DLH, dl >> 8);
 }
 
+static bool should_use_irq(struct archi586_serial *self) {
+    return self->use_irq && arch_irq_are_enabled();
+}
+
 static void write_data(struct archi586_serial *self, uint8_t val) {
     clear_dlab(self);
     write_reg(self, REG_DATA, val);
 }
 
-uint8_t readdata(struct archi586_serial *self) {
+static uint8_t read_data(struct archi586_serial *self) {
     clear_dlab(self);
     return read_reg(self, REG_DATA);
 }
 
-static void wait_ready_to_send(struct archi586_serial *self) {
-    if (!self->useirq || !arch_irq_are_enabled()) {
-        while (!(read_reg(self, REG_LSR) & LSR_FLAG_TX_HOLDING_REG_EMPTY)) {
-        }
-    } else {
-        while (self->txint == false) {
-        }
-        self->txint = false;
+static bool is_ready_to_send(struct archi586_serial *self) {
+    return !!(read_reg(self, REG_LSR) & LSR_FLAG_TX_HOLDING_REG_EMPTY);
+}
+static void wait_lsr_ready_to_send(struct archi586_serial *self) {
+    while (!is_ready_to_send(self)) {
+    }
+}
+static bool is_ready_to_recv(struct archi586_serial *self) {
+    return !!(read_reg(self, REG_LSR) & LSR_FLAG_DATA_READY);
+}
+static void wait_lsr_ready_to_recv(struct archi586_serial *self) {
+    while (!is_ready_to_recv(self)) {
     }
 }
 
-static void wait_ready_to_recv(struct archi586_serial *self) {
-    if (!self->useirq || !arch_irq_are_enabled()) {
-        while (!(read_reg(self, REG_LSR) & LSR_FLAG_DATA_READY)) {
+static void wait_and_send(struct archi586_serial *self, char ch) {
+    if (!is_ready_to_send(self) && should_use_irq(self)) {
+        while (1) {
+            ARCH_IRQSTATE prev_irq = arch_irq_disable();
+            bool ok = QUEUE_ENQUEUE(&self->tx_queue, &ch);
+            arch_irq_restore(prev_irq);
+            if (ok) {
+                break;
+            }
         }
     } else {
-        while (self->rxint == false) {
+        wait_lsr_ready_to_send(self);
+        write_data(self, ch);
+    }
+}
+
+static char wait_and_recv(struct archi586_serial *self) {
+    if (!is_ready_to_recv(self) && should_use_irq(self)) {
+        while (1) {
+            char ch;
+            ARCH_IRQSTATE prev_irq = arch_irq_disable();
+            bool ok = QUEUE_DEQUEUE(&ch, &self->rx_queue);
+            arch_irq_restore(prev_irq);
+            if (ok) {
+                return ch;
+            }
         }
-        self->rxint = false;
+    } else {
+        wait_lsr_ready_to_recv(self);
+        return read_data(self);
     }
 }
 
@@ -174,7 +206,7 @@ static int run_loopback_test(struct archi586_serial *self) {
         arch_iodelay();
         waited_counter += 2;
     }
-    uint8_t got = readdata(self);
+    uint8_t got = read_data(self);
     bool test_ok = got == expected;
     if (!test_ok) {
         co_printf("serial: loopback test failed: expected %#x, got %#x\n", expected, got);
@@ -196,14 +228,12 @@ static int run_loopback_test(struct archi586_serial *self) {
                 cport->cr = true;
             }
             if ((c == '\n') && !(cport->cr)) {
-                wait_ready_to_send(cport);
-                write_data(cport, '\r');
+                wait_and_send(cport, '\r');
                 cport->cr = false;
             }
         }
 
-        wait_ready_to_send(cport);
-        write_data(cport, c);
+        wait_and_send(cport, c);
     }
     return (ssize_t)size;
 }
@@ -211,8 +241,7 @@ static int run_loopback_test(struct archi586_serial *self) {
 [[nodiscard]] static ssize_t stream_op_read(struct stream *self, void *buf, size_t size) {
     assert(size <= STREAM_MAX_TRANSFER_SIZE);
     for (size_t idx = 0; idx < size; idx++) {
-        wait_ready_to_recv(self->data);
-        ((uint8_t *)buf)[idx] = readdata(self->data);
+        ((uint8_t *)buf)[idx] = wait_and_recv(self->data);
     }
     return (ssize_t)size;
 }
@@ -230,12 +259,22 @@ static void irq_handler(int irqnum, void *data) {
     (void)ier;
     (void)lsr;
     switch (iir & (0x3U << 1)) {
-    case 0x1 << 1:
-        self->txint = true;
+    case 0x1 << 1: {
+        char data;
+        while (1) {
+            [[maybe_unused]] bool ok = QUEUE_DEQUEUE(&data, &self->tx_queue);
+            if (!ok) {
+                break;
+            }
+            write_data(self, data);
+        }
         break;
-    case 0x2 << 1:
-        self->rxint = true;
+    }
+    case 0x2 << 1: {
+        char data = read_data(self);
+        [[maybe_unused]] bool ok = QUEUE_ENQUEUE(&self->rx_queue, &data);
         break;
+    }
     default:
         break;
     }
@@ -269,6 +308,8 @@ static void irq_handler(int irqnum, void *data) {
 }
 
 void archi586_serial_use_irq(struct archi586_serial *self) {
+    QUEUE_INIT_FOR_ARRAY(&self->rx_queue, self->rx_queue_buf);
+    QUEUE_INIT_FOR_ARRAY(&self->tx_queue, self->tx_queue_buf);
     archi586_pic_register_handler(&self->irqhandler, self->irq, irq_handler, self);
     archi586_pic_unmask_irq(self->irq);
     write_ier(self, 0x3); /* Transmit and Receive interrupts */
@@ -276,7 +317,7 @@ void archi586_serial_use_irq(struct archi586_serial *self) {
     uint8_t mcr = read_reg(self, REG_MCR);
     mcr |= MCR_FLAG_OUT2;
     write_reg(self, REG_MCR, mcr);
-    self->useirq = true;
+    self->use_irq = true;
 }
 
 [[nodiscard]] int archi586_serial_init_iodev(struct archi586_serial *self) {
