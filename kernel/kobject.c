@@ -12,6 +12,7 @@ struct kobject {
     struct kobject *parent;
     struct kobject_ops const *ops;
     struct list child_list;
+    uint32_t type;
     char *id;
     size_t ref_count;
     struct list_node list_node;
@@ -20,11 +21,12 @@ struct kobject {
 
 const struct kobject_ops KOBJECT_OPS_EMPTY;
 
-int kobject_create(struct kobject **obj_out, char const *id, size_t data_size, struct kobject_ops const *ops) {
+int kobject_create(struct kobject **obj_out, uint32_t type, char const *id, size_t data_size, struct kobject_ops const *ops) {
     struct kobject *obj = heap_alloc(sizeof(*obj) + data_size, HEAP_FLAG_ZEROMEMORY);
     if (obj == nullptr) {
         goto fail;
     }
+    obj->type = type;
     if (id != nullptr) {
         /* Use provided ID. In this case, ID cannot start with 0(reserved for numeric IDs) */
         obj->id = strdup(id);
@@ -118,9 +120,7 @@ int kobject_set_parent(struct kobject *obj, struct kobject *parent) {
     list_insert_back(&parent->child_list, &obj->list_node, obj);
     return 0;
 }
-struct kobject *kobject_get_parent(struct kobject *obj) {
-    return obj->parent;
-}
+
 void kobject_ref(struct kobject *obj) {
     if (obj == nullptr) {
         return;
@@ -152,11 +152,17 @@ void kobject_unref(struct kobject *obj) {
 void *kobject_get_data(struct kobject *obj) {
     return obj->data;
 }
-char const *kobject_get_id(struct kobject *obj) {
+char const *kobject_get_id(struct kobject const *obj) {
     return obj->id;
 }
+struct kobject *kobject_get_parent(struct kobject const *obj) {
+    return obj->parent;
+}
+bool kobject_check_type(struct kobject const *obj, uint32_t type) {
+    return obj->type == type;
+}
 
-static void print_tree(struct kobject *obj, int indent) {
+static void print_tree(struct kobject const *obj, int indent) {
     if (obj == nullptr) {
         return;
     }
@@ -173,6 +179,6 @@ static void print_tree(struct kobject *obj, int indent) {
         print_tree(obj, indent + 4);
     };
 }
-void kobject_print_tree(struct kobject *obj) {
+void kobject_print_tree(struct kobject const *obj) {
     print_tree(obj, 0);
 }
