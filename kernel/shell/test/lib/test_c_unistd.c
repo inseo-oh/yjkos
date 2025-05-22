@@ -25,12 +25,12 @@ static bool do_getopt(void) {
     argv[3] = "-alove";
     TEST_EXPECT(getopt(4, argv, options) == 'a');
     TEST_EXPECT(optind == 4);
-    TEST_EXPECT(str_cmp(optarg, "love") == 0);
+    TEST_EXPECT(kstrcmp(optarg, "love") == 0);
     argv[4] = "-a";
     argv[5] = "daisuki";
     TEST_EXPECT(getopt(6, argv, options) == 'a');
     TEST_EXPECT(optind == 6);
-    TEST_EXPECT(str_cmp(optarg, "daisuki") == 0);
+    TEST_EXPECT(kstrcmp(optarg, "daisuki") == 0);
     argv[6] = "-z";
     TEST_EXPECT(getopt(7, argv, options) == '?');
     TEST_EXPECT(optind == 7);
@@ -63,12 +63,12 @@ static bool do_getopt_stderr(void) {
     argv[3] = "-alove";
     TEST_EXPECT(getopt(4, argv, options) == 'a');
     TEST_EXPECT(optind == 4);
-    TEST_EXPECT(str_cmp(optarg, "love") == 0);
+    TEST_EXPECT(kstrcmp(optarg, "love") == 0);
     argv[4] = "-a";
     argv[5] = "daisuki";
     TEST_EXPECT(getopt(6, argv, options) == 'a');
     TEST_EXPECT(optind == 6);
-    TEST_EXPECT(str_cmp(optarg, "daisuki") == 0);
+    TEST_EXPECT(kstrcmp(optarg, "daisuki") == 0);
     argv[6] = "-z";
     TEST_EXPECT(getopt(7, argv, options) == '?');
     TEST_EXPECT(optind == 7);
@@ -94,7 +94,7 @@ static bool do_getopt_nonflag(void) {
     };
     optind = 1;
     TEST_EXPECT(getopt(ARGC, argv, options) == 's');
-    TEST_EXPECT(str_cmp(optarg, "kokona") == 0);
+    TEST_EXPECT(kstrcmp(optarg, "kokona") == 0);
     TEST_EXPECT(getopt(ARGC, argv, options) == -1);
     TEST_EXPECT(optind == 3);
     optind++;

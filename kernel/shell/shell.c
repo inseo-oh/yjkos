@@ -144,7 +144,7 @@ static int cmd_exec(union shellcmd const *cmd) {
         struct shell_program *program_to_run = NULL;
         LIST_FOREACH(&s_programs, programnode) {
             struct shell_program *program = programnode->data;
-            if (str_cmp(program->name, cmd->runprogram.argv[0]) == 0) {
+            if (kstrcmp(program->name, cmd->runprogram.argv[0]) == 0) {
                 program_to_run = program;
                 break;
             }

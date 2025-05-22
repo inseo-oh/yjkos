@@ -882,7 +882,7 @@ static void closefile(struct ino_context *self) {
                 break;
             }
             current_ino = ent.d_ino;
-            if (str_cmp(name, ent.d_name) == 0) {
+            if (kstrcmp(name, ent.d_name) == 0) {
                 ret = 0;
                 break;
             }

@@ -1,4 +1,5 @@
 #include "fs/fsinit.h"
+#include "kernel/kobject.h"
 #include "shell/shell.h"
 #include "windowd.h"
 #include <kernel/dev/pci.h>
@@ -13,7 +14,7 @@
 #include <kernel/version.h>
 #include <stdalign.h>
 
-
+struct kobject_ops test_ops;
 
 [[noreturn]] void kernel_init(void) {
     co_printf("\nYJK Operating System " YJKOS_RELEASE "-" YJKOS_VERSION "\n");
@@ -36,6 +37,22 @@
 
     windowd_start();
     co_ask_primary_console();
+
+    [[maybe_unused]] int ret_unused;
+    struct kobject *root, *new1, *new2, *new3_auto;
+    ret_unused = kobject_create(&root, "root_object", 0, &test_ops);
+    co_printf("object created [%s]\n", kobject_get_id(root));
+    ret_unused = kobject_create(&new1, "new_object_1", 0, &test_ops);
+    ret_unused = kobject_create(&new2, "new_object_2", 0, &test_ops);
+    ret_unused = kobject_set_parent(new1, root);
+    ret_unused = kobject_set_parent(new2, root);
+    /* Add objects with auto-generated IDs */
+    for (int i = 0; i < 100; i++) {
+        ret_unused = kobject_create(&new3_auto, NULL, 0, &test_ops);
+        ret_unused = kobject_set_parent(new3_auto, new2);
+    }
+
+    kobject_print_tree(root);
 
     co_printf("\n :: system is ready for use. Use keyboard to type commands.\n");
     while (1) {

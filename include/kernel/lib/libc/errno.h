@@ -7,6 +7,7 @@
 #define EBADF 9         /* Bad filr descriptor */
 #define ENOMEM 12       /* Not enough space */
 #define EFAULT 14       /* Bad address */
+#define EEXIST 17       /* File exists */
 #define ENODEV 19       /* No such device */
 #define ENOTDIR 20      /* Not a directory */
 #define EISDIR 21       /* Is a directory */

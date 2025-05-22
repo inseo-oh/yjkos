@@ -78,8 +78,8 @@ static int format(char *buf, size_t size, struct entry const *ent, struct opts c
 
 static bool should_hide_dirent(struct dirent *ent, struct opts const *opts) {
     if (!opts->all || opts->all_alt) {
-        if ((str_cmp(ent->d_name, ".") == 0) ||
-            str_cmp(ent->d_name, "..") == 0) {
+        if ((kstrcmp(ent->d_name, ".") == 0) ||
+            kstrcmp(ent->d_name, "..") == 0) {
             return true;
         }
     }

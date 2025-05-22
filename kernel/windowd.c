@@ -86,7 +86,7 @@ static void proto_send_card32(struct connection *conn, uint32_t val) {
 }
 
 static void proto_send_string8(struct connection *conn, char const *str, size_t len) {
-    assert(str_len(str) <= len);
+    assert(kstrlen(str) <= len);
     for (size_t i = 0; i < len; i++) {
         proto_send_card8(conn, str[i]);
     }
@@ -185,7 +185,7 @@ oom:
 }
 
 static void proto_send_connection_refuse(struct connection *conn, char const *reason, uint16_t protocol_major_version, uint16_t protocol_minor_version) {
-    size_t n = str_len(reason);
+    size_t n = kstrlen(reason);
     assert(n <= 255);
     size_t p = proto_pad(n);
     proto_send_card8(conn, 0); /* Failed */
@@ -199,7 +199,7 @@ static void proto_send_connection_refuse(struct connection *conn, char const *re
 
 static void proto_send_connection_accept(struct connection *conn, uint16_t protocol_major_version, uint16_t protocol_minor_version, uint32_t release_number, size_t formats_len, char const *vendor, size_t screens_len) {
     size_t n = formats_len;
-    size_t v = str_len(vendor);
+    size_t v = kstrlen(vendor);
     size_t m = screens_len;
     size_t p = proto_pad(v);
     proto_send_card8(conn, 1); /* Success */

@@ -3,11 +3,11 @@
 
 /* https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/string.h.html */
 
-size_t str_len(char const *s);
-int str_cmp(char const *s1, char const *s2);
-int str_cmp_up_to(char const *s1, char const *s2, size_t n);
-char *str_find_char(char const *s, int c);
-char *str_find_char_rev(char const *s, int c);
+size_t kstrlen(char const *s);
+int kstrcmp(char const *s1, char const *s2);
+int kstrncmp(char const *s1, char const *s2, size_t n);
+char *kstrchr(char const *s, int c);
+char *kstrrchr(char const *s, int c);
 void vmemset(void *s, int c, size_t n);
 void vmemcpy(void *restrict dest, const void *restrict src, size_t n);
 void vmemcpy32(void *restrict s1, const void *restrict s2, size_t n);
@@ -28,4 +28,3 @@ bool smatcher_consume_str_if_match(struct smatcher *self, char const *str);
 bool smatcher_consume_word_if_match(struct smatcher *self, char const *str);
 void smatcher_skip_whitespaces(struct smatcher *self);
 bool smatcher_consume_word(char const **str_out, size_t *len_out, struct smatcher *self);
-

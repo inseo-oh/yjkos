@@ -23,7 +23,7 @@ static struct list s_iodevtypes;
 static struct iodevtype *getiodevtypefor(char const *devtype) {
     LIST_FOREACH(&s_iodevtypes, typenode) {
         struct iodevtype *type = typenode->data;
-        if (str_cmp(devtype, type->name) == 0) {
+        if (kstrcmp(devtype, type->name) == 0) {
             return type;
         }
     }

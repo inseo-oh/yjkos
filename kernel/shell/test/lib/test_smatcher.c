@@ -62,11 +62,11 @@ static bool do_consume_word(void) {
     struct smatcher smatcher;
     smatcher_init_with_len(&smatcher, "hello worldpeopleguy", 17);
     TEST_EXPECT(smatcher_consume_word(&str, &len, &smatcher) == true);
-    TEST_EXPECT(str_cmp_up_to(str, "hello", len) == 0);
+    TEST_EXPECT(kstrncmp(str, "hello", len) == 0);
     TEST_EXPECT(smatcher_consume_word(&str, &len, &smatcher) == false);
     smatcher_skip_whitespaces(&smatcher);
     TEST_EXPECT(smatcher_consume_word(&str, &len, &smatcher) == true);
-    TEST_EXPECT(str_cmp_up_to(str, "worldpeople", len) == 0);
+    TEST_EXPECT(kstrncmp(str, "worldpeople", len) == 0);
     TEST_EXPECT(smatcher_consume_word(&str, &len, &smatcher) == false);
 
     return true;

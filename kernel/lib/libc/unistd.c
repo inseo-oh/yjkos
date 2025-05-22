@@ -77,10 +77,10 @@ int getopt(int argc, char *const argv[], const char *optstring) {
     }
     int result_opt = '?';
     char *arg = argv[optind];
-    if ((arg == NULL) || (*arg != '-') || (str_cmp(arg, "-") == 0)) {
+    if ((arg == NULL) || (*arg != '-') || (kstrcmp(arg, "-") == 0)) {
         return -1;
     }
-    if (str_cmp(arg, "--") == 0) {
+    if (kstrcmp(arg, "--") == 0) {
         getopt_nextarg();
         return -1;
     }

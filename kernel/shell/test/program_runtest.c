@@ -86,7 +86,7 @@ static int program_main(int argc, char *argv[]) {
         notests = false;
         struct test_group const *group = NULL;
         for (size_t j = 0; j < sizeof(TEST_GROUPS) / sizeof(void *); j++) {
-            if (str_cmp(argv[i], TEST_GROUPS[j]->name) == 0) {
+            if (kstrcmp(argv[i], TEST_GROUPS[j]->name) == 0) {
                 group = TEST_GROUPS[j];
             }
         }
